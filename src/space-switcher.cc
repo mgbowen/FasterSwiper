@@ -162,8 +162,8 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
         VLOG_EVERY_N_SEC(1, 0.1)
             << "SetPosition: waiting for gesture commit...";
 
-        const bool is_animating = CGSManagedDisplayIsAnimating(
-            CGSMainConnectionID(), space_state_.display_id());
+        const bool is_animating = SLSManagedDisplayIsAnimating(
+            SLSMainConnectionID(), space_state_.display_id());
         if (!is_animating) {
           const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
           VLOG(1) << "SetPosition: commit took " << commit_latency_ns / 1e6

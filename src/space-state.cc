@@ -55,8 +55,8 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
     return absl::InternalError("No displays found under mouse");
   }
 
-  int cid = CGSMainConnectionID();
-  auto display_info_dict = WrapCFUnique(CGSCopyManagedDisplaySpaces(cid));
+  int cid = SLSMainConnectionID();
+  auto display_info_dict = WrapCFUnique(SLSCopyManagedDisplaySpaces(cid));
   if (!display_info_dict)
     return absl::InternalError("Failed to load managed display spaces.");
 
