@@ -35,7 +35,7 @@ reports a path under `/Applications`:
 Then, you can build and run the app in Terminal:
 
 ```bash
-bazel run -c opt //src/app:FasterSwiperApp
+bazel run -c opt //src/app:FasterSwiper
 ```
 
 ## Permissions
