@@ -15,17 +15,35 @@ FasterSwiper uses Bazel. Install Bazelisk with
 brew install bazelisk
 ```
 
-Make sure you set up Xcode:
+Install [the full version of Xcode](https://developer.apple.com/xcode/), the
+command-line tools are not supported by Bazel. Ensure that `xcode-select`
+reports a path under `/Applications`:
 
 ```bash
-xcode-select --install
+% xcode-select -p
+/Applications/Xcode.app/Contents/Developer
 ```
 
-Then, you can build and run this app in Terminal:
+> [!TIP]
+> If you ran `bazel run` or `bazel build` before installing the full version of
+> Xcode, you may need to clean up Bazel's cache before builds will succeed:
+>
+> ```bash
+> bazel clean --expunge
+> ```
+
+Then, you can build and run the app in Terminal:
 
 ```bash
 bazel run -c opt //src/app:FasterSwiperApp
 ```
+
+## Permissions
+
+FasterSwiper requires accessibility permissions to function. You can grant those
+permissions by going to Settings → Privacy & Security → Accessibility and adding
+the `.app` file. If you use `bazel run`, you should grant permissions to
+`Terminal.app`.
 
 ## Contributing
 
