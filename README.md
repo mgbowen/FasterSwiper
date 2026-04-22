@@ -1,7 +1,7 @@
 # FasterSwiper
 
 A small utility for macOS that allows one to customize the type and speed of
-swiping between spaces.
+swiping animations when moving between spaces.
 
 ## Building
 
