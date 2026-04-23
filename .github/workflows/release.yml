@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
     outputs:
       artifact-name: ${{ steps.package.outputs.artifact_name }}
     steps:
@@ -25,6 +25,7 @@ jobs:
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
         with:
+          disk-cache: true
           repository-cache: true
 
       - name: Build App
