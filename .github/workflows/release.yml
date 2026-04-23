@@ -55,7 +55,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.artifact_name }}
-          path: FasterSwiper.dmg
+          path: dist/FasterSwiper.dmg
           retention-days: 1
 
   release:
