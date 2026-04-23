@@ -1,0 +1,79 @@
+name: Build .app
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0
+
+jobs:
+  build:
+    runs-on: macos-latest
+    outputs:
+      artifact-name: ${{ steps.package.outputs.artifact_name }}
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@v6
+    
+      - name: Checkout create-dmg
+        uses: actions/checkout@v6
+        with:
+          repository: create-dmg/create-dmg
+          ref: 994a036532d3ac1bb1cd5a425a0d5d796ecbed83
+          path: create-dmg
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+        with:
+          repository-cache: true
+
+      - name: Build App
+        run: |
+          build_opts='--compilation_mode=opt //src/app:FasterSwiper'
+          bazel build $build_opts
+          APP_ZIP_PATH=$(bazel cquery --output=files $build_opts)
+          echo "APP_ZIP_PATH=$APP_ZIP_PATH" >> $GITHUB_ENV
+
+      - name: Create DMG
+        id: package
+        run: |
+          mkdir dist
+          unzip "${{ env.APP_ZIP_PATH }}" -d dist
+          create-dmg/create-dmg \
+            --volname FasterSwiper \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon "FasterSwiper.app" 0 0 \
+            --icon-size 64 \
+            --app-drop-link 200 0 \
+            --hide-extension FasterSwiper.app \
+            dist/FasterSwiper.dmg \
+            dist/FasterSwiper.app
+          echo "artifact_name=FasterSwiper.dmg" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: FasterSwiper.dmg
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+
+      - name: Prepare Release Asset
+        run: |
+          mv FasterSwiper.dmg FasterSwiper-${{ github.ref_name }}.dmg
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: FasterSwiper-${{ github.ref_name }}.dmg
+          generate_release_notes: true
