@@ -34,6 +34,9 @@ bool StartFasterSwiper(FasterSwiper *state);
 // Stops FasterSwiper. Returns true on success, false otherwise.
 bool StopFasterSwiper(FasterSwiper *state);
 
+// Parses Abseil command line flags from the given argc and argv.
+void ParseFasterSwiperCommandLine(int argc, char **argv);
+
 #ifdef __cplusplus
 }
 #endif

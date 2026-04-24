@@ -21,5 +21,8 @@ macos_application(
     bundle_id = "com.mgbowen.FasterSwiper",
     infoplists = ["Info.plist"],
     minimum_os_version = "26.0",
-    deps = [":FasterSwiper_lib"],
+    deps = [
+        ":FasterSwiper_lib",
+        "@abseil-cpp//absl/log:flags",
+    ],
 )

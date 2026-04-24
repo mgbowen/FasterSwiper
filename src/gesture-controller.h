@@ -2,8 +2,10 @@
 
 #include "src/event.h"
 #include "src/swipe-animator.h"
+#include "src/channel.h"
 
 #include <memory>
+#include <thread>
 
 namespace fasterswiper {
 
@@ -19,7 +21,7 @@ public:
   GestureController() : GestureController(Options{}) {}
   explicit GestureController(Options options);
 
-  ~GestureController() = default;
+  ~GestureController();
 
   // Non-copyable, non-movable.
   GestureController(const GestureController &) = delete;
@@ -33,14 +35,16 @@ public:
 private:
   const Options options_;
 
+  std::thread event_processor_thread_;
+  Channel<DockSwipeEvent> channel_{1024};
   std::unique_ptr<SwipeAnimator> animator_;
   int64_t initial_position_ = 0;
   int64_t target_position_ = 0;
   std::future<void> active_animation_future_;
 
-  absl::StatusOr<CGEventRef> TryHandleEvent(CGEventTapProxy proxy,
-                                            CGEventType event_type,
-                                            CGEventRef event);
+  void EventProcessorThread();
+
+
   absl::Status HandleBeginGesture();
   absl::Status HandleChangeGesture(const DockSwipeEvent &swipe_event);
   absl::Status HandleEndGesture(const DockSwipeEvent &swipe_event);

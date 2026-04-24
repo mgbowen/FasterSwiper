@@ -17,15 +17,16 @@ int64_t RoundNanopositions(double val) {
 
 } // namespace
 
-SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id, CFIndex index,
-                       CFIndex count)
+SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
+                       std::vector<int64_t> space_ids, CFIndex index)
     : SpaceState(static_cast<CFSharedPtr<CFStringRef>>(std::move(display_id)),
-                 index, count) {}
+                 std::move(space_ids), index) {}
 
-SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id, CFIndex index,
-                       CFIndex count)
-    : display_id_(std::move(display_id)), index_(index), count_(count),
-      unit_factor_(static_cast<double>(count_) / (count_ - 1)) {}
+SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
+                       std::vector<int64_t> space_ids, CFIndex index)
+    : display_id_(std::move(display_id)), space_ids_(std::move(space_ids)),
+      index_(index),
+      unit_factor_(static_cast<double>(count()) / (count() - 1)) {}
 
 int64_t SpaceState::ProgressToSwipes(double progress) const {
   return RoundNanopositions(progress / unit_factor_ * OneSwipeInNanoswipes);
@@ -109,6 +110,9 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
       continue;
     }
 
+    std::vector<int64_t> space_ids;
+    std::optional<int64_t> index;
+
     CFIndex count = CFArrayGetCount(spaces);
     for (CFIndex j = 0; j < count; j++) {
       auto space =
@@ -121,13 +125,19 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
 
       int64_t space_id;
       CFNumberGetValue(space_id_ref, kCFNumberSInt64Type, &space_id);
+      space_ids.push_back(space_id);
+
       if (static_cast<uint64_t>(space_id) == active_space_id) {
         // Found the active space, retain the display ID so it isn't released
         // when we return.
         CFRetain(raw_display_id);
-        return SpaceState(WrapCFUnique(raw_display_id), /*index=*/j,
-                          /*count=*/count);
+        index = j;
       }
+    }
+
+    if (index.has_value()) {
+      return SpaceState(WrapCFUnique(raw_display_id), std::move(space_ids),
+                        /*index=*/*index);
     }
   }
 

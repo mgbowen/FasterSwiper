@@ -9,7 +9,7 @@ namespace fasterswiper {
 absl::StatusOr<std::unique_ptr<EventTapManager>>
 EventTapManager::Create(CGEventTapLocation tap, CGEventTapPlacement place,
                         CGEventTapOptions options,
-                        std::vector<int> eventTypesOfInterest,
+                        std::vector<uint64_t> eventTypesOfInterest,
                         Callback callback) {
   auto result = absl::WrapUnique(new EventTapManager());
   result->callback_ = std::move(callback);

@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +13,7 @@ cc_library(
         ":event-tap-manager",
         ":gesture-controller",
         ":macos-private",
+        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/synchronization",
@@ -29,6 +30,31 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "channel",
+    hdrs = ["channel.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "channel_test",
+    srcs = ["channel_test.cc"],
+    deps = [
+        ":channel",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -75,6 +101,7 @@ cc_library(
     srcs = ["gesture-controller.cc"],
     hdrs = ["gesture-controller.h"],
     deps = [
+        ":channel",
         ":event",
         ":macos-private",
         ":space-state",
@@ -118,6 +145,7 @@ cc_library(
         ":cf-util",
         ":const",
         ":macos-private",
+        ":string-util",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status",
@@ -137,6 +165,7 @@ cc_library(
         ":macos-private",
         ":periodic-timer",
         ":space-state",
+        ":string-util",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -166,6 +195,14 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "string-util",
+    hdrs = ["string-util.h"],
+    deps = [
+        "@abseil-cpp//absl/strings",
     ],
 )
 

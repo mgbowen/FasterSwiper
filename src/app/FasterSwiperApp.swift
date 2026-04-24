@@ -18,6 +18,10 @@ struct FasterSwiperApp: App {
     @StateObject private var controller = FasterSwiperController()
     @Environment(\.openSettings) private var openSettings
 
+    init() {
+        ParseFasterSwiperCommandLine(CommandLine.argc, CommandLine.unsafeArgv)
+    }
+
     var body: some Scene {
         MenuBarExtra("FasterSwiper", systemImage: "macwindow.on.rectangle") {
             statusItem

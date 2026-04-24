@@ -9,6 +9,7 @@
 
 #include <cfloat>
 #include <limits>
+#include <optional>
 #include <thread>
 #include <variant>
 
@@ -22,18 +23,19 @@ namespace fasterswiper {
 
 namespace {
 
-constexpr double kProgressEpsilon = 0.000001;
+constexpr double kEpsilon = FLT_TRUE_MIN;
 
 }
 
 SpaceSwitcher::SpaceSwitcher(SpaceState space_state)
-    : space_state_(std::move(space_state)) {
+    : space_state_(std::move(space_state)),
+      state_(States::Idle(space_state_.space_ids()[space_state_.index()])) {
   current_position_ = space_state_.index() * OneSwipeInNanoswipes;
 }
 
 SpaceSwitcher::~SpaceSwitcher() {
   if (const auto *active_state = std::get_if<States::Active>(&state_)) {
-    SetPosition(active_state->origin_position);
+    SetPosition(active_state->origin_position());
   }
 }
 
@@ -155,31 +157,12 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
   while (current_position_ != new_position) {
     const bool is_moving_right = new_position > current_position_;
 
-    if (std::holds_alternative<States::PendingCommit>(state_)) {
-      // Wait for the commit to complete.
-      const int64_t start_time = UptimeInNanoseconds();
-      while (true) {
-        VLOG_EVERY_N_SEC(1, 0.1)
-            << "SetPosition: waiting for gesture commit...";
+    WaitForPendingCommit();
 
-        const bool is_animating = SLSManagedDisplayIsAnimating(
-            SLSMainConnectionID(), space_state_.display_id());
-        if (!is_animating) {
-          const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
-          VLOG(1) << "SetPosition: commit took " << commit_latency_ns / 1e6
-                  << "ms";
-          SetState(States::Idle{});
-          break;
-        }
-
-        std::this_thread::yield();
-      }
-    }
-
-    if (std::holds_alternative<States::Idle>(state_)) {
-      PostGestureEvent(kGestureBegan,
-                       is_moving_right ? kProgressEpsilon : -kProgressEpsilon);
-      SetState(States::Active(/*origin_position=*/current_position_));
+    if (auto idle_state = std::get_if<States::Idle>(&state_)) {
+      PostGestureEvent(kGestureBegan, is_moving_right ? kEpsilon : -kEpsilon);
+      SetState(States::Active(
+          /*origin_position=*/current_position_, idle_state->space_id()));
     }
 
     const auto &gesture_active = std::get<States::Active>(state_);
@@ -204,7 +187,7 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
             ? next_boundary
             : new_position;
     const int64_t distance_from_origin =
-        target_position - gesture_active.origin_position;
+        target_position - gesture_active.origin_position();
     const double progress_from_origin =
         space_state_.SwipesToProgress(distance_from_origin);
 
@@ -228,9 +211,10 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
       // cancelling a gesture indicates they want to return to the space they
       // were at when they started the gesture.
       const int64_t origin_to_current_position_sign =
-          Sign(current_position_ <=> gesture_active.origin_position);
+          Sign(current_position_ <=> gesture_active.origin_position());
       const int64_t current_to_new_position_sign =
           Sign(new_position <=> current_position_);
+
       const bool is_rubberbanding =
           (current_position_ < soft_min && current_to_new_position_sign > 0) ||
           (current_position_ > soft_max && current_to_new_position_sign < 0);
@@ -241,20 +225,28 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
               << current_to_new_position_sign
               << ", is_rubberbanding=" << is_rubberbanding;
 
-      if (origin_to_current_position_sign == 0 ||
-          origin_to_current_position_sign == current_to_new_position_sign) {
+      bool should_wait_for_space_transition = false;
+      if (origin_to_current_position_sign == 0) {
+        // Instant switch to an adjacent space.
+        PostGestureEvent(kGestureChanged,
+                         kEpsilon * current_to_new_position_sign);
+        PostGestureEvent(kGestureEnded, kEpsilon * current_to_new_position_sign,
+                         2000 * current_to_new_position_sign);
+        should_wait_for_space_transition = true;
+      } else if (origin_to_current_position_sign ==
+                 current_to_new_position_sign) {
         // Moving away from the gesture origin.
         const double transitory_progress =
-            progress_from_origin -
-            (kProgressEpsilon * origin_to_current_position_sign);
+            progress_from_origin - (kEpsilon * origin_to_current_position_sign);
         PostGestureEvent(kGestureChanged, transitory_progress);
-        PostGestureEvent(kGestureEnded, progress_from_origin,
-                         kProgressEpsilon * current_to_new_position_sign);
+
+        const double velocity = kEpsilon * current_to_new_position_sign;
+        PostGestureEvent(kGestureEnded, transitory_progress, velocity);
+        should_wait_for_space_transition = true;
       } else {
         // Moving towards the gesture origin.
         const double transitory_progress =
-            progress_from_origin -
-            (kProgressEpsilon * current_to_new_position_sign);
+            progress_from_origin - (kEpsilon * current_to_new_position_sign);
         PostGestureEvent(kGestureChanged, transitory_progress);
 
         // Velocity is based on the direction a hand would be moving to cause
@@ -264,19 +256,81 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
         // we're at the soft min and the hand is moving left, the space movement
         // will initially be left, but when the hand lets go, the space will
         // move right to go back to the soft min.
-        const double velocity =
-            (is_rubberbanding ? -FLT_TRUE_MIN : FLT_TRUE_MIN) *
-            current_to_new_position_sign;
-        PostGestureEvent(kGestureCancelled, progress_from_origin, velocity);
+        const double velocity = (is_rubberbanding ? -kEpsilon : kEpsilon) *
+                                current_to_new_position_sign;
+        PostGestureEvent(kGestureCancelled, transitory_progress, velocity);
       }
 
-      SetState(States::PendingCommit());
+      if (is_rubberbanding) {
+        should_wait_for_space_transition = false;
+      }
+
+      SetState(States::PendingCommit(space_state_.display_id(),
+                                     gesture_active.original_space_id(),
+                                     should_wait_for_space_transition));
     } else {
       PostGestureEvent(kGestureChanged, progress_from_origin);
     }
 
     current_position_ = target_position;
   }
+}
+
+void SpaceSwitcher::WaitForPendingCommit() {
+  const auto *maybe_pending_commit =
+      std::get_if<States::PendingCommit>(&state_);
+  if (maybe_pending_commit == nullptr) {
+    return;
+  }
+
+  const States::PendingCommit &pending_commit = *maybe_pending_commit;
+
+  const int cid = SLSMainConnectionID();
+  const CFSharedPtr<CFStringRef> display_id = pending_commit.display_id();
+  int64_t new_space_id = 0;
+
+  const int64_t start_time = UptimeInNanoseconds();
+  const int64_t deadline =
+      start_time + absl::ToInt64Nanoseconds(absl::Milliseconds(250));
+  while (UptimeInNanoseconds() < deadline) {
+    const bool is_done_animating =
+        !SLSManagedDisplayIsAnimating(cid, display_id.get());
+    new_space_id = SLSManagedDisplayGetCurrentSpace(cid, display_id.get());
+
+    bool space_id_changed;
+    if (pending_commit.wait_for_space_transition()) {
+      space_id_changed = new_space_id != pending_commit.original_space_id();
+    } else {
+      space_id_changed = true;
+    }
+
+    if (is_done_animating && space_id_changed) {
+      const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
+      DVLOG(1) << "WaitForPendingCommit: commit took "
+               << commit_latency_ns / 1e6 << "ms";
+      break;
+    }
+
+#ifndef NDEBUG
+    VLOG_EVERY_N_SEC(1, 0.1)
+        << "WaitForPendingCommit: waiting for gesture commit "
+           "(is_done_animating="
+        << is_done_animating
+        << ", original_space_id=" << pending_commit.original_space_id()
+        << ", space_id_changed=" << space_id_changed << ")";
+#endif
+
+    std::this_thread::yield();
+  }
+
+  if (UptimeInNanoseconds() >= deadline) {
+    LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
+  }
+
+  DVLOG(1) << "WaitForPendingCommit: done waiting, original_space_id="
+           << pending_commit.original_space_id()
+           << ", new_space_id=" << new_space_id;
+  SetState(States::Idle{new_space_id});
 }
 
 } // namespace fasterswiper

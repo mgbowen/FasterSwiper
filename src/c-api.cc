@@ -12,6 +12,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOTypes.h>
 
+#include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
@@ -132,5 +133,9 @@ bool StopFasterSwiper(FasterSwiper *state) {
   state->is_running = false;
 
   return true;
+}
+
+void ParseFasterSwiperCommandLine(int argc, char **argv) {
+  absl::ParseCommandLine(argc, argv);
 }
 }

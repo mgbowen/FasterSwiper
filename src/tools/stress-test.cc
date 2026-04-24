@@ -1,3 +1,4 @@
+#include "src/easing-functions.h"
 #include "src/event-tap-manager.h"
 #include "src/space-state.h"
 #include "src/swipe-animator.h"
@@ -49,23 +50,22 @@ int main(int argc, char *argv[]) {
     auto animator = std::make_unique<SwipeAnimator>(
         std::make_unique<SpaceSwitcher>(std::move(*maybe_space_state)));
 
-    const auto [soft_min, soft_max] = animator->position_soft_limit();
-
-    constexpr auto duration = absl::Milliseconds(1000);
+    constexpr auto easing_function = kEasingFunctionLinear;
+    constexpr auto duration = absl::Milliseconds(200);
 
     while (true) {
       auto future = animator->AnimateToPosition({
-          .target_position = 5'000'000,
+          .target_position = 4'000'000,
           .duration = duration,
-          .easing_function = GetEasingFunction(kEasingFunctionEaseOutQuadratic),
-          .ticks_per_second = 120,
+          .easing_function = GetEasingFunction(easing_function),
+          .ticks_per_second = 240,
       });
       future.wait();
       auto future2 = animator->AnimateToPosition({
-          .target_position = 2'000'000,
+          .target_position = 0'000'000,
           .duration = duration,
-          .easing_function = GetEasingFunction(kEasingFunctionEaseOutQuadratic),
-          .ticks_per_second = 120,
+          .easing_function = GetEasingFunction(easing_function),
+          .ticks_per_second = 240,
       });
       future2.wait();
     }

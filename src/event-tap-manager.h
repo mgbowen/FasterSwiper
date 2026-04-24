@@ -18,7 +18,7 @@ public:
 
   static absl::StatusOr<std::unique_ptr<EventTapManager>>
   Create(CGEventTapLocation tap, CGEventTapPlacement place,
-         CGEventTapOptions options, std::vector<int> eventTypesOfInterest,
+         CGEventTapOptions options, std::vector<uint64_t> eventTypesOfInterest,
          Callback callback);
 
   CFMachPortRef get() const { return raw_tap_.get(); }

@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -53,21 +53,7 @@ cc_binary(
         "//src:macos-private",
         "//src:swipe-animator",
         "@abseil-cpp//absl/flags:parse",
-    ],
-)
-
-cc_binary(
-    name = "swipe-animator-test",
-    srcs = ["swipe-animator-test.cc"],
-    deps = [
-        "//src:c-api",
-        "//src:cf-util",
-        "//src:easing-functions",
-        "//src:swipe-animator",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log:flags",
-        "@abseil-cpp//absl/strings",
     ],
 )
 

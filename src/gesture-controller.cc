@@ -18,54 +18,64 @@ GestureController::GestureController(Options options)
     : options_(std::move(options)) {
   CHECK(GetEasingFunction(options_.easing_function_type) != nullptr)
       << "Invalid easing function type: " << options_.easing_function_type;
+
+  event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
+}
+
+GestureController::~GestureController() {
+  channel_.CloseWriter();
+  if (event_processor_thread_.joinable()) {
+    event_processor_thread_.join();
+  }
+}
+
+void GestureController::EventProcessorThread() {
+  while (true) {
+    absl::StatusOr<DockSwipeEvent> event = channel_.Read();
+    if (!event.ok()) {
+      break;
+    }
+
+    absl::Status status = absl::OkStatus();
+    if (event->phase == kGestureBegan) {
+      status = HandleBeginGesture();
+    } else if (event->phase == kGestureChanged) {
+      status = HandleChangeGesture(*event);
+    } else if (event->phase == kGestureCancelled) {
+      status = HandleCancelGesture(*event);
+    } else if (event->phase == kGestureEnded) {
+      status = HandleEndGesture(*event);
+    }
+
+    if (!status.ok()) {
+      LOG(ERROR) << "EventProcessorThread(): Failed to handle event: "
+                 << status;
+    }
+  }
 }
 
 CGEventRef GestureController::HandleEvent(CGEventTapProxy proxy,
                                           CGEventType event_type,
                                           CGEventRef event) {
-  DVLOG(2) << "HandleEvent() BEGIN";
-  absl::StatusOr<CGEventRef> result = TryHandleEvent(proxy, event_type, event);
-  auto cleanup = absl::MakeCleanup([] { DVLOG(2) << "HandleEvent() END"; });
-
-  if (!result.ok()) {
-    LOG(ERROR) << "HandleEvent(): Failed to handle event: " << result.status();
+  std::optional<DockSwipeEvent> swipe_event = ParseDockSwipeEvent(event);
+  if (!swipe_event) {
+    DVLOG(2) << "HandleEvent(): Not a swipe event";
     return event;
   }
 
-  return result.value();
-}
-
-absl::StatusOr<CGEventRef>
-GestureController::TryHandleEvent(CGEventTapProxy proxy, CGEventType event_type,
-                                  CGEventRef event) {
-  std::optional<DockSwipeEvent> swipe_event = ParseDockSwipeEvent(event);
-  if (!swipe_event) {
-    DVLOG(2) << "TryHandleEvent():  Not a swipe event";
-    return nullptr;
-  }
-
   if (swipe_event->source != DockSwipeEventSource::kPhysical) {
-    DVLOG(2) << "TryHandleEvent():  Not a physical swipe";
+    DVLOG(2) << "HandleEvent(): Not a physical swipe";
     return event;
   }
 
   if (swipe_event->direction != kCGGestureMotionHorizontal) {
-    DVLOG(2) << "TryHandleEvent():  Not a horizontal swipe";
+    DVLOG(2) << "HandleEvent(): Not a horizontal swipe";
     return event;
   }
 
-  DVLOG(1) << "TryHandleEvent():  BEGIN";
-  auto cleanup =
-      absl::MakeCleanup([] { DVLOG(1) << "TryHandleEvent():  END"; });
-
-  if (swipe_event->phase == kGestureBegan) {
-    RETURN_IF_ERROR(HandleBeginGesture());
-  } else if (swipe_event->phase == kGestureChanged) {
-    RETURN_IF_ERROR(HandleChangeGesture(*swipe_event));
-  } else if (swipe_event->phase == kGestureCancelled) {
-    RETURN_IF_ERROR(HandleCancelGesture(*swipe_event));
-  } else if (swipe_event->phase == kGestureEnded) {
-    RETURN_IF_ERROR(HandleEndGesture(*swipe_event));
+  absl::Status status = channel_.Write(*swipe_event);
+  if (!status.ok()) {
+    LOG(ERROR) << "HandleEvent(): Failed to write to channel: " << status;
   }
 
   return nullptr;

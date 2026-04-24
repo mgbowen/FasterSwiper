@@ -48,23 +48,13 @@ std::string EventGesturePhaseToString(int phase) {
 }
 
 std::string CFEventToDebugString(CGEventRef event) {
-  const double velocity =
-      CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX);
-  std::string velocity_str;
-  if (velocity > 0) {
-    velocity_str = ">0";
-  } else if (velocity == 0) {
-    velocity_str = "0";
-  } else {
-    velocity_str = "<0";
-  }
-
   return absl::StrFormat(
-      "CFEvent{phase=%s, progress=%f, velocity_x=%s, user_data=%lld}",
+      "CFEvent{phase=%s, progress=%f, velocity_x=%f, user_data=%lld}",
       EventGesturePhaseToString(
           CGEventGetIntegerValueField(event, kCGEventGesturePhase)),
       CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress),
-      velocity_str, CGEventGetIntegerValueField(event, kCGEventSourceUserData));
+      CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX),
+      CGEventGetIntegerValueField(event, kCGEventSourceUserData));
 }
 
 } // namespace fasterswiper
