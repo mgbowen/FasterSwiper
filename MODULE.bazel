@@ -20,3 +20,10 @@ git_override(
     commit = "818899d71ed956ed41a7c4775e97846df03e8338",
     remote = "https://github.com/claymaks/bazel-compile-commands-extractor.git",
 )
+
+bazel_dep(name = "rules_create_dmg")
+git_override(
+    module_name = "rules_create_dmg",
+    commit = "a5c3ed4fbbb08ba49d96c0e9de0fb63c2ce2962e",
+    remote = "https://github.com/mgbowen/rules_create_dmg.git",
+)
