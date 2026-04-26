@@ -1,5 +1,5 @@
 load("@rules_apple//apple:macos.bzl", "macos_application")
-load("@rules_create_dmg//:defs.bzl", "macos_dmg")
+load("@rules_create_dmg//lib:defs.bzl", "macos_dmg")
 load("@rules_swift//swift:swift.bzl", "swift_library")
 
 package(default_visibility = ["//visibility:public"])
