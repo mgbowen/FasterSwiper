@@ -59,17 +59,17 @@ CGEventRef GestureController::HandleEvent(CGEventTapProxy proxy,
                                           CGEventRef event) {
   std::optional<DockSwipeEvent> swipe_event = ParseDockSwipeEvent(event);
   if (!swipe_event) {
-    DVLOG(2) << "HandleEvent(): Not a swipe event";
+    VLOG(2) << "HandleEvent(): Not a swipe event";
     return event;
   }
 
   if (swipe_event->source != DockSwipeEventSource::kPhysical) {
-    DVLOG(2) << "HandleEvent(): Not a physical swipe";
+    VLOG(2) << "HandleEvent(): Not a physical swipe";
     return event;
   }
 
   if (swipe_event->direction != kCGGestureMotionHorizontal) {
-    DVLOG(2) << "HandleEvent(): Not a horizontal swipe";
+    VLOG(2) << "HandleEvent(): Not a horizontal swipe";
     return event;
   }
 
@@ -82,9 +82,9 @@ CGEventRef GestureController::HandleEvent(CGEventTapProxy proxy,
 }
 
 absl::Status GestureController::HandleBeginGesture() {
-  DVLOG(1) << "HandleBeginGesture(): BEGIN";
+  VLOG(1) << "HandleBeginGesture(): BEGIN";
   auto cleanup =
-      absl::MakeCleanup([] { DVLOG(1) << "HandleBeginGesture(): END"; });
+      absl::MakeCleanup([] { VLOG(1) << "HandleBeginGesture(): END"; });
 
   const bool is_active_animation =
       animator_ != nullptr && active_animation_future_.valid() &&
@@ -96,6 +96,10 @@ absl::Status GestureController::HandleBeginGesture() {
     animator_->CancelAnimation();
     active_animation_future_.wait();
   } else {
+    if (animator_ != nullptr) {
+      animator_->WaitForPendingCommit();
+    }
+
     ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
     auto switcher = std::make_unique<SpaceSwitcher>(std::move(space_state));
     animator_ = std::make_unique<SwipeAnimator>(std::move(switcher));
@@ -105,19 +109,18 @@ absl::Status GestureController::HandleBeginGesture() {
 
   initial_position_ = animator_->position();
 
-  DVLOG(1) << "HandleBeginGesture():   is_active_animation="
-           << is_active_animation;
-  DVLOG(1) << "HandleBeginGesture():   space_state="
-           << animator_->space_state();
+  VLOG(1) << "HandleBeginGesture():   is_active_animation="
+          << is_active_animation;
+  VLOG(1) << "HandleBeginGesture():   space_state=" << animator_->space_state();
 
   {
     const auto [soft_min, soft_max] = animator_->position_soft_limit();
-    DVLOG(1) << "HandleBeginGesture():   soft_min=" << soft_min
-             << ", soft_max=" << soft_max;
+    VLOG(1) << "HandleBeginGesture():   soft_min=" << soft_min
+            << ", soft_max=" << soft_max;
   }
 
-  DVLOG(1) << "HandleBeginGesture():   initial_position_=" << initial_position_;
-  DVLOG(1) << "HandleBeginGesture():   target_position_=" << target_position_;
+  VLOG(1) << "HandleBeginGesture():   initial_position_=" << initial_position_;
+  VLOG(1) << "HandleBeginGesture():   target_position_=" << target_position_;
 
   animator_->SetPosition(initial_position_);
   return absl::OkStatus();
@@ -125,16 +128,16 @@ absl::Status GestureController::HandleBeginGesture() {
 
 absl::Status
 GestureController::HandleChangeGesture(const DockSwipeEvent &swipe_event) {
-  DVLOG(1) << "HandleChangeGesture(): BEGIN";
+  VLOG(1) << "HandleChangeGesture(): BEGIN";
   auto cleanup =
-      absl::MakeCleanup([] { DVLOG(1) << "HandleChangeGesture(): END"; });
+      absl::MakeCleanup([] { VLOG(1) << "HandleChangeGesture(): END"; });
 
   const int64_t new_position =
       initial_position_ +
       animator_->space_state().ProgressToSwipes(swipe_event.progress);
 
-  DVLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
-  DVLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
+  VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
+  VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
 
   animator_->SetPosition(new_position);
   return absl::OkStatus();
@@ -157,9 +160,9 @@ CalculateAnimationDuration(int64_t current_position, int64_t target_position,
 
 absl::Status
 GestureController::HandleEndGesture(const DockSwipeEvent &swipe_event) {
-  DVLOG(1) << "HandleEndGesture(): BEGIN";
+  VLOG(1) << "HandleEndGesture(): BEGIN";
   auto cleanup =
-      absl::MakeCleanup([] { DVLOG(1) << "HandleEndGesture(): END"; });
+      absl::MakeCleanup([] { VLOG(1) << "HandleEndGesture(): END"; });
 
   const auto [soft_min, soft_max] = animator_->position_soft_limit();
   target_position_ = std::clamp(((target_position_ / OneSwipeInNanoswipes) +
@@ -171,10 +174,10 @@ GestureController::HandleEndGesture(const DockSwipeEvent &swipe_event) {
       CalculateAnimationDuration(animator_->position(), target_position_,
                                  options_.animation_duration_per_space);
 
-  DVLOG(1) << "HandleEndGesture():  initial_position=" << initial_position_;
-  DVLOG(1) << "HandleEndGesture():  current_position=" << animator_->position();
-  DVLOG(1) << "HandleEndGesture():  target_position=" << target_position_;
-  DVLOG(1) << "HandleEndGesture():  duration=" << duration;
+  VLOG(1) << "HandleEndGesture():  initial_position=" << initial_position_;
+  VLOG(1) << "HandleEndGesture():  current_position=" << animator_->position();
+  VLOG(1) << "HandleEndGesture():  target_position=" << target_position_;
+  VLOG(1) << "HandleEndGesture():  duration=" << duration;
 
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = target_position_,
@@ -188,20 +191,20 @@ GestureController::HandleEndGesture(const DockSwipeEvent &swipe_event) {
 
 absl::Status
 GestureController::HandleCancelGesture(const DockSwipeEvent &swipe_event) {
-  DVLOG(1) << "HandleCancelGesture(): BEGIN";
+  VLOG(1) << "HandleCancelGesture(): BEGIN";
   auto cleanup =
-      absl::MakeCleanup([] { DVLOG(1) << "HandleCancelGesture(): END"; });
+      absl::MakeCleanup([] { VLOG(1) << "HandleCancelGesture(): END"; });
 
   const absl::Duration duration =
       CalculateAnimationDuration(animator_->position(), target_position_,
                                  options_.animation_duration_per_space);
 
-  DVLOG(1) << "HandleCancelGesture():  progress=" << swipe_event.progress;
-  DVLOG(1) << "HandleCancelGesture():  initial_position_=" << initial_position_;
-  DVLOG(1) << "HandleCancelGesture():  current_position="
-           << animator_->position();
-  DVLOG(1) << "HandleCancelGesture():  target_position_=" << target_position_;
-  DVLOG(1) << "HandleCancelGesture():  duration=" << duration;
+  VLOG(1) << "HandleCancelGesture():  progress=" << swipe_event.progress;
+  VLOG(1) << "HandleCancelGesture():  initial_position_=" << initial_position_;
+  VLOG(1) << "HandleCancelGesture():  current_position="
+          << animator_->position();
+  VLOG(1) << "HandleCancelGesture():  target_position_=" << target_position_;
+  VLOG(1) << "HandleCancelGesture():  duration=" << duration;
 
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = initial_position_,

@@ -25,7 +25,9 @@ public:
   [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limit() const
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  void SetPosition(int64_t nanoswipes) ABSL_LOCKS_EXCLUDED(mutex_);
+  void SetPosition(int64_t new_position) ABSL_LOCKS_EXCLUDED(mutex_);
+
+  void WaitForPendingCommit() ABSL_LOCKS_EXCLUDED(mutex_);
 
 private:
   const SpaceState space_state_;
@@ -118,10 +120,10 @@ private:
   int64_t GetNextBoundary(bool moving_right) const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  void SetPositionLocked(int64_t nanoswipes)
+  void SetPositionLocked(int64_t new_position)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  void WaitForPendingCommit() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void WaitForPendingCommitLocked() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 };
 
 } // namespace fasterswiper

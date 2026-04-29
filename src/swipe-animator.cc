@@ -15,9 +15,13 @@ SwipeAnimator::SwipeAnimator(
 
 SwipeAnimator::~SwipeAnimator() { CancelAnimation(); }
 
-void SwipeAnimator::SetPosition(int64_t nanoswipes) {
+void SwipeAnimator::SetPosition(int64_t new_position) {
   CancelAnimation();
-  switcher_->SetPosition(nanoswipes);
+  switcher_->SetPosition(new_position);
+}
+
+void SwipeAnimator::WaitForPendingCommit() {
+  switcher_->WaitForPendingCommit();
 }
 
 std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
@@ -54,9 +58,12 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
 
         switcher_->SetPosition(finished ? state->params.target_position
                                         : interpolated_position);
+        if (finished) {
+          switcher_->WaitForPendingCommit();
+          return PeriodicTimerTickResult::kFinishTimer;
+        }
 
-        return finished ? PeriodicTimerTickResult::kFinishTimer
-                        : PeriodicTimerTickResult::kContinueTimer;
+        return PeriodicTimerTickResult::kContinueTimer;
       },
       .stopped_callback =
           [promise = std::move(promise)](
@@ -68,6 +75,9 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
   return future;
 }
 
-void SwipeAnimator::CancelAnimation() { timer_.reset(); }
+void SwipeAnimator::CancelAnimation() {
+  timer_.reset();
+  switcher_->WaitForPendingCommit();
+}
 
 } // namespace fasterswiper

@@ -157,7 +157,7 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
   while (current_position_ != new_position) {
     const bool is_moving_right = new_position > current_position_;
 
-    WaitForPendingCommit();
+    WaitForPendingCommitLocked();
 
     if (auto idle_state = std::get_if<States::Idle>(&state_)) {
       PostGestureEvent(kGestureBegan, is_moving_right ? kEpsilon : -kEpsilon);
@@ -277,6 +277,14 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
 }
 
 void SpaceSwitcher::WaitForPendingCommit() {
+  absl::MutexLock lock(mutex_);
+
+  VLOG(1) << "BEGIN WaitForPendingCommit() (external invocation)";
+  WaitForPendingCommitLocked();
+  VLOG(1) << "END WaitForPendingCommit() (external invocation)";
+}
+
+void SpaceSwitcher::WaitForPendingCommitLocked() {
   const auto *maybe_pending_commit =
       std::get_if<States::PendingCommit>(&state_);
   if (maybe_pending_commit == nullptr) {
@@ -291,34 +299,30 @@ void SpaceSwitcher::WaitForPendingCommit() {
 
   const int64_t start_time = UptimeInNanoseconds();
   const int64_t deadline =
-      start_time + absl::ToInt64Nanoseconds(absl::Milliseconds(250));
+      start_time + absl::ToInt64Nanoseconds(absl::Milliseconds(200));
   while (UptimeInNanoseconds() < deadline) {
     const bool is_done_animating =
         !SLSManagedDisplayIsAnimating(cid, display_id.get());
     new_space_id = SLSManagedDisplayGetCurrentSpace(cid, display_id.get());
 
-    bool space_id_changed;
-    if (pending_commit.wait_for_space_transition()) {
-      space_id_changed = new_space_id != pending_commit.original_space_id();
-    } else {
-      space_id_changed = true;
-    }
+    const bool space_id_changed =
+        pending_commit.wait_for_space_transition()
+            ? (new_space_id != pending_commit.original_space_id())
+            : true;
 
     if (is_done_animating && space_id_changed) {
       const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
-      DVLOG(1) << "WaitForPendingCommit: commit took "
-               << commit_latency_ns / 1e6 << "ms";
+      VLOG(1) << "WaitForPendingCommit: commit took " << commit_latency_ns / 1e6
+              << "ms";
       break;
     }
 
-#ifndef NDEBUG
     VLOG_EVERY_N_SEC(1, 0.1)
         << "WaitForPendingCommit: waiting for gesture commit "
            "(is_done_animating="
         << is_done_animating
         << ", original_space_id=" << pending_commit.original_space_id()
         << ", space_id_changed=" << space_id_changed << ")";
-#endif
 
     std::this_thread::yield();
   }
@@ -327,9 +331,9 @@ void SpaceSwitcher::WaitForPendingCommit() {
     LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
   }
 
-  DVLOG(1) << "WaitForPendingCommit: done waiting, original_space_id="
-           << pending_commit.original_space_id()
-           << ", new_space_id=" << new_space_id;
+  VLOG(1) << "WaitForPendingCommit: done waiting, original_space_id="
+          << pending_commit.original_space_id()
+          << ", new_space_id=" << new_space_id;
   SetState(States::Idle{new_space_id});
 }
 

@@ -23,7 +23,9 @@ public:
   SwipeAnimator &operator=(SwipeAnimator &&) = delete;
 
   // Cancel any active animation and instantly sets the position.
-  void SetPosition(int64_t position);
+  void SetPosition(int64_t new_position);
+
+  void WaitForPendingCommit();
 
   struct AnimateParameters {
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
