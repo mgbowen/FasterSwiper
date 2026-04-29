@@ -4,20 +4,19 @@
 #include <cmath>
 
 #include "absl/log/check.h"
+#include "src/space-switcher.h"
 
 namespace fasterswiper {
 
-SwipeAnimator::SwipeAnimator(
-    absl_nonnull std::unique_ptr<SpaceSwitcher> space_switcher)
-    : switcher_(std::move(space_switcher)) {
-  CHECK(switcher_ != nullptr);
-}
+SwipeAnimator::SwipeAnimator(SpaceState space_state)
+    : switcher_(std::make_unique<SpaceSwitcher>(std::move(space_state))) {}
 
 SwipeAnimator::~SwipeAnimator() { CancelAnimation(); }
 
-void SwipeAnimator::SetPosition(int64_t new_position) {
+void SwipeAnimator::SetPosition(int64_t new_position,
+                                SpaceSwitcher::SetPositionOptions options) {
   CancelAnimation();
-  switcher_->SetPosition(new_position);
+  switcher_->SetPosition(new_position, std::move(options));
 }
 
 void SwipeAnimator::WaitForPendingCommit() {
@@ -54,10 +53,13 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
                 (state->params.target_position - state->start_position) *
                 eased_t));
 
-        const bool finished = linear_t >= 1.0;
+        const bool finished =
+            linear_t >= 1.0 ||
+            interpolated_position == state->params.target_position;
 
         switcher_->SetPosition(finished ? state->params.target_position
-                                        : interpolated_position);
+                                        : interpolated_position,
+                               {.wait_for_space_transition = finished});
         if (finished) {
           switcher_->WaitForPendingCommit();
           return PeriodicTimerTickResult::kFinishTimer;

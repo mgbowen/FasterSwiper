@@ -47,15 +47,15 @@ int main(int argc, char *argv[]) {
       std::cerr << "Failed to load space state\n";
       return;
     }
-    auto animator = std::make_unique<SwipeAnimator>(
-        std::make_unique<SpaceSwitcher>(std::move(*maybe_space_state)));
+    auto animator =
+        std::make_unique<SwipeAnimator>(std::move(*maybe_space_state));
 
     constexpr auto easing_function = kEasingFunctionLinear;
     constexpr auto duration = absl::Milliseconds(200);
 
     while (true) {
       auto future = animator->AnimateToPosition({
-          .target_position = 4'000'000,
+          .target_position = 3'000'000,
           .duration = duration,
           .easing_function = GetEasingFunction(easing_function),
           .ticks_per_second = 240,

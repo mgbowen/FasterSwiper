@@ -143,7 +143,8 @@ absl::Status PhysicalEventHandler::HandleBeginGesture() {
 
   RETURN_IF_ERROR(SetUpForNewGesture());
 
-  animator_->SetPosition(initial_position_);
+  animator_->SetPosition(initial_position_,
+                         {.wait_for_space_transition = false});
   return absl::OkStatus();
 }
 
@@ -160,7 +161,7 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
 
-  animator_->SetPosition(new_position);
+  animator_->SetPosition(new_position, {.wait_for_space_transition = false});
   return absl::OkStatus();
 }
 
@@ -296,8 +297,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture() {
     }
 
     ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
-    auto switcher = std::make_unique<SpaceSwitcher>(std::move(space_state));
-    animator_ = std::make_unique<SwipeAnimator>(std::move(switcher));
+    animator_ = std::make_unique<SwipeAnimator>(std::move(space_state));
 
     target_position_ = animator_->position();
   }

@@ -29,9 +29,12 @@ constexpr double kEpsilon = FLT_TRUE_MIN;
 
 SpaceSwitcher::SpaceSwitcher(SpaceState space_state)
     : space_state_(std::move(space_state)),
-      state_(States::Idle(space_state_.space_ids()[space_state_.index()])) {
-  current_position_ = space_state_.index() * OneSwipeInNanoswipes;
-}
+      current_position_(space_state_.index() * OneSwipeInNanoswipes),
+      state_(States::Idle()),
+      latest_hard_commit_({
+          .position = current_position_,
+          .space_id = space_state_.space_ids()[space_state_.index()],
+      }) {}
 
 SpaceSwitcher::~SpaceSwitcher() {
   if (const auto *active_state = std::get_if<States::Active>(&state_)) {
@@ -133,17 +136,20 @@ size_t Sign(auto spaceship_operator_result) {
 
 } // namespace
 
-void SpaceSwitcher::SetPosition(int64_t new_position) {
+void SpaceSwitcher::SetPosition(int64_t new_position,
+                                SetPositionOptions options) {
   absl::MutexLock lock(mutex_);
 
-  VLOG(1) << "BEGIN SetPosition(" << new_position
+  VLOG(1) << "BEGIN SetPosition(new_position=" << new_position
+          << ", options=" << options
           << ") current_position_=" << current_position_;
-  SetPositionLocked(new_position);
+  SetPositionLocked(new_position, std::move(options));
   VLOG(1) << "END SetPosition(" << new_position
           << ") current_position_=" << current_position_;
 }
 
-void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
+void SpaceSwitcher::SetPositionLocked(int64_t new_position,
+                                      SetPositionOptions options) {
   if (new_position == current_position_) {
     return;
   }
@@ -157,10 +163,10 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
 
     WaitForPendingCommitLocked();
 
-    if (auto idle_state = std::get_if<States::Idle>(&state_)) {
+    if (std::holds_alternative<States::Idle>(state_)) {
       PostGestureEvent(kGestureBegan, is_moving_right ? kEpsilon : -kEpsilon);
       SetState(States::Active(
-          /*origin_position=*/current_position_, idle_state->space_id()));
+          /*origin_position=*/current_position_));
     }
 
     const auto &gesture_active = std::get<States::Active>(state_);
@@ -259,13 +265,15 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position) {
         PostGestureEvent(kGestureCancelled, transitory_progress, velocity);
       }
 
-      if (is_rubberbanding) {
+      if (!options.wait_for_space_transition || is_rubberbanding ||
+          new_position != target_position) {
         should_wait_for_space_transition = false;
       }
 
       SetState(States::PendingCommit(space_state_.display_id(),
-                                     gesture_active.original_space_id(),
-                                     should_wait_for_space_transition));
+                                     should_wait_for_space_transition
+                                         ? CommitType::kHardCommit
+                                         : CommitType::kSoftCommit));
     } else {
       PostGestureEvent(kGestureChanged, progress_from_origin);
     }
@@ -286,10 +294,15 @@ void SpaceSwitcher::WaitForPendingCommitLocked() {
   const auto *maybe_pending_commit =
       std::get_if<States::PendingCommit>(&state_);
   if (maybe_pending_commit == nullptr) {
+    VLOG(1) << "WaitForPendingCommit(): Nothing to wait for";
     return;
   }
 
   const States::PendingCommit &pending_commit = *maybe_pending_commit;
+  VLOG(1) << "WaitForPendingCommit(): state_=" << pending_commit
+          << ", space_state_=" << space_state_
+          << ", latest_hard_commit_=" << latest_hard_commit_
+          << ", current_position_=" << current_position_;
 
   const int cid = SLSMainConnectionID();
   const CFSharedPtr<CFStringRef> display_id = pending_commit.display_id();
@@ -303,12 +316,13 @@ void SpaceSwitcher::WaitForPendingCommitLocked() {
         !SLSManagedDisplayIsAnimating(cid, display_id.get());
     new_space_id = SLSManagedDisplayGetCurrentSpace(cid, display_id.get());
 
-    const bool space_id_changed =
-        pending_commit.wait_for_space_transition()
-            ? (new_space_id != pending_commit.original_space_id())
+    const bool is_hard_committed =
+        pending_commit.commit_type() == CommitType::kHardCommit
+            ? (current_position_ == latest_hard_commit_.position ||
+               new_space_id != latest_hard_commit_.space_id)
             : true;
 
-    if (is_done_animating && space_id_changed) {
+    if (is_done_animating && is_hard_committed) {
       const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
       VLOG(1) << "WaitForPendingCommit: commit took " << commit_latency_ns / 1e6
               << "ms";
@@ -318,9 +332,8 @@ void SpaceSwitcher::WaitForPendingCommitLocked() {
     VLOG_EVERY_N_SEC(1, 0.1)
         << "WaitForPendingCommit: waiting for gesture commit "
            "(is_done_animating="
-        << is_done_animating
-        << ", original_space_id=" << pending_commit.original_space_id()
-        << ", space_id_changed=" << space_id_changed << ")";
+        << is_done_animating << ", is_hard_committed=" << is_hard_committed
+        << ")";
 
     std::this_thread::yield();
   }
@@ -329,10 +342,18 @@ void SpaceSwitcher::WaitForPendingCommitLocked() {
     LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
   }
 
-  VLOG(1) << "WaitForPendingCommit: done waiting, original_space_id="
-          << pending_commit.original_space_id()
-          << ", new_space_id=" << new_space_id;
-  SetState(States::Idle{new_space_id});
+  if (pending_commit.commit_type() == CommitType::kHardCommit) {
+    latest_hard_commit_ = HardCommitData{
+        .position = current_position_,
+        .space_id = new_space_id,
+    };
+
+    VLOG(1) << "WaitForPendingCommit: setting latest_hard_commit_="
+            << latest_hard_commit_;
+  }
+
+  VLOG(1) << "WaitForPendingCommit: done waiting";
+  SetState(States::Idle{});
 }
 
 } // namespace fasterswiper

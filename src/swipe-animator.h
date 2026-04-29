@@ -11,8 +11,7 @@ namespace fasterswiper {
 
 class SwipeAnimator {
 public:
-  explicit SwipeAnimator(
-      absl_nonnull std::unique_ptr<SpaceSwitcher> space_switcher);
+  explicit SwipeAnimator(SpaceState space_state);
 
   ~SwipeAnimator();
 
@@ -23,7 +22,8 @@ public:
   SwipeAnimator &operator=(SwipeAnimator &&) = delete;
 
   // Cancel any active animation and instantly sets the position.
-  void SetPosition(int64_t new_position);
+  void SetPosition(int64_t new_position,
+                   SpaceSwitcher::SetPositionOptions options = {});
 
   void WaitForPendingCommit();
 
