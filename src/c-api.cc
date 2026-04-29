@@ -2,10 +2,11 @@
 
 #include "src/cf-util.h"
 #include "src/event-tap-manager.h"
-#include "src/gesture-controller.h"
 #include "src/macos-private.h"
+#include "src/physical-event-handler.h"
 #include "src/version.h"
 
+#include <CoreGraphics/CGEventTypes.h>
 #include <cstring>
 #include <iostream>
 
@@ -21,8 +22,8 @@ namespace {
 
 using ::fasterswiper::CFUniquePtr;
 using ::fasterswiper::EventTapManager;
-using ::fasterswiper::GestureController;
 using ::fasterswiper::kCGSEventDockControl;
+using ::fasterswiper::PhysicalEventHandler;
 using ::fasterswiper::WrapCFUnique;
 
 } // namespace
@@ -32,7 +33,7 @@ extern "C" {
 struct FasterSwiper {
   absl::Mutex mutex;
 
-  std::unique_ptr<GestureController> gesture_controller;
+  std::shared_ptr<PhysicalEventHandler> physical_event_handler;
   std::unique_ptr<EventTapManager> tap_manager;
   CFUniquePtr<CFRunLoopSourceRef> run_loop_source;
 
@@ -42,32 +43,40 @@ struct FasterSwiper {
 void InitializeFasterSwiperOptions(FasterSwiperOptions *options) {
   std::memset(options, 0, sizeof(FasterSwiperOptions));
 
-  const GestureController::Options default_options;
+  const PhysicalEventHandler::Options default_options;
   options->animation_duration_per_space_ns =
       absl::ToInt64Nanoseconds(default_options.animation_duration_per_space);
   options->easing_function_type = default_options.easing_function_type;
   options->ticks_per_second = default_options.ticks_per_second;
+  options->handle_keyboard_events = default_options.handle_keyboard_events;
 }
 
 FasterSwiper *CreateFasterSwiper(const FasterSwiperOptions *options) {
-  auto gesture_controller =
-      std::make_unique<GestureController>(GestureController::Options{
+  auto physical_event_handler =
+      std::make_shared<PhysicalEventHandler>(PhysicalEventHandler::Options{
           .animation_duration_per_space =
               absl::Nanoseconds(options->animation_duration_per_space_ns),
           .easing_function_type = options->easing_function_type,
           .ticks_per_second = options->ticks_per_second,
+          .handle_keyboard_events = options->handle_keyboard_events,
       });
 
   EventTapManager::Callback callback =
-      [gesture_controller = gesture_controller.get()](
-          CGEventTapProxy proxy, CGEventType event_type,
-          CGEventRef event) -> CGEventRef {
-    return gesture_controller->HandleEvent(proxy, event_type, event);
+      [physical_event_handler](CGEventTapProxy proxy, CGEventType event_type,
+                               CGEventRef event) -> CGEventRef {
+    return physical_event_handler->HandleEvent(proxy, event_type, event);
   };
+
+  std::vector<CGEventType> event_types;
+  event_types.push_back(kCGSEventDockControl);
+
+  if (options->handle_keyboard_events) {
+    event_types.push_back(kCGEventKeyDown);
+  }
 
   auto maybe_tap_manager = EventTapManager::Create(
       kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault,
-      {kCGSEventDockControl}, std::move(callback));
+      event_types, std::move(callback));
   if (!maybe_tap_manager.ok()) {
     std::cerr << "Failed to create EventTapManager: "
               << maybe_tap_manager.status() << "\n";
@@ -80,7 +89,7 @@ FasterSwiper *CreateFasterSwiper(const FasterSwiperOptions *options) {
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
 
   return new FasterSwiper{
-      .gesture_controller = std::move(gesture_controller),
+      .physical_event_handler = std::move(physical_event_handler),
       .tap_manager = std::move(tap_manager),
       .run_loop_source = std::move(run_loop_source),
   };

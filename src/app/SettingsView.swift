@@ -33,6 +33,10 @@ struct SettingsView: View {
                     Text("240 FPS").tag(240)
                 }
             }
+            
+            Section("Keyboard") {
+                Toggle("Intercept Space Switch Shortcuts", isOn: $controller.handleKeyboardEvents)
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
@@ -41,6 +45,7 @@ struct SettingsView: View {
         .onChange(of: controller.animationDurationMs) { scheduleRestart() }
         .onChange(of: controller.easingType) { scheduleRestart() }
         .onChange(of: controller.ticksPerSecond) { scheduleRestart() }
+        .onChange(of: controller.handleKeyboardEvents) { scheduleRestart() }
     }
 
     private func scheduleRestart() {

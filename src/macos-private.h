@@ -38,10 +38,10 @@ constexpr CGEventField kCGEventGestureZoomDeltaX =
 constexpr CGEventField kCGEventGestureZoomDeltaY =
     static_cast<CGEventField>(140);
 
-constexpr int kCGSEventGesture = 29;
-constexpr int kCGSEventDockControl = 30;
+constexpr auto kCGSEventDockControl = static_cast<CGEventType>(30);
 
 constexpr int kIOHIDEventTypeDockSwipe = 23;
+
 constexpr int kCGGestureMotionHorizontal = 1;
 
 constexpr int kGestureBegan = 1;

@@ -9,23 +9,22 @@ namespace fasterswiper {
 absl::StatusOr<std::unique_ptr<EventTapManager>>
 EventTapManager::Create(CGEventTapLocation tap, CGEventTapPlacement place,
                         CGEventTapOptions options,
-                        std::vector<uint64_t> eventTypesOfInterest,
+                        std::vector<CGEventType> eventTypesOfInterest,
                         Callback callback) {
   auto result = absl::WrapUnique(new EventTapManager());
   result->callback_ = std::move(callback);
 
   CGEventMask mask = 0;
-  for (int event_type : eventTypesOfInterest) {
+  for (auto event_type : eventTypesOfInterest) {
     mask |= CGEventMaskBit(event_type);
   }
 
-  CFMachPortRef raw_tap =
-      CGEventTapCreate(tap, place, options, mask, CallbackShim, result.get());
-  if (raw_tap == nullptr) {
+  result->raw_tap_ = WrapCFUnique(
+      CGEventTapCreate(tap, place, options, mask, CallbackShim, result.get()));
+  if (result->raw_tap_ == nullptr) {
     return absl::InternalError("Failed to create event tap");
   }
 
-  result->raw_tap_ = WrapCFUnique(raw_tap);
   return result;
 }
 

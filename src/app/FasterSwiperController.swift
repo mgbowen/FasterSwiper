@@ -39,6 +39,7 @@ class FasterSwiperController: ObservableObject {
     @AppStorage("animationDurationMs") var animationDurationMs: Double = 200.0
     @AppStorage("ticksPerSecond") var ticksPerSecond: Int = 240
     @AppStorage("easingType") var easingType: EasingType = .easeOutQuadratic
+    @AppStorage("handleKeyboardEvents") var handleKeyboardEvents: Bool = true
 
     private var state: OpaquePointer?
     
@@ -59,6 +60,7 @@ class FasterSwiperController: ObservableObject {
         options.animation_duration_per_space_ns = Int64(animationDurationMs * 1_000_000)
         options.easing_function_type = easingType.cValue
         options.ticks_per_second = Int64(ticksPerSecond)
+        options.handle_keyboard_events = handleKeyboardEvents
         
         state = CreateFasterSwiper(&options)
         if state == nil {

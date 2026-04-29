@@ -11,8 +11,8 @@ cc_library(
         ":CoreFoundation",
         ":easing-functions",
         ":event-tap-manager",
-        ":gesture-controller",
         ":macos-private",
+        ":physical-event-handler",
         ":version",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
@@ -77,6 +77,13 @@ cc_library(
     deps = [
         ":CoreFoundation",
         ":macos-private",
+        ":string-util",
+        ":variant-util",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
     ],
@@ -98,9 +105,28 @@ cc_library(
 )
 
 cc_library(
-    name = "gesture-controller",
-    srcs = ["gesture-controller.cc"],
-    hdrs = ["gesture-controller.h"],
+    name = "physical-event-handler",
+    srcs = ["physical-event-handler.cc"],
+    hdrs = ["physical-event-handler.h"],
+    deps = [
+        ":channel",
+        ":event",
+        ":macos-private",
+        ":space-state",
+        ":status-macros",
+        ":swipe-animator",
+        ":variant-util",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "keyboard-event-handler",
+    srcs = ["keyboard-event-handler.cc"],
+    hdrs = ["keyboard-event-handler.h"],
     deps = [
         ":channel",
         ":event",
@@ -202,6 +228,14 @@ cc_library(
 cc_library(
     name = "string-util",
     hdrs = ["string-util.h"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "variant-util",
+    hdrs = ["variant-util.h"],
     deps = [
         "@abseil-cpp//absl/strings",
     ],

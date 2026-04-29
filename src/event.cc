@@ -2,32 +2,102 @@
 
 #include "src/macos-private.h"
 
+#include <CoreGraphics/CGEventTypes.h>
+#include <unistd.h>
+
+#include "absl/base/no_destructor.h"
+#include "absl/cleanup/cleanup.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "src/string-util.h"
 
 namespace fasterswiper {
 
-std::optional<DockSwipeEvent> ParseDockSwipeEvent(CGEventRef event) {
-  int et = CGEventGetIntegerValueField(event, kCGSEventTypeField);
-  if (et != kCGSEventDockControl)
-    return std::nullopt;
-  if (CGEventGetIntegerValueField(event, kCGEventGestureHIDType) !=
-      kIOHIDEventTypeDockSwipe)
-    return std::nullopt;
+namespace {
 
-  DockSwipeEventSource source = DockSwipeEventSource::kPhysical;
-  if (CGEventGetIntegerValueField(event, kCGEventSourceUserData) ==
-      kSyntheticEventMagicNumber) {
-    source = DockSwipeEventSource::kSynthetic;
+// Used for recognizing physical vs. synthetic events. This won't work if we
+// ever need to fork, but I don't anticipate needing to do that.
+const absl::NoDestructor<pid_t> kOwnPid([] { return getpid(); }());
+
+std::optional<DockControlEvent> ParseDockSwipeEvent(CGEventRef event) {
+  if (CGEventGetIntegerValueField(event, kCGEventGestureHIDType) !=
+      kIOHIDEventTypeDockSwipe) {
+    return std::nullopt;
   }
 
-  return DockSwipeEvent{
+  return DockControlEvent{
       .phase = static_cast<int>(
           CGEventGetIntegerValueField(event, kCGEventGesturePhase)),
       .direction = static_cast<int>(
           CGEventGetIntegerValueField(event, kCGEventGestureSwipeMotion)),
       .progress =
           CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress),
+  };
+}
+
+std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
+                                      CGEventType event_type) {
+  const CGKeyCode key_code = static_cast<CGKeyCode>(
+      CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
+  const CGEventFlags flags = CGEventGetFlags(event);
+
+  VLOG(1) << "ParseKeyEvent(): key_code=" << key_code << ", flags=" << flags;
+
+  KeyState key_state;
+  switch (event_type) {
+  case kCGEventKeyDown:
+    key_state = KeyState::kDown;
+    break;
+  case kCGEventKeyUp:
+    key_state = KeyState::kUp;
+    break;
+  default:
+    return std::nullopt;
+  }
+
+  return KeyEvent{.key_code = key_code, .flags = flags, .key_state = key_state};
+}
+
+} // namespace
+
+std::optional<Event> ParseEvent(CGEventRef event) {
+  VLOG(1) << "ParseEvent(): BEGIN";
+  auto cleanup = absl::MakeCleanup([] { VLOG(1) << "ParseEvent(): END"; });
+
+  const auto event_type = static_cast<CGEventType>(
+      CGEventGetIntegerValueField(event, kCGSEventTypeField));
+  VLOG(1) << "ParseEvent(): event_type=" << event_type;
+
+  std::optional<EventData> event_data;
+  switch (event_type) {
+  case kCGSEventDockControl:
+    event_data = ParseDockSwipeEvent(event);
+    VLOG(1) << "ParseEvent(): ParseDockSwipeEvent result="
+            << OptionalToString(event_data);
+    break;
+  case kCGEventKeyDown:
+  case kCGEventKeyUp:
+    event_data = ParseKeyEvent(event, event_type);
+    VLOG(1) << "ParseEvent(): ParseKeyEvent result="
+            << OptionalToString(event_data);
+    break;
+  default:
+    break;
+  }
+
+  if (!event_data.has_value()) {
+    return std::nullopt;
+  }
+
+  EventSource source = EventSource::kPhysical;
+  if (CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) ==
+      *kOwnPid) {
+    source = EventSource::kSynthetic;
+  }
+
+  return Event{
+      .data = *std::move(event_data),
       .source = source,
   };
 }
@@ -49,12 +119,11 @@ std::string EventGesturePhaseToString(int phase) {
 
 std::string CFEventToDebugString(CGEventRef event) {
   return absl::StrFormat(
-      "CFEvent{phase=%s, progress=%f, velocity_x=%f, user_data=%lld}",
+      "CFEvent{phase=%s, progress=%f, velocity_x=%f}",
       EventGesturePhaseToString(
           CGEventGetIntegerValueField(event, kCGEventGesturePhase)),
       CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress),
-      CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX),
-      CGEventGetIntegerValueField(event, kCGEventSourceUserData));
+      CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX));
 }
 
 } // namespace fasterswiper

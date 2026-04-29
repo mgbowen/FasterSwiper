@@ -15,6 +15,8 @@ typedef struct {
   enum EasingFunctionType easing_function_type;
 
   int64_t ticks_per_second;
+
+  bool handle_keyboard_events;
 } FasterSwiperOptions;
 
 typedef struct FasterSwiper FasterSwiper;

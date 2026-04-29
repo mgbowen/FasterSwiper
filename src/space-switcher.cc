@@ -86,8 +86,6 @@ void PostGestureEvent(int phase, double progress,
   CGEventSetIntegerValueField(dock.get(), kCGEventGesturePhase, phase);
   CGEventSetIntegerValueField(dock.get(), kCGEventGestureSwipeMotion,
                               kCGGestureMotionHorizontal);
-  CGEventSetIntegerValueField(dock.get(), kCGEventSourceUserData,
-                              kSyntheticEventMagicNumber);
   CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeProgress,
                              progress);
 
