@@ -58,10 +58,17 @@ struct FasterSwiperApp: App {
         let appVersion = info.version != nil ? "Version " + String(cString: info.version!) : "HEAD"
         let version = String(gitHash.prefix(7)) + (info.is_dirty ? ", dirty" : "")
 
+        let linkAttributes: [NSAttributedString.Key: Any] = [
+            .link: NSURL(string: "https://github.com/mgbowen/FasterSwiper/blob/main/ATTRIBUTION.md")!,
+            .foregroundColor: NSColor.linkColor
+        ]
+        let credits = NSAttributedString(string: "Third-Party Software", attributes: linkAttributes)
+
         let options: [NSApplication.AboutPanelOptionKey: Any] = [
             .applicationName: "FasterSwiper",
             .version: version,
             .applicationVersion: appVersion,
+            .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Matthew Bowen. All rights reserved."
         ]
         
