@@ -13,6 +13,7 @@ cc_library(
         ":event-tap-manager",
         ":gesture-controller",
         ":macos-private",
+        ":version",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -219,4 +220,45 @@ cc_library(
 cc_library(
     name = "Skylight",
     linkopts = ["-F/System/Library/PrivateFrameworks -framework SkyLight"],
+)
+
+genrule(
+    name = "generate-version",
+    outs = ["version.h"],
+    cmd = """
+    COMMIT=$$(awk '/^STABLE_GIT_COMMIT / {print $$2}' bazel-out/stable-status.txt)
+    DIRTY=$$(awk '/^STABLE_GIT_DIRTY / {print $$2}' bazel-out/stable-status.txt)
+    VERSION_VAL=$$(awk '/^STABLE_VERSION / {print $$2}' bazel-out/stable-status.txt)
+    
+    if [[ -z "$$DIRTY" ]]; then DIRTY=false; fi
+
+    if [[ -z "$$VERSION_VAL" ]]; then
+      VERSION="std::nullopt"
+    else
+      VERSION="\\\"$$VERSION_VAL\\\""
+    fi
+
+    cat <<EOF > "$@"
+#pragma once
+
+#include <optional>
+
+#include "absl/strings/string_view.h"
+
+namespace fasterswiper {
+
+inline constexpr absl::string_view kGitCommitHash = "$$COMMIT";
+inline constexpr bool kGitIsDirty = $$DIRTY;
+inline constexpr std::optional<absl::string_view> kVersion = $$VERSION;
+
+}  // namespace fasterswiper
+EOF
+    """,
+    stamp = True,
+)
+
+cc_library(
+    name = "version",
+    hdrs = ["version.h"],
+    visibility = ["//visibility:public"],
 )

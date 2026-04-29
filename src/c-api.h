@@ -37,6 +37,15 @@ bool StopFasterSwiper(FasterSwiper *state);
 // Parses Abseil command line flags from the given argc and argv.
 void ParseFasterSwiperCommandLine(int argc, char **argv);
 
+typedef struct {
+  const char *version;
+  const char *git_hash;
+  bool is_dirty;
+} FasterSwiperVersionInfo;
+
+// Gets the version information for FasterSwiper.
+void GetFasterSwiperVersionInfo(FasterSwiperVersionInfo *info);
+
 #ifdef __cplusplus
 }
 #endif

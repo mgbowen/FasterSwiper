@@ -24,6 +24,13 @@ struct FasterSwiperApp: App {
 
     var body: some Scene {
         MenuBarExtra("FasterSwiper", systemImage: "macwindow.on.rectangle") {
+            Button("About FasterSwiper") {
+                showAboutDialog()
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            
+            Divider()
+
             statusItem
             
             Divider()
@@ -41,6 +48,24 @@ struct FasterSwiperApp: App {
         Settings {
             SettingsView(controller: controller)
         }
+    }
+
+    private func showAboutDialog() {
+        var info = FasterSwiperVersionInfo()
+        GetFasterSwiperVersionInfo(&info)
+        
+        let gitHash = String(cString: info.git_hash)
+        let appVersion = info.version != nil ? "Version " + String(cString: info.version!) : "HEAD"
+        let version = String(gitHash.prefix(7)) + (info.is_dirty ? ", dirty" : "")
+
+        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .applicationName: "FasterSwiper",
+            .version: version,
+            .applicationVersion: appVersion,
+            NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Matthew Bowen. All rights reserved."
+        ]
+        
+        NSApp.orderFrontStandardAboutPanel(options: options)
     }
 
     @ViewBuilder

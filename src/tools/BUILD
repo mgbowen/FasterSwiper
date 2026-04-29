@@ -9,6 +9,7 @@ cc_binary(
         "//src:cf-util",
         "//src:event-tap-manager",
         "//src:macos-private",
+        "//src:version",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],

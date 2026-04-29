@@ -1,7 +1,4 @@
-module(
-    name = "faster-swiper",
-    version = "1.1.1",
-)
+module(name = "faster-swiper")
 
 bazel_dep(name = "apple_support", version = "2.5.3")
 bazel_dep(name = "rules_cc", version = "0.2.17")
@@ -21,9 +18,9 @@ git_override(
     remote = "https://github.com/claymaks/bazel-compile-commands-extractor.git",
 )
 
-bazel_dep(name = "rules_create_dmg")
+bazel_dep(name = "mgbowen_create_dmg")
 git_override(
-    module_name = "rules_create_dmg",
-    commit = "1f1d29450b7d361b1662866041858b576028e0b1",
-    remote = "https://github.com/mgbowen/rules_create_dmg.git",
+    module_name = "mgbowen_create_dmg",
+    commit = "a5e45002a9d301e7e7fb6529bd2c721f8a9ae036",
+    remote = "https://github.com/mgbowen/bazel-create-dmg.git",
 )

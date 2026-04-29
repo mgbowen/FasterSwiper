@@ -1,2 +1,3 @@
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
+build --workspace_status_command=$(pwd)/stamp.sh

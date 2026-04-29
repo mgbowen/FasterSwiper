@@ -4,6 +4,7 @@
 #include "src/event-tap-manager.h"
 #include "src/gesture-controller.h"
 #include "src/macos-private.h"
+#include "src/version.h"
 
 #include <cstring>
 #include <iostream>
@@ -137,5 +138,16 @@ bool StopFasterSwiper(FasterSwiper *state) {
 
 void ParseFasterSwiperCommandLine(int argc, char **argv) {
   absl::ParseCommandLine(argc, argv);
+}
+
+void GetFasterSwiperVersionInfo(FasterSwiperVersionInfo *info) {
+  if (info == nullptr) {
+    return;
+  }
+
+  info->version =
+      fasterswiper::kVersion ? fasterswiper::kVersion->data() : nullptr;
+  info->git_hash = fasterswiper::kGitCommitHash.data();
+  info->is_dirty = fasterswiper::kGitIsDirty;
 }
 }
