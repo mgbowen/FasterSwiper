@@ -1,7 +1,7 @@
 # Third-Party Attributions
 
-The following third-party software is used in or are used as a reference for
-certain portions of this project.
+The following third-party software is used in or as a reference for certain
+portions of this project.
 
 ## InstantSpaceSwitcher
 
