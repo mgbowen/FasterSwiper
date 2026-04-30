@@ -52,14 +52,24 @@ void InitializeFasterSwiperOptions(FasterSwiperOptions *options) {
 }
 
 FasterSwiper *CreateFasterSwiper(const FasterSwiperOptions *options) {
-  auto physical_event_handler =
-      std::make_shared<PhysicalEventHandler>(PhysicalEventHandler::Options{
-          .animation_duration_per_space =
-              absl::Nanoseconds(options->animation_duration_per_space_ns),
-          .easing_function_type = options->easing_function_type,
-          .ticks_per_second = options->ticks_per_second,
-          .handle_keyboard_events = options->handle_keyboard_events,
-      });
+  absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
+      maybe_physical_event_handler =
+          PhysicalEventHandler::Create(PhysicalEventHandler::Options{
+              .animation_duration_per_space =
+                  absl::Nanoseconds(options->animation_duration_per_space_ns),
+              .easing_function_type = options->easing_function_type,
+              .ticks_per_second = options->ticks_per_second,
+              .handle_keyboard_events = options->handle_keyboard_events,
+          });
+
+  if (!maybe_physical_event_handler.ok()) {
+    std::cerr << "Failed to create PhysicalEventHandler: "
+              << maybe_physical_event_handler.status();
+    return nullptr;
+  }
+
+  std::shared_ptr<PhysicalEventHandler> physical_event_handler =
+      *std::move(maybe_physical_event_handler);
 
   EventTapManager::Callback callback =
       [physical_event_handler](CGEventTapProxy proxy, CGEventType event_type,

@@ -7,7 +7,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 
 #include "absl/strings/str_format.h"
-#include "src/string-util.h"
+#include "src/hotkeys.h"
 #include "src/variant-util.h"
 
 namespace fasterswiper {
@@ -60,17 +60,16 @@ inline constexpr absl::string_view KeyStateToString(KeyState key_state) {
 
 struct KeyEvent {
   CGKeyCode key_code = 0;
-  CGEventFlags flags = 0;
+  CGEventFlags modifiers = 0;
   KeyState key_state = KeyState::kUp;
 
-  bool IsModifierDown(CGEventFlags flag) const {
-    return (flags & flag) == flag;
-  }
+  bool ConcernsHotkey(const Hotkey &hotkey) const;
+  bool ConcernsAnyHotkey(const HotkeyConfigurations &hotkey_configs) const;
 
   template <typename Sink>
   friend void AbslStringify(Sink &sink, const KeyEvent &event) {
-    absl::Format(&sink, "KeyEvent{key_code=%d, flags=%d, key_state=%s}",
-                 event.key_code, event.flags,
+    absl::Format(&sink, "KeyEvent{key_code=%d, modifiers=%d, key_state=%s}",
+                 event.key_code, event.modifiers,
                  KeyStateToString(event.key_state));
   }
 };
@@ -89,8 +88,7 @@ struct Event {
 
   template <typename Sink>
   friend void AbslStringify(Sink &sink, const Event &event) {
-    absl::Format(&sink, "Event{data=%s, source=%s}",
-                 OptionalToString(event.data),
+    absl::Format(&sink, "Event{data=%s, source=%s}", absl::StrCat(event.data),
                  EventSourceToString(event.source));
   }
 };

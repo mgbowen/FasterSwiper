@@ -40,9 +40,10 @@ std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
                                       CGEventType event_type) {
   const CGKeyCode key_code = static_cast<CGKeyCode>(
       CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
-  const CGEventFlags flags = CGEventGetFlags(event);
+  const CGEventFlags modifiers = CGEventGetFlags(event);
 
-  VLOG(1) << "ParseKeyEvent(): key_code=" << key_code << ", flags=" << flags;
+  VLOG(1) << "ParseKeyEvent(): key_code=" << key_code
+          << ", modifiers=" << modifiers;
 
   KeyState key_state;
   switch (event_type) {
@@ -56,10 +57,23 @@ std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
     return std::nullopt;
   }
 
-  return KeyEvent{.key_code = key_code, .flags = flags, .key_state = key_state};
+  return KeyEvent{
+      .key_code = key_code, .modifiers = modifiers, .key_state = key_state};
 }
 
 } // namespace
+
+bool KeyEvent::ConcernsHotkey(const Hotkey &hotkey) const {
+  const auto adjusted_modifiers = modifiers & kModifierKeyMask;
+  return hotkey.enabled && key_code == hotkey.key_code &&
+         adjusted_modifiers == hotkey.modifiers;
+}
+
+bool KeyEvent::ConcernsAnyHotkey(
+    const HotkeyConfigurations &hotkey_configs) const {
+  return ConcernsHotkey(hotkey_configs.move_space_left) ||
+         ConcernsHotkey(hotkey_configs.move_space_right);
+}
 
 std::optional<Event> ParseEvent(CGEventRef event) {
   VLOG(1) << "ParseEvent(): BEGIN";

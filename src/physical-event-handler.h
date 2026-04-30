@@ -2,6 +2,7 @@
 
 #include "src/channel.h"
 #include "src/event.h"
+#include "src/hotkeys.h"
 #include "src/swipe-animator.h"
 
 #include <memory>
@@ -19,8 +20,12 @@ public:
     bool handle_keyboard_events = true;
   };
 
-  PhysicalEventHandler() : PhysicalEventHandler(Options{}) {}
-  explicit PhysicalEventHandler(Options options);
+  static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>> Create() {
+    return Create(Options{});
+  }
+
+  static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
+  Create(Options options);
 
   ~PhysicalEventHandler();
 
@@ -35,6 +40,7 @@ public:
 
 private:
   const Options options_;
+  const HotkeyConfigurations hotkey_configs_;
 
   std::thread event_processor_thread_;
   Channel<Event> channel_{1024};
@@ -43,7 +49,12 @@ private:
   int64_t target_position_ = 0;
   std::future<void> active_animation_future_;
 
+  PhysicalEventHandler(Options options, HotkeyConfigurations hotkey_configs);
+
   void EventProcessorThread();
+
+  bool IsEventInteresting(const DockControlEvent &event) const;
+  bool IsEventInteresting(const KeyEvent &event) const;
 
   absl::Status
   HandleDockControlEvent(const DockControlEvent &dock_control_event);

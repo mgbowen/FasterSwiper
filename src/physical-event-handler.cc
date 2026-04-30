@@ -3,6 +3,7 @@
 #include "src/const.h"
 #include "src/easing-functions.h"
 #include "src/event.h"
+#include "src/hotkeys.h"
 #include "src/macos-private.h"
 #include "src/space-state.h"
 #include "src/status-macros.h"
@@ -16,15 +17,22 @@
 
 namespace fasterswiper {
 
-namespace {
+absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
+PhysicalEventHandler::Create(Options options) {
+  HotkeyConfigurations hotkey_configs;
+  ASSIGN_OR_RETURN(hotkey_configs, LoadHotkeyConfiguration());
 
-constexpr int kKeyCodeLeftArrow = 123;
-constexpr int kKeyCodeRightArrow = 124;
+  VLOG(1) << "PhysicalEventHandler::Create(): Loaded hotkey configuration: "
+          << hotkey_configs;
 
-} // namespace
+  auto result = absl::WrapUnique(
+      new PhysicalEventHandler(std::move(options), std::move(hotkey_configs)));
+  return result;
+}
 
-PhysicalEventHandler::PhysicalEventHandler(Options options)
-    : options_(std::move(options)) {
+PhysicalEventHandler::PhysicalEventHandler(Options options,
+                                           HotkeyConfigurations hotkey_configs)
+    : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
   CHECK(GetEasingFunction(options_.easing_function_type) != nullptr)
       << "Invalid easing function type: " << options_.easing_function_type;
 
@@ -60,27 +68,6 @@ void PhysicalEventHandler::EventProcessorThread() {
   }
 }
 
-namespace {
-
-bool IsEventInteresting(const DockControlEvent &event) {
-  return event.direction == kCGGestureMotionHorizontal;
-}
-
-bool IsEventInteresting(const KeyEvent &event) {
-  switch (event.key_code) {
-  case kKeyCodeLeftArrow:
-  case kKeyCodeRightArrow:
-    break;
-  default:
-    return false;
-  }
-
-  return event.key_state == KeyState::kDown &&
-         event.IsModifierDown(kCGEventFlagMaskControl);
-}
-
-} // namespace
-
 CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
                                              CGEventType event_type,
                                              CGEventRef event) {
@@ -94,6 +81,8 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
     VLOG(2) << "HandleEvent(): Not a physical event";
     return event;
   }
+
+  VLOG(2) << "HandleEvent(): Received physical event " << *parsed_event;
 
   const bool is_event_interesting = std::visit(
       overloaded{[&](const auto &event) { return IsEventInteresting(event); }},
@@ -109,6 +98,19 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
   }
 
   return nullptr;
+}
+
+bool PhysicalEventHandler::IsEventInteresting(
+    const DockControlEvent &event) const {
+  return event.direction == kCGGestureMotionHorizontal;
+}
+
+bool PhysicalEventHandler::IsEventInteresting(const KeyEvent &event) const {
+  if (event.key_state != KeyState::kDown) {
+    return false;
+  }
+
+  return event.ConcernsAnyHotkey(hotkey_configs_);
 }
 
 absl::Status PhysicalEventHandler::HandleDockControlEvent(
@@ -243,17 +245,14 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
 
   RETURN_IF_ERROR(SetUpForNewGesture());
 
-  int64_t direction;
-  switch (key_event.key_code) {
-  case kKeyCodeLeftArrow:
+  int64_t direction = 0;
+  if (key_event.ConcernsHotkey(hotkey_configs_.move_space_left)) {
     direction = -1;
-    break;
-  case kKeyCodeRightArrow:
+  } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
-    break;
-  default:
+  } else {
     return absl::InvalidArgumentError(
-        absl::StrCat("Uninteresting key code ", key_event.key_code));
+        absl::StrCat("Uninteresting key event ", key_event.key_code));
   }
 
   const auto [soft_min, soft_max] = animator_->position_soft_limit();

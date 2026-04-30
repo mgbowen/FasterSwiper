@@ -35,6 +35,10 @@ struct FasterSwiperApp: App {
             
             Divider()
             
+            Button("Restart FasterSwiper") {
+                controller.start()
+            }
+            
             Button("Settings...") {
                 openSettings()
                 NSApp.activate(ignoringOtherApps: true)

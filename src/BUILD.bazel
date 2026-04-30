@@ -76,6 +76,7 @@ cc_library(
     hdrs = ["event.h"],
     deps = [
         ":CoreFoundation",
+        ":hotkeys",
         ":macos-private",
         ":string-util",
         ":variant-util",
@@ -105,12 +106,26 @@ cc_library(
 )
 
 cc_library(
+    name = "hotkeys",
+    srcs = ["hotkeys.cc"],
+    hdrs = ["hotkeys.h"],
+    deps = [
+        ":cf-util",
+        ":status-macros",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@magic_enum",
+    ],
+)
+
+cc_library(
     name = "physical-event-handler",
     srcs = ["physical-event-handler.cc"],
     hdrs = ["physical-event-handler.h"],
     deps = [
         ":channel",
         ":event",
+        ":hotkeys",
         ":macos-private",
         ":space-state",
         ":status-macros",

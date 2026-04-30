@@ -8,6 +8,14 @@ bazel_dep(name = "abseil-cpp", version = "20260107.1")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1")
 
+# Override needed because the latest BCR release isn't compatible with Bazel 9
+bazel_dep(name = "magic_enum")
+git_override(
+    module_name = "magic_enum",
+    commit = "7d87efb4a3dddbbe8caa9ca14eff05ede1102ab8",
+    remote = "https://github.com/Neargye/magic_enum.git",
+)
+
 # Fork for Hedron's Compile Commands Extractor for Bazel.
 # Fork: https://github.com/claymaks/bazel-compile-commands-extractor
 # Original: https://github.com/hedronvision/bazel-compile-commands-extractor
