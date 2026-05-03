@@ -1,70 +1,98 @@
-import SwiftUI
 import AppKit
-
-import src_c_api
-
-extension NSImage {
-    static func stoplightIcon(systemName: String, color: NSColor) -> NSImage {
-        let config = NSImage.SymbolConfiguration(paletteColors: [color])
-        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
-        image?.isTemplate = false
-        return image ?? NSImage()
-    }
-}
+import FasterSwiper_Daemon
+import SwiftUI
 
 @main
 struct FasterSwiperApp: App {
-    @StateObject private var controller = FasterSwiperController()
-    @Environment(\.openSettings) private var openSettings
+    @State private var settingsStore: SettingsStore
+    @State private var daemonManager: DaemonManager
+    @Environment(\.openSettings) private var openSettingsAction
 
     init() {
-        ParseFasterSwiperCommandLine(CommandLine.argc, CommandLine.unsafeArgv)
+        let store = SettingsStore()
+        let manager = DaemonManager(daemon: Daemon(), settingsStore: store)
+        
+        _settingsStore = State(initialValue: store)
+        _daemonManager = State(initialValue: manager)
+
+        Task { @MainActor in
+            manager.start()
+        }
     }
 
     var body: some Scene {
         MenuBarExtra("FasterSwiper", systemImage: "macwindow.on.rectangle") {
             Button("About FasterSwiper") {
-                showAboutDialog()
-                NSApp.activate(ignoringOtherApps: true)
+                openAbout()
             }
-            
+
             Divider()
 
             statusItem
-            
+
             Divider()
-            
-            Button("Restart FasterSwiper") {
-                controller.start()
-            }
-            
+
             Button("Settings...") {
                 openSettings()
-                NSApp.activate(ignoringOtherApps: true)
             }
-            
+
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }
         }
-        
+
         Settings {
-            SettingsView(controller: controller)
+            SettingsView()
+                .environment(settingsStore)
+                .environment(daemonManager)
+                .onDisappear {
+                    WindowTracker.shared.reportWindowClosed()
+                }
         }
     }
 
-    private func showAboutDialog() {
-        var info = FasterSwiperVersionInfo()
-        GetFasterSwiperVersionInfo(&info)
+    @ViewBuilder
+    private var statusItem: some View {
+        let (text, color) = switch daemonManager.status {
+        case .running: ("FasterSwiper Active", Color.green)
+        case .stopped: ("FasterSwiper Stopped", Color.gray)
+        case .accessibilityPermissionDenied: ("Permissions Required", Color.red)
+        case .genericError: ("Failed to Start", Color.red)
+        }
+
+        let nsColor: NSColor = switch color {
+        case .red: .systemRed
+        case .gray: .systemGray
+        case .green: .systemGreen
+        default: .systemGray
+        }
         
-        let gitHash = String(cString: info.git_hash)
-        let appVersion = info.version != nil ? "Version " + String(cString: info.version!) : "HEAD"
-        let version = String(gitHash.prefix(7)) + (info.is_dirty ? ", dirty" : "")
+        let icon = NSImage.stoplightIcon(color: nsColor)
+
+        Button(action: {
+            daemonManager.toggle()
+        }) {
+            Label {
+                Text(text)
+            } icon: {
+                Image(nsImage: icon)
+            }
+        }
+    }
+
+    private func openSettings() {
+        WindowTracker.shared.reportWindowOpened()
+        openSettingsAction()
+    }
+
+    private func openAbout() {
+        let versionInfo = daemonManager.version
+        let appVersion = "Version " + (versionInfo.version ?? "HEAD")
+        let version = String(versionInfo.gitHash.prefix(7)) + (versionInfo.isDirty ? ", dirty" : "")
 
         let linkAttributes: [NSAttributedString.Key: Any] = [
             .link: NSURL(string: "https://github.com/mgbowen/FasterSwiper/blob/main/ATTRIBUTION.md")!,
-            .foregroundColor: NSColor.linkColor
+            .foregroundColor: NSColor.linkColor,
         ]
         let credits = NSAttributedString(string: "Third-Party Software", attributes: linkAttributes)
 
@@ -73,43 +101,9 @@ struct FasterSwiperApp: App {
             .version: version,
             .applicationVersion: appVersion,
             .credits: credits,
-            NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Matthew Bowen. All rights reserved."
+            NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Matthew Bowen. All rights reserved.",
         ]
-        
+
         NSApp.orderFrontStandardAboutPanel(options: options)
-    }
-
-    @ViewBuilder
-    private var statusItem: some View {
-        switch controller.status {
-        case .started:
-            statusLabel(text: "FasterSwiper Active", color: .green)
-        case .permissionsRequired:
-            statusLabel(text: "Permissions Required", color: .red)
-        case .failedToStart:
-            statusLabel(text: "Failed to Start", color: .red)
-        }
-    }
-
-    private func statusLabel(text: String, color: Color) -> some View {
-        let container = AttributedString(text)
-        
-        // Map SwiftUI Color to NSColor for the icon
-        let nsColor: NSColor = (color == .red ? .systemRed : .systemGreen)
-        let icon = NSImage.stoplightIcon(systemName: "circle.fill", color: nsColor)
-        
-        return Button(action: {
-            if controller.status == .permissionsRequired {
-                let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
-                AXIsProcessTrustedWithOptions(options)
-            }
-        }) {
-            Label {
-                Text(container)
-            } icon: {
-                Image(nsImage: icon)
-            }
-        }
-        .disabled(true)
     }
 }

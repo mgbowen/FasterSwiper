@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/easing-functions.h"
+#include "src/easing.h"
 #include "src/periodic-timer.h"
 #include "src/space-switcher.h"
 
@@ -30,7 +30,7 @@ public:
   struct AnimateParameters {
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
     absl::Duration duration ABSL_REQUIRE_EXPLICIT_INIT;
-    absl_nonnull EasingFunctionPtr easing_function ABSL_REQUIRE_EXPLICIT_INIT;
+    EasingFunction easing_function ABSL_REQUIRE_EXPLICIT_INIT;
     int64_t ticks_per_second ABSL_REQUIRE_EXPLICIT_INIT;
   };
 

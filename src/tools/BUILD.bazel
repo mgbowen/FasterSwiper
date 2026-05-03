@@ -59,18 +59,6 @@ cc_binary(
 )
 
 cc_binary(
-    name = "tap-scratch",
-    srcs = ["tap-scratch.cc"],
-    deps = [
-        "//src:cf-util",
-        "//src:event-tap-manager",
-        "//src:macos-private",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/strings",
-    ],
-)
-
-cc_binary(
     name = "timer-test",
     srcs = ["timer-test.cc"],
     deps = [

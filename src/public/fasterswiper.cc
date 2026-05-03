@@ -1,6 +1,7 @@
-#include "src/c-api.h"
+#include "src/public/fasterswiper.h"
 
 #include "src/cf-util.h"
+#include "src/easing.h"
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
 #include "src/physical-event-handler.h"
@@ -15,22 +16,50 @@
 #include <IOKit/IOTypes.h>
 
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "third_party/chromium/cubic-bezier.h"
 
 namespace {
 
 using ::fasterswiper::CFUniquePtr;
+using ::fasterswiper::EasingFunction;
 using ::fasterswiper::EventTapManager;
 using ::fasterswiper::kCGSEventDockControl;
+using ::fasterswiper::MakeEasingFunctionBezier;
+using ::fasterswiper::MakeEasingFunctionEaseOutQuadratic;
+using ::fasterswiper::MakeEasingFunctionEaseOutQuintic;
+using ::fasterswiper::MakeEasingFunctionLinear;
 using ::fasterswiper::PhysicalEventHandler;
 using ::fasterswiper::WrapCFUnique;
+
+EasingFunction MakeEasingFunctionForOptions(const FS_Options &options) {
+  switch (options.easing_function_type) {
+  case kEasingFunctionLinear: {
+    return MakeEasingFunctionLinear();
+  }
+  case kEasingFunctionEaseOutQuadratic: {
+    return MakeEasingFunctionEaseOutQuadratic();
+  }
+  case kEasingFunctionEaseOutQuintic: {
+    return MakeEasingFunctionEaseOutQuintic();
+  }
+  case kEasingFunctionBezier: {
+    return MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier(
+        options.easing_bezier_params.p1x, options.easing_bezier_params.p1y,
+        options.easing_bezier_params.p2x, options.easing_bezier_params.p2y));
+  }
+  }
+
+  LOG(FATAL) << "Unknown easing function type " << options.easing_function_type;
+}
 
 } // namespace
 
 extern "C" {
 
-struct FasterSwiper {
+struct FS_Daemon {
   absl::Mutex mutex;
 
   std::shared_ptr<PhysicalEventHandler> physical_event_handler;
@@ -40,24 +69,24 @@ struct FasterSwiper {
   bool is_running = false;
 };
 
-void InitializeFasterSwiperOptions(FasterSwiperOptions *options) {
-  std::memset(options, 0, sizeof(FasterSwiperOptions));
+void FS_InitOptions(FS_Options *options) {
+  std::memset(options, 0, sizeof(FS_Options));
 
   const PhysicalEventHandler::Options default_options;
   options->animation_duration_per_space_ns =
       absl::ToInt64Nanoseconds(default_options.animation_duration_per_space);
-  options->easing_function_type = default_options.easing_function_type;
+  options->easing_function_type = kEasingFunctionEaseOutQuadratic;
   options->ticks_per_second = default_options.ticks_per_second;
   options->handle_keyboard_events = default_options.handle_keyboard_events;
 }
 
-FasterSwiper *CreateFasterSwiper(const FasterSwiperOptions *options) {
+FS_Daemon *FS_Create(const FS_Options *options) {
   absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
       maybe_physical_event_handler =
           PhysicalEventHandler::Create(PhysicalEventHandler::Options{
               .animation_duration_per_space =
                   absl::Nanoseconds(options->animation_duration_per_space_ns),
-              .easing_function_type = options->easing_function_type,
+              .easing_function = MakeEasingFunctionForOptions(*options),
               .ticks_per_second = options->ticks_per_second,
               .handle_keyboard_events = options->handle_keyboard_events,
           });
@@ -98,14 +127,14 @@ FasterSwiper *CreateFasterSwiper(const FasterSwiperOptions *options) {
   CFUniquePtr<CFRunLoopSourceRef> run_loop_source =
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
 
-  return new FasterSwiper{
+  return new FS_Daemon{
       .physical_event_handler = std::move(physical_event_handler),
       .tap_manager = std::move(tap_manager),
       .run_loop_source = std::move(run_loop_source),
   };
 }
 
-bool DestroyFasterSwiper(FasterSwiper *state) {
+bool FS_Destroy(FS_Daemon *state) {
   if (state == nullptr) {
     return false;
   }
@@ -114,7 +143,7 @@ bool DestroyFasterSwiper(FasterSwiper *state) {
   return true;
 }
 
-bool StartFasterSwiper(FasterSwiper *state) {
+bool FS_Start(FS_Daemon *state) {
   if (state == nullptr) {
     std::cerr << "StartFasterSwiper called with null state\n";
     return false;
@@ -135,7 +164,7 @@ bool StartFasterSwiper(FasterSwiper *state) {
   return true;
 }
 
-bool StopFasterSwiper(FasterSwiper *state) {
+bool FS_Stop(FS_Daemon *state) {
   if (state == nullptr) {
     std::cerr << "StopFasterSwiper called with null state\n";
     return false;
@@ -155,11 +184,13 @@ bool StopFasterSwiper(FasterSwiper *state) {
   return true;
 }
 
-void ParseFasterSwiperCommandLine(int argc, char **argv) {
-  absl::ParseCommandLine(argc, argv);
+void FS_ParseCommandLine(int argc, char **argv) {
+    std::vector<char*> positional_args;
+    std::vector<absl::UnrecognizedFlag> unrecognized_flags;
+    absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
 }
 
-void GetFasterSwiperVersionInfo(FasterSwiperVersionInfo *info) {
+void FS_GetVersionInfo(FS_VersionInfo *info) {
   if (info == nullptr) {
     return;
   }

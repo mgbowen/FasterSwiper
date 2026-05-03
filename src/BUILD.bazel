@@ -3,25 +3,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "c-api",
-    srcs = ["c-api.cc"],
-    hdrs = ["c-api.h"],
-    aspect_hints = ["@rules_swift//swift:auto_module"],
-    deps = [
-        ":CoreFoundation",
-        ":easing-functions",
-        ":event-tap-manager",
-        ":macos-private",
-        ":physical-event-handler",
-        ":version",
-        "@abseil-cpp//absl/flags:parse",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/synchronization",
-    ],
-)
-
-cc_library(
     name = "cf-util",
     srcs = ["cf-util.cc"],
     hdrs = ["cf-util.h"],
@@ -65,9 +46,12 @@ cc_library(
 )
 
 cc_library(
-    name = "easing-functions",
-    srcs = ["easing-functions.cc"],
-    hdrs = ["easing-functions.h"],
+    name = "easing",
+    srcs = ["easing.cc"],
+    hdrs = ["easing.h"],
+    deps = [
+        "//third_party/chromium:cubic-bezier",
+    ],
 )
 
 cc_library(
@@ -131,24 +115,6 @@ cc_library(
         ":status-macros",
         ":swipe-animator",
         ":variant-util",
-        "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-    ],
-)
-
-cc_library(
-    name = "keyboard-event-handler",
-    srcs = ["keyboard-event-handler.cc"],
-    hdrs = ["keyboard-event-handler.h"],
-    deps = [
-        ":channel",
-        ":event",
-        ":macos-private",
-        ":space-state",
-        ":status-macros",
-        ":swipe-animator",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -222,7 +188,7 @@ cc_library(
     srcs = ["swipe-animator.cc"],
     hdrs = ["swipe-animator.h"],
     deps = [
-        ":easing-functions",
+        ":easing",
         ":periodic-timer",
         ":space-switcher",
         "@abseil-cpp//absl/memory",

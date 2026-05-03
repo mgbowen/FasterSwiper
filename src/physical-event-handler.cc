@@ -1,7 +1,6 @@
 #include "src/physical-event-handler.h"
 
 #include "src/const.h"
-#include "src/easing-functions.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
@@ -33,9 +32,6 @@ PhysicalEventHandler::Create(Options options) {
 PhysicalEventHandler::PhysicalEventHandler(Options options,
                                            HotkeyConfigurations hotkey_configs)
     : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
-  CHECK(GetEasingFunction(options_.easing_function_type) != nullptr)
-      << "Invalid easing function type: " << options_.easing_function_type;
-
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
 }
 
@@ -206,7 +202,7 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
-      .easing_function = GetEasingFunction(options_.easing_function_type),
+      .easing_function = options_.easing_function,
       .ticks_per_second = options_.ticks_per_second,
   });
 
@@ -233,7 +229,7 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = initial_position_,
       .duration = duration,
-      .easing_function = GetEasingFunction(options_.easing_function_type),
+      .easing_function = options_.easing_function,
       .ticks_per_second = options_.ticks_per_second,
   });
 
@@ -273,7 +269,7 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
-      .easing_function = GetEasingFunction(options_.easing_function_type),
+      .easing_function = options_.easing_function,
       .ticks_per_second = options_.ticks_per_second,
   });
 

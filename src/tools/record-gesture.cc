@@ -1,22 +1,25 @@
-#include <csignal>
-#include <fstream>
-#include <iostream>
-#include <vector>
-
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
-#include "nlohmann/json.hpp"
 #include "src/cf-util.h"
 #include "src/event-tap-manager.h"
 #include "src/event.h"
 #include "src/macos-private.h"
 #include "src/periodic-timer.h"
 
+#include <csignal>
+#include <fstream>
+#include <iostream>
+#include <vector>
+
+#include "absl/base/no_destructor.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
+#include "nlohmann/json.hpp"
+
 namespace fasterswiper {
 namespace {
 
 using nlohmann::json;
 
+const absl::NoDestructor<pid_t> kOwnPid([] { return getpid(); }());
 std::atomic<bool> g_stop_requested{false};
 
 void SignalHandler(int signal) {
@@ -87,8 +90,8 @@ absl::Status RecordGestures(const std::string &output_path) {
         kIOHIDEventTypeDockSwipe)
       return event;
 
-    if (CGEventGetIntegerValueField(event, kCGEventSourceUserData) ==
-        kSyntheticEventMagicNumber) {
+    if (CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) ==
+        *kOwnPid) {
       return event;
     }
 
@@ -158,7 +161,8 @@ int main(int argc, char **argv) {
   }
 
   std::string output_path = argv[1];
-  if (absl::Status status = fasterswiper::RecordGestures(output_path); !status.ok()) {
+  if (absl::Status status = fasterswiper::RecordGestures(output_path);
+      !status.ok()) {
     std::cerr << "ERROR: " << status << "\n";
     return 1;
   }

@@ -1,19 +1,36 @@
 load("@mgbowen_create_dmg//lib:defs.bzl", "macos_dmg")
 load("@rules_apple//apple:macos.bzl", "macos_application")
 load("@rules_swift//swift:swift.bzl", "swift_library")
+load("@rules_xcodeproj//xcodeproj:defs.bzl", "top_level_target", "xcodeproj")
 
 package(default_visibility = ["//visibility:public"])
 
 swift_library(
     name = "FasterSwiper_lib",
     srcs = [
+        "DaemonManager.swift",
         "FasterSwiperApp.swift",
-        "FasterSwiperController.swift",
+        "SettingsStore.swift",
         "SettingsView.swift",
+        "StoplightIcon.swift",
+        "WindowTracker.swift",
     ],
-    module_name = "FasterSwiper",
+    module_name = "FasterSwiper_App",
     deps = [
-        "//src:c-api",
+        "//src/public/swift",
+    ],
+)
+
+xcodeproj(
+    name = "xcodeproj",
+    tags = ["manual"],
+    top_level_targets = [
+        top_level_target(
+            ":FasterSwiper_app",
+            target_environments = [
+                "device",
+            ],
+        ),
     ],
 )
 

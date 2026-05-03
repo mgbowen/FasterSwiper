@@ -1,0 +1,27 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+
+cc_library(
+    name = "public",
+    srcs = ["fasterswiper.cc"],
+    hdrs = ["fasterswiper.h"],
+    aspect_hints = [":c_api_swift_interop"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src:CoreFoundation",
+        "//src:easing",
+        "//src:event-tap-manager",
+        "//src:macos-private",
+        "//src:physical-event-handler",
+        "//src:version",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+swift_interop_hint(
+    name = "c_api_swift_interop",
+    module_name = "FasterSwiper_CApi",
+)

@@ -1,7 +1,8 @@
-#include "src/easing-functions.h"
+#include "src/easing.h"
 #include "src/event-tap-manager.h"
 #include "src/space-state.h"
 #include "src/swipe-animator.h"
+
 #include <iostream>
 #include <thread>
 
@@ -50,21 +51,20 @@ int main(int argc, char *argv[]) {
     auto animator =
         std::make_unique<SwipeAnimator>(std::move(*maybe_space_state));
 
-    constexpr auto easing_function = kEasingFunctionLinear;
     constexpr auto duration = absl::Milliseconds(200);
 
     while (true) {
       auto future = animator->AnimateToPosition({
           .target_position = 3'000'000,
           .duration = duration,
-          .easing_function = GetEasingFunction(easing_function),
+          .easing_function = MakeEasingFunctionLinear(),
           .ticks_per_second = 240,
       });
       future.wait();
       auto future2 = animator->AnimateToPosition({
           .target_position = 0'000'000,
           .duration = duration,
-          .easing_function = GetEasingFunction(easing_function),
+          .easing_function = MakeEasingFunctionLinear(),
           .ticks_per_second = 240,
       });
       future2.wait();

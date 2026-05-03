@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/channel.h"
+#include "src/easing.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/swipe-animator.h"
@@ -14,8 +15,7 @@ class PhysicalEventHandler {
 public:
   struct Options {
     absl::Duration animation_duration_per_space = absl::Milliseconds(200);
-    EasingFunctionType easing_function_type =
-        EasingFunctionType::kEasingFunctionEaseOutQuadratic;
+    EasingFunction easing_function = MakeEasingFunctionEaseOutQuadratic();
     int64_t ticks_per_second = 240;
     bool handle_keyboard_events = true;
   };
