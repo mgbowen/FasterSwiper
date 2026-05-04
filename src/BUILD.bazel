@@ -50,6 +50,7 @@ cc_library(
     srcs = ["easing.cc"],
     hdrs = ["easing.h"],
     deps = [
+        "//src/public:fasterswiper_cc_proto",
         "//third_party/chromium:cubic-bezier",
     ],
 )
@@ -111,10 +112,12 @@ cc_library(
         ":event",
         ":hotkeys",
         ":macos-private",
+        ":proto-util",
         ":space-state",
         ":status-macros",
         ":swipe-animator",
         ":variant-util",
+        "//src/public:fasterswiper_cc_proto",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -141,6 +144,15 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/time",
+    ],
+)
+
+cc_library(
+    name = "proto-util",
+    hdrs = ["proto-util.h"],
+    deps = [
+        "@abseil-cpp//absl/time",
+        "@protobuf//:duration_cc_proto",
     ],
 )
 
@@ -244,7 +256,7 @@ genrule(
     COMMIT=$$(awk '/^STABLE_GIT_COMMIT / {print $$2}' bazel-out/stable-status.txt)
     DIRTY=$$(awk '/^STABLE_GIT_DIRTY / {print $$2}' bazel-out/stable-status.txt)
     VERSION_VAL=$$(awk '/^STABLE_VERSION / {print $$2}' bazel-out/stable-status.txt)
-    
+
     if [[ -z "$$DIRTY" ]]; then DIRTY=false; fi
 
     if [[ -z "$$VERSION_VAL" ]]; then

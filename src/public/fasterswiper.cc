@@ -5,6 +5,8 @@
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
 #include "src/physical-event-handler.h"
+#include "src/proto-util.h"
+#include "src/public/fasterswiper.pb.h"
 #include "src/version.h"
 
 #include <CoreGraphics/CGEventTypes.h>
@@ -19,7 +21,6 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "third_party/chromium/cubic-bezier.h"
 
 namespace {
 
@@ -27,33 +28,11 @@ using ::fasterswiper::CFUniquePtr;
 using ::fasterswiper::EasingFunction;
 using ::fasterswiper::EventTapManager;
 using ::fasterswiper::kCGSEventDockControl;
-using ::fasterswiper::MakeEasingFunctionBezier;
-using ::fasterswiper::MakeEasingFunctionEaseOutQuadratic;
-using ::fasterswiper::MakeEasingFunctionEaseOutQuintic;
-using ::fasterswiper::MakeEasingFunctionLinear;
 using ::fasterswiper::PhysicalEventHandler;
+using ::fasterswiper::ToProtoDuration;
 using ::fasterswiper::WrapCFUnique;
 
-EasingFunction MakeEasingFunctionForOptions(const FS_Options &options) {
-  switch (options.easing_function_type) {
-  case kEasingFunctionLinear: {
-    return MakeEasingFunctionLinear();
-  }
-  case kEasingFunctionEaseOutQuadratic: {
-    return MakeEasingFunctionEaseOutQuadratic();
-  }
-  case kEasingFunctionEaseOutQuintic: {
-    return MakeEasingFunctionEaseOutQuintic();
-  }
-  case kEasingFunctionBezier: {
-    return MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier(
-        options.easing_bezier_params.p1x, options.easing_bezier_params.p1y,
-        options.easing_bezier_params.p2x, options.easing_bezier_params.p2y));
-  }
-  }
-
-  LOG(FATAL) << "Unknown easing function type " << options.easing_function_type;
-}
+namespace proto = fasterswiper::proto;
 
 } // namespace
 
@@ -62,6 +41,7 @@ extern "C" {
 struct FS_Daemon {
   absl::Mutex mutex;
 
+  std::unique_ptr<FS_DaemonOptions> options;
   std::shared_ptr<PhysicalEventHandler> physical_event_handler;
   std::unique_ptr<EventTapManager> tap_manager;
   CFUniquePtr<CFRunLoopSourceRef> run_loop_source;
@@ -69,27 +49,69 @@ struct FS_Daemon {
   bool is_running = false;
 };
 
-void FS_InitOptions(FS_Options *options) {
-  std::memset(options, 0, sizeof(FS_Options));
+struct FS_DaemonOptions {
+  proto::DaemonOptions options;
+};
 
-  const PhysicalEventHandler::Options default_options;
-  options->animation_duration_per_space_ns =
-      absl::ToInt64Nanoseconds(default_options.animation_duration_per_space);
-  options->easing_function_type = kEasingFunctionEaseOutQuadratic;
-  options->ticks_per_second = default_options.ticks_per_second;
-  options->handle_keyboard_events = default_options.handle_keyboard_events;
+bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options) {
+  if (out_daemon_options == nullptr) {
+    return false;
+  }
+
+  proto::DaemonOptions options;
+  *options.mutable_animation_duration_per_space() =
+      ToProtoDuration(absl::Milliseconds(200));
+  options.set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+  options.set_frames_per_second(240);
+  options.set_intercept_keyboard_events(true);
+
+  auto daemon_options = new FS_DaemonOptions;
+  daemon_options->options = std::move(options);
+  *out_daemon_options = daemon_options;
+  return true;
 }
 
-FS_Daemon *FS_Create(const FS_Options *options) {
+bool FS_LoadDaemonOptionsFromBinaryProto(
+    const char *data, size_t len, FS_DaemonOptions **out_daemon_options_ptr) {
+  auto binary_proto_data = absl::string_view(data, len);
+  auto options = std::make_unique<FS_DaemonOptions>();
+  if (!options->options.ParseFromString(binary_proto_data)) {
+    LOG(ERROR) << "proto::DaemonOptions.ParseFromString() failed";
+    return false;
+  }
+
+  *out_daemon_options_ptr = options.release();
+  return true;
+}
+
+bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
+                                       char *out_data, size_t *out_len) {
+  if (daemon_options == nullptr) {
+    return false;
+  }
+
+  if (out_len == nullptr) {
+    return false;
+  }
+
+  std::string binary_proto = daemon_options->options.SerializeAsString();
+
+  if (out_data != nullptr) {
+    if (*out_len < binary_proto.size()) {
+      return false;
+    }
+
+    std::memcpy(out_data, binary_proto.data(), binary_proto.size());
+  }
+
+  *out_len = binary_proto.size();
+  return true;
+}
+
+FS_Daemon *FS_Create(FS_DaemonOptions *options) {
   absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
       maybe_physical_event_handler =
-          PhysicalEventHandler::Create(PhysicalEventHandler::Options{
-              .animation_duration_per_space =
-                  absl::Nanoseconds(options->animation_duration_per_space_ns),
-              .easing_function = MakeEasingFunctionForOptions(*options),
-              .ticks_per_second = options->ticks_per_second,
-              .handle_keyboard_events = options->handle_keyboard_events,
-          });
+          PhysicalEventHandler::Create(options->options);
 
   if (!maybe_physical_event_handler.ok()) {
     std::cerr << "Failed to create PhysicalEventHandler: "
@@ -109,7 +131,7 @@ FS_Daemon *FS_Create(const FS_Options *options) {
   std::vector<CGEventType> event_types;
   event_types.push_back(kCGSEventDockControl);
 
-  if (options->handle_keyboard_events) {
+  if (options->options.intercept_keyboard_events()) {
     event_types.push_back(kCGEventKeyDown);
   }
 
@@ -128,6 +150,7 @@ FS_Daemon *FS_Create(const FS_Options *options) {
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
 
   return new FS_Daemon{
+      .options = absl::WrapUnique(options),
       .physical_event_handler = std::move(physical_event_handler),
       .tap_manager = std::move(tap_manager),
       .run_loop_source = std::move(run_loop_source),
@@ -140,6 +163,15 @@ bool FS_Destroy(FS_Daemon *state) {
   }
 
   delete state;
+  return true;
+}
+
+bool FS_DestroyDaemonOptions(FS_DaemonOptions *options) {
+  if (options == nullptr) {
+    return false;
+  }
+
+  delete options;
   return true;
 }
 
@@ -185,9 +217,9 @@ bool FS_Stop(FS_Daemon *state) {
 }
 
 void FS_ParseCommandLine(int argc, char **argv) {
-    std::vector<char*> positional_args;
-    std::vector<absl::UnrecognizedFlag> unrecognized_flags;
-    absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
+  std::vector<char *> positional_args;
+  std::vector<absl::UnrecognizedFlag> unrecognized_flags;
+  absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
 }
 
 void FS_GetVersionInfo(FS_VersionInfo *info) {

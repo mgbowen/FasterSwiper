@@ -4,6 +4,8 @@
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
+#include "src/proto-util.h"
+#include "src/public/fasterswiper.pb.h"
 #include "src/space-state.h"
 #include "src/status-macros.h"
 #include "src/variant-util.h"
@@ -17,7 +19,7 @@
 namespace fasterswiper {
 
 absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-PhysicalEventHandler::Create(Options options) {
+PhysicalEventHandler::Create(proto::DaemonOptions options) {
   HotkeyConfigurations hotkey_configs;
   ASSIGN_OR_RETURN(hotkey_configs, LoadHotkeyConfiguration());
 
@@ -29,7 +31,7 @@ PhysicalEventHandler::Create(Options options) {
   return result;
 }
 
-PhysicalEventHandler::PhysicalEventHandler(Options options,
+PhysicalEventHandler::PhysicalEventHandler(proto::DaemonOptions options,
                                            HotkeyConfigurations hotkey_configs)
     : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
@@ -190,20 +192,22 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
                                     OneSwipeInNanoswipes,
                                 soft_min, soft_max);
 
-  const absl::Duration duration =
-      CalculateAnimationDuration(animator_->position(), target_position_,
-                                 options_.animation_duration_per_space);
+  const absl::Duration duration = CalculateAnimationDuration(
+      animator_->position(), target_position_,
+      FromProtoDuration(options_.animation_duration_per_space()));
 
   VLOG(1) << "HandleEndGesture():  initial_position=" << initial_position_;
   VLOG(1) << "HandleEndGesture():  current_position=" << animator_->position();
   VLOG(1) << "HandleEndGesture():  target_position=" << target_position_;
   VLOG(1) << "HandleEndGesture():  duration=" << duration;
 
+  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
-      .easing_function = options_.easing_function,
-      .ticks_per_second = options_.ticks_per_second,
+      .easing_function = std::move(easing_function),
+      .ticks_per_second = options_.frames_per_second(),
   });
 
   return absl::OkStatus();
@@ -215,9 +219,9 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleCancelGesture(): END"; });
 
-  const absl::Duration duration =
-      CalculateAnimationDuration(animator_->position(), target_position_,
-                                 options_.animation_duration_per_space);
+  const absl::Duration duration = CalculateAnimationDuration(
+      animator_->position(), target_position_,
+      FromProtoDuration(options_.animation_duration_per_space()));
 
   VLOG(1) << "HandleCancelGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleCancelGesture():  initial_position_=" << initial_position_;
@@ -226,11 +230,13 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture():  target_position_=" << target_position_;
   VLOG(1) << "HandleCancelGesture():  duration=" << duration;
 
+  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = initial_position_,
       .duration = duration,
-      .easing_function = options_.easing_function,
-      .ticks_per_second = options_.ticks_per_second,
+      .easing_function = std::move(easing_function),
+      .ticks_per_second = options_.frames_per_second(),
   });
 
   return absl::OkStatus();
@@ -257,20 +263,22 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
                      OneSwipeInNanoswipes,
                  soft_min, soft_max);
 
-  const absl::Duration duration =
-      CalculateAnimationDuration(animator_->position(), target_position_,
-                                 options_.animation_duration_per_space);
+  const absl::Duration duration = CalculateAnimationDuration(
+      animator_->position(), target_position_,
+      FromProtoDuration(options_.animation_duration_per_space()));
 
   VLOG(1) << "HandleKeyEvent():  initial_position=" << initial_position_;
   VLOG(1) << "HandleKeyEvent():  current_position=" << animator_->position();
   VLOG(1) << "HandleKeyEvent():  target_position=" << target_position_;
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
+  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+
   active_animation_future_ = animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
-      .easing_function = options_.easing_function,
-      .ticks_per_second = options_.ticks_per_second,
+      .easing_function = std::move(easing_function),
+      .ticks_per_second = options_.frames_per_second(),
   });
 
   return absl::OkStatus();

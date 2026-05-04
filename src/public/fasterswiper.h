@@ -1,49 +1,33 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum FS_EasingFunctionType {
-  kEasingFunctionLinear = 0,
-  kEasingFunctionEaseOutQuadratic = 1,
-  kEasingFunctionEaseOutQuintic = 2,
-  kEasingFunctionBezier = 3,
-};
+typedef struct FS_DaemonOptions FS_DaemonOptions;
 
-typedef struct {
-  double p1x;
-  double p1y;
-  double p2x;
-  double p2y;
-} FS_BezierParameters;
+bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options);
 
-typedef struct {
-  int64_t animation_duration_per_space_ns;
+bool FS_LoadDaemonOptionsFromBinaryProto(const char *data, size_t len,
+                                         FS_DaemonOptions **out_daemon_options);
 
-  enum FS_EasingFunctionType easing_function_type;
-
-  // Only used if `easing_function_type` is set to `kEasingFunctionBezier`.
-  FS_BezierParameters easing_bezier_params;
-
-  int64_t ticks_per_second;
-
-  bool handle_keyboard_events;
-} FS_Options;
+bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
+                                       char *out_data, size_t *out_len);
 
 typedef struct FS_Daemon FS_Daemon;
 
-// Initializes the given FasterSwiperOptions struct with default values.
-void FS_InitOptions(FS_Options *options);
-
-// Creates a new FasterSwiper with the given options. Returns NULL on failure.
-FS_Daemon *FS_Create(const FS_Options *options);
+// Creates a new FasterSwiper with the given options. On success, ownership of
+// the passed FS_DaemonOptions is transferred to FS_Daemon. On failure, returns
+// NULL.
+FS_Daemon *FS_Create(FS_DaemonOptions *options);
 
 // Destroys the given FasterSwiper. Returns true on success, false otherwise.
 bool FS_Destroy(FS_Daemon *state);
+
+bool FS_DestroyDaemonOptions(FS_DaemonOptions *options);
 
 // Starts FasterSwiper. Returns true on success, false otherwise.
 bool FS_Start(FS_Daemon *state);

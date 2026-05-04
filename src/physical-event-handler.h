@@ -4,6 +4,7 @@
 #include "src/easing.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
+#include "src/public/fasterswiper.pb.h"
 #include "src/swipe-animator.h"
 
 #include <memory>
@@ -13,19 +14,8 @@ namespace fasterswiper {
 
 class PhysicalEventHandler {
 public:
-  struct Options {
-    absl::Duration animation_duration_per_space = absl::Milliseconds(200);
-    EasingFunction easing_function = MakeEasingFunctionEaseOutQuadratic();
-    int64_t ticks_per_second = 240;
-    bool handle_keyboard_events = true;
-  };
-
-  static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>> Create() {
-    return Create(Options{});
-  }
-
   static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-  Create(Options options);
+  Create(proto::DaemonOptions options);
 
   ~PhysicalEventHandler();
 
@@ -39,8 +29,10 @@ public:
                          CGEventRef event);
 
 private:
-  const Options options_;
+  const proto::DaemonOptions options_;
   const HotkeyConfigurations hotkey_configs_;
+
+  const absl::Duration animation_duration_per_space_;
 
   std::thread event_processor_thread_;
   Channel<Event> channel_{1024};
@@ -49,7 +41,8 @@ private:
   int64_t target_position_ = 0;
   std::future<void> active_animation_future_;
 
-  PhysicalEventHandler(Options options, HotkeyConfigurations hotkey_configs);
+  PhysicalEventHandler(proto::DaemonOptions options,
+                       HotkeyConfigurations hotkey_configs);
 
   void EventProcessorThread();
 

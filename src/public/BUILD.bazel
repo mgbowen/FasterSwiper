@@ -1,5 +1,10 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_swift//proto:proto.bzl", "swift_proto_library")
 load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+
+package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "public",
@@ -8,6 +13,7 @@ cc_library(
     aspect_hints = [":c_api_swift_interop"],
     visibility = ["//visibility:public"],
     deps = [
+        ":fasterswiper_cc_proto",
         "//src:CoreFoundation",
         "//src:easing",
         "//src:event-tap-manager",
@@ -24,4 +30,26 @@ cc_library(
 swift_interop_hint(
     name = "c_api_swift_interop",
     module_name = "FasterSwiper_CApi",
+)
+
+proto_library(
+    name = "fasterswiper_proto",
+    srcs = ["fasterswiper.proto"],
+    deps = [
+        "@protobuf//:duration_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "fasterswiper_cc_proto",
+    deps = [":fasterswiper_proto"],
+)
+
+swift_proto_library(
+    name = "fasterswiper_swift_proto",
+    module_name = "FasterSwiper_Proto",
+    protos = [":fasterswiper_proto"],
+    deps = [
+        "@protobuf//:duration_cc_proto",
+    ]
 )

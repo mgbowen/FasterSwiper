@@ -1,32 +1,5 @@
 import Foundation
-
-public struct BezierCurve: Codable, Hashable {
-    public var p1x: Double
-    public var p1y: Double
-    public var p2x: Double
-    public var p2y: Double
-
-    public init(p1x: Double, p1y: Double, p2x: Double, p2y: Double) {
-        self.p1x = p1x
-        self.p1y = p1y
-        self.p2x = p2x
-        self.p2y = p2y
-    }
-}
-
-extension BezierCurve: RawRepresentable {
-    public init?(rawValue: String) {
-        if let curve = try? BezierParseStrategy().parse(rawValue) {
-            self = curve
-        } else {
-            return nil
-        }
-    }
-
-    public var rawValue: String {
-        "\(p1x), \(p1y), \(p2x), \(p2y)"
-    }
-}
+import FasterSwiper_Proto
 
 public struct BezierFormatStyle: ParseableFormatStyle {
     public var parseStrategy: BezierParseStrategy {
@@ -35,7 +8,7 @@ public struct BezierFormatStyle: ParseableFormatStyle {
 
     public init() {}
 
-    public func format(_ value: BezierCurve) -> String {
+    public func format(_ value: Fasterswiper_Proto_CubicBezierCurve) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
@@ -45,15 +18,14 @@ public struct BezierFormatStyle: ParseableFormatStyle {
             return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
         }
 
-        return "\(fmt(value.p1x)), \(fmt(value.p1y)), \(fmt(value.p2x)), \(fmt(value.p2y))"
+        return "\(fmt(value.p1X)), \(fmt(value.p1Y)), \(fmt(value.p2X)), \(fmt(value.p2Y))"
     }
 }
 
 public struct BezierParseStrategy: ParseStrategy {
     public init() {}
 
-    public func parse(_ value: String) throws -> BezierCurve {
-        // Handle "cubic-bezier(x, x, x, x)" format as well, just in case
+    public func parse(_ value: String) throws -> Fasterswiper_Proto_CubicBezierCurve {
         var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.lowercased().hasPrefix("cubic-bezier(") && cleaned.hasSuffix(")") {
             cleaned = String(cleaned.dropFirst("cubic-bezier(".count).dropLast())
@@ -74,7 +46,12 @@ public struct BezierParseStrategy: ParseStrategy {
             throw BezierParseError.invalidFormat
         }
 
-        return BezierCurve(p1x: p1x, p1y: p1y, p2x: p2x, p2y: p2y)
+        var curve = Fasterswiper_Proto_CubicBezierCurve()
+        curve.p1X = p1x
+        curve.p1Y = p1y
+        curve.p2X = p2x
+        curve.p2Y = p2y
+        return curve
     }
 }
 
@@ -85,4 +62,21 @@ public enum BezierParseError: Error {
 
 extension FormatStyle where Self == BezierFormatStyle {
     public static var bezier: BezierFormatStyle { .init() }
+}
+
+public typealias EasingFunction = Fasterswiper_Proto_EasingFunction
+
+extension Fasterswiper_Proto_EasingFunction: @retroactive CustomStringConvertible, @retroactive Identifiable {
+    public var description: String {
+        switch self {
+        case .linear: return "Linear"
+        case .quadraticEaseOut: return "Quadratic Ease Out"
+        case .quinticEaseOut: return "Quintic Ease Out"
+        case .cubicBezierCurve: return "Cubic Bezier Curve"
+        }
+    }
+
+    public var id: Int { 
+        return self.rawValue 
+    }
 }

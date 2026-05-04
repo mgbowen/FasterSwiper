@@ -1,6 +1,7 @@
 import FasterSwiper_Daemon
-import SwiftUI
 import Observation
+import SwiftUI
+import SwiftProtobuf
 
 @Observable
 public class SettingsStore {
@@ -9,18 +10,33 @@ public class SettingsStore {
     public var options: DaemonOptions {
         get {
             access(keyPath: \.options)
-            if let rawValue = UserDefaults.standard.string(forKey: userDefaultsKey),
-               let options = DaemonOptions(rawValue: rawValue) {
-                return options
+            if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
+                return try! DaemonOptions(serializedData: data)
             }
-            return .default
+
+            return Daemon.defaultDaemonOptions
         }
         set {
             withMutation(keyPath: \.options) {
-                UserDefaults.standard.set(newValue.rawValue, forKey: userDefaultsKey)
+                do {
+                    try UserDefaults.standard.set(newValue.serializedData(), forKey: userDefaultsKey)
+                } catch {
+                    print("Failed to write DaemonOptions")
+                }
             }
         }
     }
 
-    public init() {}
+    public init() {
+        self.options = hydrateDaemonOptions(fromSerializedData: UserDefaults.standard.data(forKey: userDefaultsKey))
+    }
+
+    private func hydrateDaemonOptions(fromSerializedData: Data?) -> DaemonOptions {
+        var hydratedDaemonOptions = Daemon.defaultDaemonOptions
+        if let serializedData = fromSerializedData {
+            try! hydratedDaemonOptions.merge(serializedData: serializedData)
+        }
+
+        return hydratedDaemonOptions
+    }
 }

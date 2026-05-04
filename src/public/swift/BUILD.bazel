@@ -6,12 +6,12 @@ swift_library(
     name = "swift",
     srcs = [
         "BezierCurve.swift",
-        "EasingType.swift",
         "FasterSwiperDaemon.swift",
         "VersionInfo.swift",
     ],
     module_name = "FasterSwiper_Daemon",
     deps = [
         "//src/public",
+        "//src/public:fasterswiper_swift_proto",
     ],
 )
