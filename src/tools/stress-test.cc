@@ -1,14 +1,31 @@
-#include "src/easing.h"
 #include "src/event-tap-manager.h"
-#include "src/space-state.h"
-#include "src/swipe-animator.h"
 
 #include <iostream>
 #include <thread>
 
 #include "absl/flags/parse.h"
+#include "absl/time/time.h"
 
 using namespace fasterswiper;
+
+namespace {
+
+void SendKeyWithControl(CGKeyCode key_code) {
+  CFUniquePtr<CGEventSourceRef> source =
+      WrapCFUnique(CGEventSourceCreate(kCGEventSourceStateHIDSystemState));
+
+  CFUniquePtr<CGEventRef> down =
+      WrapCFUnique(CGEventCreateKeyboardEvent(source.get(), key_code, true));
+  CGEventSetFlags(down.get(), kCGEventFlagMaskControl);
+  CGEventPost(kCGHIDEventTap, down.get());
+
+  CFUniquePtr<CGEventRef> up =
+      WrapCFUnique(CGEventCreateKeyboardEvent(source.get(), key_code, false));
+  CGEventSetFlags(up.get(), kCGEventFlagMaskControl);
+  CGEventPost(kCGHIDEventTap, up.get());
+}
+
+} // namespace
 
 int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
@@ -43,35 +60,18 @@ int main(int argc, char *argv[]) {
   tap_manager->SetEnabled(true);
 
   std::thread animator_thread([&] {
-    auto maybe_space_state = LoadSpaceStateForActiveDisplay();
-    if (!maybe_space_state.ok()) {
-      std::cerr << "Failed to load space state\n";
-      return;
-    }
-    auto animator =
-        std::make_unique<SwipeAnimator>(std::move(*maybe_space_state));
-
-    constexpr auto duration = absl::Milliseconds(200);
+    constexpr auto sleep_duration = absl::Milliseconds(200);
 
     while (true) {
-      auto future = animator->AnimateToPosition({
-          .target_position = 3'000'000,
-          .duration = duration,
-          .easing_function = MakeEasingFunctionLinear(),
-          .ticks_per_second = 240,
-      });
-      future.wait();
-      auto future2 = animator->AnimateToPosition({
-          .target_position = 0'000'000,
-          .duration = duration,
-          .easing_function = MakeEasingFunctionLinear(),
-          .ticks_per_second = 240,
-      });
-      future2.wait();
+      SendKeyWithControl(25); // Control+5
+      absl::SleepFor(sleep_duration);
+      SendKeyWithControl(18); // Control+1
+      absl::SleepFor(sleep_duration);
     }
   });
 
-  std::cout << "Running\n";
+  std::cout << "Running stress test sending Control+5 and Control+1.\n";
+  std::cout << "Press Escape to stop.\n";
   while (true) {
     CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0, true);
   }

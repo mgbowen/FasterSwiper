@@ -112,6 +112,7 @@ cc_library(
         ":event",
         ":hotkeys",
         ":macos-private",
+        ":notifications",
         ":proto-util",
         ":space-state",
         ":status-macros",
@@ -183,6 +184,7 @@ cc_library(
         ":const",
         ":event",
         ":macos-private",
+        ":mission-control",
         ":periodic-timer",
         ":space-state",
         ":string-util",
@@ -231,6 +233,31 @@ cc_library(
     hdrs = ["variant-util.h"],
     deps = [
         "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "mission-control",
+    srcs = ["mission-control.cc"],
+    hdrs = ["mission-control.h"],
+    deps = [
+        ":cf-util",
+        ":status-macros",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "notifications",
+    srcs = ["notifications.cc"],
+    hdrs = ["notifications.h"],
+    deps = [
+        ":cf-util",
+        ":macos-private",
+        ":status-macros",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status:statusor",
     ],
 )
 

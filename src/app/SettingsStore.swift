@@ -17,6 +17,7 @@ public class SettingsStore {
             return Daemon.defaultDaemonOptions
         }
         set {
+            print(newValue)
             withMutation(keyPath: \.options) {
                 do {
                     try UserDefaults.standard.set(newValue.serializedData(), forKey: userDefaultsKey)

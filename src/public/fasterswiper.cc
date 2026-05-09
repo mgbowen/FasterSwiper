@@ -4,6 +4,7 @@
 #include "src/easing.h"
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
+#include "src/notifications.h"
 #include "src/physical-event-handler.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
@@ -28,6 +29,7 @@ using ::fasterswiper::CFUniquePtr;
 using ::fasterswiper::EasingFunction;
 using ::fasterswiper::EventTapManager;
 using ::fasterswiper::kCGSEventDockControl;
+using ::fasterswiper::NotificationManager;
 using ::fasterswiper::PhysicalEventHandler;
 using ::fasterswiper::ToProtoDuration;
 using ::fasterswiper::WrapCFUnique;
@@ -42,9 +44,12 @@ struct FS_Daemon {
   absl::Mutex mutex;
 
   std::unique_ptr<FS_DaemonOptions> options;
+  std::unique_ptr<NotificationManager> notification_manager;
   std::shared_ptr<PhysicalEventHandler> physical_event_handler;
   std::unique_ptr<EventTapManager> tap_manager;
   CFUniquePtr<CFRunLoopSourceRef> run_loop_source;
+
+  std::unique_ptr<std::thread> interceptor;
 
   bool is_running = false;
 };
@@ -109,9 +114,17 @@ bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
 }
 
 FS_Daemon *FS_Create(FS_DaemonOptions *options) {
+  absl::StatusOr<std::unique_ptr<NotificationManager>>
+      maybe_notification_manager = NotificationManager::Create();
+  if (!maybe_notification_manager.ok()) {
+    std::cerr << "Failed to create NotificationManager: "
+              << maybe_notification_manager.status();
+    return nullptr;
+  }
+
   absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
-      maybe_physical_event_handler =
-          PhysicalEventHandler::Create(options->options);
+      maybe_physical_event_handler = PhysicalEventHandler::Create(
+          options->options, *std::move(maybe_notification_manager));
 
   if (!maybe_physical_event_handler.ok()) {
     std::cerr << "Failed to create PhysicalEventHandler: "

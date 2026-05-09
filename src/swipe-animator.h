@@ -32,6 +32,15 @@ public:
     absl::Duration duration ABSL_REQUIRE_EXPLICIT_INIT;
     EasingFunction easing_function ABSL_REQUIRE_EXPLICIT_INIT;
     int64_t ticks_per_second ABSL_REQUIRE_EXPLICIT_INIT;
+
+    template <typename Sink>
+    friend void AbslStringify(Sink &sink, const AnimateParameters &params) {
+      absl::Format(&sink,
+                   "AnimateParameters{target_position=%d, duration=%s, "
+                   "ticks_per_second=%d}",
+                   params.target_position, absl::StrCat(params.duration),
+                   params.ticks_per_second);
+    }
   };
 
   // Animate from the current position to `target_position` over `duration`.

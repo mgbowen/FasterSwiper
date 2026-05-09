@@ -24,8 +24,9 @@ namespace fasterswiper {
 namespace {
 
 constexpr double kEpsilon = FLT_TRUE_MIN;
+constexpr double kInstantSwitchVelocity = 2000;
 
-}
+} // namespace
 
 SpaceSwitcher::SpaceSwitcher(SpaceState space_state)
     : space_state_(std::move(space_state)),
@@ -229,46 +230,35 @@ void SpaceSwitcher::SetPositionLocked(int64_t new_position,
               << current_to_new_position_sign
               << ", is_rubberbanding=" << is_rubberbanding;
 
-      bool should_wait_for_space_transition = false;
       if (origin_to_current_position_sign == 0) {
-        // Instant switch to an adjacent space.
+        const double velocity =
+            is_rubberbanding ? kEpsilon : kInstantSwitchVelocity;
         PostGestureEvent(kGestureChanged,
                          kEpsilon * current_to_new_position_sign);
         PostGestureEvent(kGestureEnded, kEpsilon * current_to_new_position_sign,
-                         2000 * current_to_new_position_sign);
-        should_wait_for_space_transition = true;
+                         velocity * current_to_new_position_sign);
       } else if (origin_to_current_position_sign ==
                  current_to_new_position_sign) {
         // Moving away from the gesture origin.
-        const double transitory_progress =
-            progress_from_origin - (kEpsilon * origin_to_current_position_sign);
-        PostGestureEvent(kGestureChanged, transitory_progress);
-
-        const double velocity = kEpsilon * current_to_new_position_sign;
-        PostGestureEvent(kGestureEnded, transitory_progress, velocity);
-        should_wait_for_space_transition = true;
+        if (options.wait_for_space_transition) {
+          const double velocity =
+              is_rubberbanding ? kEpsilon : kInstantSwitchVelocity;
+          PostGestureEvent(kGestureEnded,
+                           kEpsilon * current_to_new_position_sign,
+                           velocity * current_to_new_position_sign);
+        } else {
+          PostGestureEvent(kGestureChanged, progress_from_origin);
+          PostGestureEvent(kGestureEnded, progress_from_origin);
+        }
       } else {
         // Moving towards the gesture origin.
-        const double transitory_progress =
-            progress_from_origin - (kEpsilon * current_to_new_position_sign);
-        PostGestureEvent(kGestureChanged, transitory_progress);
-
-        // Velocity is based on the direction a hand would be moving to cause
-        // the space movement we're making, but if we're rubberbanding, we
-        // reverse the initially calculated velocity because the actual space
-        // movement will be the opposite of what the "hand" is doing, e.g. if
-        // we're at the soft min and the hand is moving left, the space movement
-        // will initially be left, but when the hand lets go, the space will
-        // move right to go back to the soft min.
-        const double velocity = (is_rubberbanding ? -kEpsilon : kEpsilon) *
-                                current_to_new_position_sign;
-        PostGestureEvent(kGestureCancelled, transitory_progress, velocity);
+        PostGestureEvent(kGestureChanged, progress_from_origin);
+        PostGestureEvent(kGestureCancelled, progress_from_origin);
       }
 
-      if (!options.wait_for_space_transition || is_rubberbanding ||
-          new_position != target_position) {
-        should_wait_for_space_transition = false;
-      }
+      const bool should_wait_for_space_transition =
+          options.wait_for_space_transition && !is_rubberbanding &&
+          new_position == target_position;
 
       SetState(States::PendingCommit(space_state_.display_id(),
                                      should_wait_for_space_transition
@@ -348,7 +338,7 @@ void SpaceSwitcher::WaitForPendingCommitLocked() {
         .space_id = new_space_id,
     };
 
-    VLOG(1) << "WaitForPendingCommit: setting latest_hard_commit_="
+    VLOG(1) << "WaitForPendingCommit: set latest_hard_commit_="
             << latest_hard_commit_;
   }
 

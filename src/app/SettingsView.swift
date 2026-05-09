@@ -38,7 +38,7 @@ struct SettingsView: View {
                         set: { store.options.animationDurationPerSpace = toProtoDuration(fromNanoseconds: Int64($0 * 1_000_000)) }
                     )
                     
-                    Slider(value: animationDurationBinding, in: 0...1000, step: 50)
+                    Slider(value: animationDurationBinding, in: 1...1000, step: 50)
                     Text("\(toInt64Milliseconds(duration: store.options.animationDurationPerSpace)) ms")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -62,7 +62,7 @@ struct SettingsView: View {
 
                 Picker("Target Framerate", selection: Binding(
                     get: {
-                        let validFramerates: [Int64] = [30, 60, 90, 120, 144, 240]
+                        let validFramerates: [Int64] = [30, 60, 90, 120, 144, 240, 480, 1000]
                         return validFramerates.contains(store.options.framesPerSecond)
                         ? store.options.framesPerSecond
                         : 240
@@ -75,6 +75,8 @@ struct SettingsView: View {
                     Text("120 FPS").tag(Int64(120))
                     Text("144 FPS").tag(Int64(144))
                     Text("240 FPS").tag(Int64(240))
+                    Text("480 FPS").tag(Int64(480))
+                    Text("1000 FPS").tag(Int64(1000))
                 }
             }
             

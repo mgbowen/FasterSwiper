@@ -17,6 +17,9 @@ public:
   SpaceState(CFSharedPtr<CFStringRef> display_id,
              std::vector<int64_t> space_ids, CFIndex index);
 
+  SpaceState(const SpaceState &other) noexcept = default;
+  SpaceState &operator=(const SpaceState &other) noexcept = default;
+
   absl_nonnull CFSharedPtr<CFStringRef> display_id() const {
     return display_id_;
   }

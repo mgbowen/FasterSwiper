@@ -7,6 +7,11 @@
 
 namespace fasterswiper {
 
+struct EventSidecar {
+  int64_t intended_position = 0;
+  std::unique_ptr<SpaceState> space_state;
+};
+
 class SpaceSwitcher {
 public:
   explicit SpaceSwitcher(SpaceState space_state);

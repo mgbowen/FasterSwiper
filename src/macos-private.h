@@ -11,6 +11,29 @@ uint64_t SLSGetActiveSpace(int cid);
 CFArrayRef SLSCopyManagedDisplaySpaces(int cid);
 bool SLSManagedDisplayIsAnimating(int cid, CFStringRef display);
 uint64_t SLSManagedDisplayGetCurrentSpace(int cid, CFStringRef uuid);
+
+enum CGSEventType {
+  kCGSWorkspaceWillChange = 1400,
+  kCGSWorkspaceDidChange = 1401,
+  kCGSWorkspaceWindowIsViewable = 1402,
+  kCGSWorkspaceWindowIsNotViewable = 1403,
+  kCGSWorkspaceWindowDidMove = 1404,
+  kCGSWorkspacePrefsDidChange = 1405,
+  kCGSWorkspacesWindowDragDidStart = 1411,
+  kCGSWorkspacesWindowDragDidEnd = 1412,
+  kCGSWorkspacesWindowDragWillEnd = 1413,
+  kCGSWorkspacesShowSpaceForProcess = 1414,
+  kCGSWorkspacesWindowDidOrderInOnNonCurrentManagedSpacesOnly = 1415,
+  kCGSWorkspacesWindowDidOrderOutOnNonCurrentManagedSpaces = 1416,
+};
+
+using CGSNotifyProcPtr = void (*)(CGSEventType type, void *data,
+                                  unsigned int dataLength, void *userData);
+
+CGError CGSRegisterNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
+                              void *userData);
+CGError CGSRemoveNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
+                            void *userData);
 }
 
 namespace fasterswiper {

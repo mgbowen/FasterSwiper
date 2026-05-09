@@ -1,6 +1,5 @@
 #include "src/cf-util.h"
 #include "src/event-tap-manager.h"
-#include "src/event.h"
 #include "src/macos-private.h"
 #include "src/periodic-timer.h"
 
@@ -81,7 +80,6 @@ absl::Status RecordGestures(const std::string &output_path) {
 
   auto callback = [&](CGEventTapProxy proxy, CGEventType event_type,
                       CGEventRef event) -> CGEventRef {
-    // Filter for physical dock swipe events
     int et = CGEventGetIntegerValueField(event, kCGSEventTypeField);
     if (et != kCGSEventDockControl)
       return event;
@@ -90,8 +88,7 @@ absl::Status RecordGestures(const std::string &output_path) {
         kIOHIDEventTypeDockSwipe)
       return event;
 
-    if (CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) ==
-        *kOwnPid) {
+    if (CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) == 0) {
       return event;
     }
 

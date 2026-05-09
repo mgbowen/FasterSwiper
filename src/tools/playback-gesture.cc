@@ -2,13 +2,11 @@
 #include <fstream>
 #include <iostream>
 #include <thread>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "nlohmann/json.hpp"
 #include "src/cf-util.h"
-#include "src/event.h"
 #include "src/macos-private.h"
 
 namespace fasterswiper {
@@ -45,28 +43,16 @@ void PostEvent(const json &j) {
                               j.value("phase", 0));
   CGEventSetIntegerValueField(dock.get(), kCGEventGestureSwipeMotion,
                               j.value("motion", 0));
-  // CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeProgress,
-  //                            j.value("progress", 0.0));
+  CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeProgress,
+                             j.value("progress", 0.0));
   CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeVelocityX,
                              j.value("velocity_x", 0.0));
-  // CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeVelocityY,
-  //                            j.value("velocity_y", 0.0));
-  //   CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipePositionX,
-  //                              j.value("position_x", 0.0));
-  //   CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipePositionY,
-  //                              j.value("position_y", 0.0));
-
-  {
-    double progress = j.value("progress", 0.0);
-    float progress_float = progress;
-    int32_t progress_bits = *reinterpret_cast<int32_t *>(&progress_float);
-    CGEventSetIntegerValueField(dock.get(), kCGEventScrollGestureFlagBits,
-                                progress_bits);
-  }
-  // CGEventSetDoubleValueField(dock.get(), kCGEventGestureZoomDeltaX,
-  //                            j.value("zoom_delta_x", 0.0));
-  // CGEventSetDoubleValueField(dock.get(), kCGEventGestureZoomDeltaY,
-  //                            j.value("zoom_delta_y", 0.0));
+  CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipeVelocityY,
+                             j.value("velocity_y", 0.0));
+  CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipePositionX,
+                             j.value("position_x", 0.0));
+  CGEventSetDoubleValueField(dock.get(), kCGEventGestureSwipePositionY,
+                             j.value("position_y", 0.0));
 
   CGEventPost(kCGSessionEventTap, dock.get());
 }
@@ -103,9 +89,10 @@ absl::Status PlaybackGestures(const std::string &input_path) {
   std::cout << "Starting playback of " << events.size() << " events...\n";
 
   auto playback_start = std::chrono::steady_clock::now();
+  const int64_t start_offset = events[0]["timestamp_ns"];
 
   for (const auto &j : events) {
-    int64_t target_ns = j.value("timestamp_ns", 0LL);
+    int64_t target_ns = j.value("timestamp_ns", 0LL) - start_offset;
 
     auto now = std::chrono::steady_clock::now();
     auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -136,7 +123,8 @@ int main(int argc, char **argv) {
   }
 
   std::string input_path = argv[1];
-  if (absl::Status status = fasterswiper::PlaybackGestures(input_path); !status.ok()) {
+  if (absl::Status status = fasterswiper::PlaybackGestures(input_path);
+      !status.ok()) {
     std::cerr << "ERROR: " << status << "\n";
     return 1;
   }

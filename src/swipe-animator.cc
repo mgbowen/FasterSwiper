@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "src/space-switcher.h"
 
 namespace fasterswiper {
@@ -19,12 +21,12 @@ void SwipeAnimator::SetPosition(int64_t new_position,
   switcher_->SetPosition(new_position, std::move(options));
 }
 
-void SwipeAnimator::WaitForPendingCommit() {
-  switcher_->WaitForPendingCommit();
-}
-
 std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
   CHECK(params.easing_function != nullptr);
+
+  VLOG(1) << "BEGIN AnimateToPosition(params=" << params << ")";
+  auto cleanup = absl::MakeCleanup(
+      [&] { VLOG(1) << "END   AnimateToPosition(params=" << params << ")"; });
 
   CancelAnimation();
 
@@ -60,6 +62,7 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
         switcher_->SetPosition(finished ? state->params.target_position
                                         : interpolated_position,
                                {.wait_for_space_transition = finished});
+
         if (finished) {
           switcher_->WaitForPendingCommit();
           return PeriodicTimerTickResult::kFinishTimer;
@@ -78,6 +81,7 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
 }
 
 void SwipeAnimator::CancelAnimation() {
+  VLOG(1) << "CancelAnimation()";
   timer_.reset();
   switcher_->WaitForPendingCommit();
 }

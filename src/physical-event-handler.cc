@@ -4,6 +4,7 @@
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
+#include "src/notifications.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/space-state.h"
@@ -11,6 +12,8 @@
 #include "src/variant-util.h"
 
 #include <algorithm>
+#include <memory>
+#include <optional>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
@@ -19,21 +22,30 @@
 namespace fasterswiper {
 
 absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-PhysicalEventHandler::Create(proto::DaemonOptions options) {
+PhysicalEventHandler::Create(
+    proto::DaemonOptions options,
+    std::unique_ptr<NotificationManager> notification_manager) {
   HotkeyConfigurations hotkey_configs;
   ASSIGN_OR_RETURN(hotkey_configs, LoadHotkeyConfiguration());
 
   VLOG(1) << "PhysicalEventHandler::Create(): Loaded hotkey configuration: "
           << hotkey_configs;
 
-  auto result = absl::WrapUnique(
-      new PhysicalEventHandler(std::move(options), std::move(hotkey_configs)));
+  auto result = absl::WrapUnique(new PhysicalEventHandler(
+      std::move(options), std::move(notification_manager),
+      std::move(hotkey_configs)));
   return result;
 }
 
-PhysicalEventHandler::PhysicalEventHandler(proto::DaemonOptions options,
-                                           HotkeyConfigurations hotkey_configs)
-    : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
+PhysicalEventHandler::PhysicalEventHandler(
+    proto::DaemonOptions options,
+    std::unique_ptr<NotificationManager> notification_manager,
+    HotkeyConfigurations hotkey_configs)
+    : options_(std::move(options)),
+      notification_manager_(std::move(notification_manager)),
+      hotkey_configs_(std::move(hotkey_configs)) {
+  CHECK(notification_manager_ != nullptr);
+
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
 }
 
@@ -108,7 +120,27 @@ bool PhysicalEventHandler::IsEventInteresting(const KeyEvent &event) const {
     return false;
   }
 
-  return event.ConcernsAnyHotkey(hotkey_configs_);
+  if (event.ConcernsAnyHotkey(hotkey_configs_)) {
+    return true;
+  }
+
+  // Check for Control + 1-9
+  if ((event.modifiers & kModifierKeyMask) == kCGEventFlagMaskControl) {
+    switch (event.key_code) {
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 23:
+    case 22:
+    case 26:
+    case 28:
+    case 25:
+      return true;
+    }
+  }
+
+  return false;
 }
 
 absl::Status PhysicalEventHandler::HandleDockControlEvent(
@@ -252,16 +284,64 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
     direction = -1;
   } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
+  }
+
+  const auto [soft_min, soft_max] = animator_->position_soft_limit();
+  if (direction != 0) {
+    target_position_ =
+        std::clamp(((target_position_ / OneSwipeInNanoswipes) + direction) *
+                       OneSwipeInNanoswipes,
+                   soft_min, soft_max);
+  } else if ((key_event.modifiers & kModifierKeyMask) ==
+             kCGEventFlagMaskControl) {
+    std::optional<int> digit;
+    switch (key_event.key_code) {
+    case 18:
+      digit = 0;
+      break;
+    case 19:
+      digit = 1;
+      break;
+    case 20:
+      digit = 2;
+      break;
+    case 21:
+      digit = 3;
+      break;
+    case 23:
+      digit = 4;
+      break;
+    case 22:
+      digit = 5;
+      break;
+    case 26:
+      digit = 6;
+      break;
+    case 28:
+      digit = 7;
+      break;
+    case 25:
+      digit = 8;
+      break;
+    }
+
+    if (!digit.has_value()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Uninteresting key event ", key_event.key_code));
+    }
+
+    const int64_t absolute_target = *digit * OneSwipeInNanoswipes;
+    if (absolute_target > soft_max) {
+      VLOG(1) << "Ignoring shortcut: target space " << (*digit + 1)
+              << " exceeds available spaces";
+      return absl::OkStatus();
+    }
+
+    target_position_ = absolute_target;
   } else {
     return absl::InvalidArgumentError(
         absl::StrCat("Uninteresting key event ", key_event.key_code));
   }
-
-  const auto [soft_min, soft_max] = animator_->position_soft_limit();
-  target_position_ =
-      std::clamp(((target_position_ / OneSwipeInNanoswipes) + direction) *
-                     OneSwipeInNanoswipes,
-                 soft_min, soft_max);
 
   const absl::Duration duration = CalculateAnimationDuration(
       animator_->position(), target_position_,
@@ -295,10 +375,6 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture() {
     animator_->CancelAnimation();
     active_animation_future_.wait();
   } else {
-    if (animator_ != nullptr) {
-      animator_->WaitForPendingCommit();
-    }
-
     ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
     animator_ = std::make_unique<SwipeAnimator>(std::move(space_state));
 
@@ -307,18 +383,12 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture() {
 
   initial_position_ = animator_->position();
 
+  const auto [soft_min, soft_max] = animator_->position_soft_limit();
   VLOG(1) << "SetUpForNewGesture():   is_active_animation="
-          << is_active_animation;
-  VLOG(1) << "SetUpForNewGesture():   space_state=" << animator_->space_state();
-
-  {
-    const auto [soft_min, soft_max] = animator_->position_soft_limit();
-    VLOG(1) << "SetUpForNewGesture():   soft_min=" << soft_min
-            << ", soft_max=" << soft_max;
-  }
-
-  VLOG(1) << "SetUpForNewGesture():   initial_position_=" << initial_position_;
-  VLOG(1) << "SetUpForNewGesture():   target_position_=" << target_position_;
+          << is_active_animation << ", space_state=" << animator_->space_state()
+          << ", soft_min=" << soft_min << ", soft_max=" << soft_max
+          << ", initial_position_=" << initial_position_
+          << ", target_position_=" << target_position_;
 
   return absl::OkStatus();
 }

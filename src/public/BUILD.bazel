@@ -18,6 +18,7 @@ cc_library(
         "//src:easing",
         "//src:event-tap-manager",
         "//src:macos-private",
+        "//src:notifications",
         "//src:physical-event-handler",
         "//src:version",
         "@abseil-cpp//absl/flags:parse",
@@ -51,5 +52,5 @@ swift_proto_library(
     protos = [":fasterswiper_proto"],
     deps = [
         "@protobuf//:duration_cc_proto",
-    ]
+    ],
 )
