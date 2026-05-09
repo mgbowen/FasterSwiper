@@ -4,6 +4,6 @@
 
 namespace fasterswiper {
 
-constexpr int64_t OneSwipeInNanoswipes = 1'000'000;
+constexpr int64_t kOneSwipeInNanoswipes = 1'000'000;
 
 }

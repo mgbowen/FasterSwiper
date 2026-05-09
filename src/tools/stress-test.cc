@@ -5,6 +5,8 @@
 
 #include "absl/flags/parse.h"
 #include "absl/time/time.h"
+#include "src/space-state.h"
+#include "src/space-switcher.h"
 
 using namespace fasterswiper;
 
@@ -59,11 +61,17 @@ int main(int argc, char *argv[]) {
                      kCFRunLoopCommonModes);
   tap_manager->SetEnabled(true);
 
+  auto op =
+      std::make_unique<SpaceSwitchOperation>(*LoadSpaceStateForActiveDisplay());
+  op->SetPosition(1'000'000);
+  op->Commit();
+  return 0;
+
   std::thread animator_thread([&] {
-    constexpr auto sleep_duration = absl::Milliseconds(200);
+    constexpr auto sleep_duration = absl::Milliseconds(1200);
 
     while (true) {
-      SendKeyWithControl(25); // Control+5
+      SendKeyWithControl(25); // Control+9
       absl::SleepFor(sleep_duration);
       SendKeyWithControl(18); // Control+1
       absl::SleepFor(sleep_duration);

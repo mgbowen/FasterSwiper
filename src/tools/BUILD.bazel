@@ -53,6 +53,8 @@ cc_binary(
         "//src:cf-util",
         "//src:event-tap-manager",
         "//src:macos-private",
+        "//src:space-state",
+        "//src:space-switcher",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/time",

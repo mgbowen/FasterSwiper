@@ -6,37 +6,47 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "src/periodic-timer.h"
 #include "src/space-switcher.h"
+#include "src/status-macros.h"
 
 namespace fasterswiper {
 
 SwipeAnimator::SwipeAnimator(SpaceState space_state)
-    : switcher_(std::make_unique<SpaceSwitcher>(std::move(space_state))) {}
+    : operation_(
+          std::make_unique<SpaceSwitchOperation>(std::move(space_state))) {}
 
-SwipeAnimator::~SwipeAnimator() { CancelAnimation(); }
-
-void SwipeAnimator::SetPosition(int64_t new_position,
-                                SpaceSwitcher::SetPositionOptions options) {
-  CancelAnimation();
-  switcher_->SetPosition(new_position, std::move(options));
+SwipeAnimator::~SwipeAnimator() {
+  (void)CancelAnimation();
+  operation_->Commit();
 }
 
-std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
+absl::Status SwipeAnimator::SetPosition(int64_t new_position) {
+  RETURN_IF_ERROR(CancelAnimationAndEnsureNotCommitted());
+  operation_->SetPosition(new_position);
+  return absl::OkStatus();
+}
+
+absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
   CHECK(params.easing_function != nullptr);
 
   VLOG(1) << "BEGIN AnimateToPosition(params=" << params << ")";
   auto cleanup = absl::MakeCleanup(
       [&] { VLOG(1) << "END   AnimateToPosition(params=" << params << ")"; });
 
-  CancelAnimation();
+  if (absl::Status status = CancelAnimationAndEnsureNotCommitted();
+      !status.ok()) {
+    VLOG(1) << "AnimateToPosition(): animation was already committed";
+    return status;
+  }
 
   auto state = std::make_unique<AnimationState>(AnimationState{
-      .start_position = switcher_->position(),
+      .start_position = operation_->position(),
       .params = std::move(params),
   });
 
-  std::promise<void> promise;
-  std::future<void> future = promise.get_future();
+  std::promise<AnimatedSpaceSwitchOperationResult> promise;
+  pending_future_ = promise.get_future().share();
   timer_ = std::make_unique<PeriodicTimer>(PeriodicTimer::Parameters{
       .period_ns = 1'000'000'000 / params.ticks_per_second,
       .tick_callback =
@@ -59,12 +69,11 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
             linear_t >= 1.0 ||
             interpolated_position == state->params.target_position;
 
-        switcher_->SetPosition(finished ? state->params.target_position
-                                        : interpolated_position,
-                               {.wait_for_space_transition = finished});
+        operation_->SetPosition(finished ? state->params.target_position
+                                         : interpolated_position);
 
         if (finished) {
-          switcher_->WaitForPendingCommit();
+          operation_->Commit();
           return PeriodicTimerTickResult::kFinishTimer;
         }
 
@@ -73,17 +82,49 @@ std::future<void> SwipeAnimator::AnimateToPosition(AnimateParameters params) {
       .stopped_callback =
           [promise = std::move(promise)](
               PeriodicTimerStopReason stop_reason) mutable {
-            promise.set_value();
+            AnimatedSpaceSwitchOperationResult result;
+            switch (stop_reason) {
+              using enum PeriodicTimerStopReason;
+            case kFinished:
+              result = AnimatedSpaceSwitchOperationResult::kCommitted;
+              break;
+            case kCancelled:
+              result = AnimatedSpaceSwitchOperationResult::kCancelled;
+              break;
+            }
+
+            promise.set_value(result);
           },
   });
 
-  return future;
+  return absl::OkStatus();
 }
 
-void SwipeAnimator::CancelAnimation() {
-  VLOG(1) << "CancelAnimation()";
+AnimatedSpaceSwitchOperationResult SwipeAnimator::CancelAnimation() {
+  VLOG(1) << "CancelAnimation(): BEGIN";
+  auto cleanup = absl::MakeCleanup([] { VLOG(1) << "CancelAnimation(): END"; });
+
+  if (!pending_future_.valid()) {
+    VLOG(1) << "CancelAnimation(): pending_future_ NOT valid";
+    return AnimatedSpaceSwitchOperationResult::kCancelled;
+  }
+
   timer_.reset();
-  switcher_->WaitForPendingCommit();
+  return pending_future_.get();
+}
+
+absl::Status SwipeAnimator::CancelAnimationAndEnsureNotCommitted() {
+  const AnimatedSpaceSwitchOperationResult cancel_result = CancelAnimation();
+  switch (cancel_result) {
+    using enum AnimatedSpaceSwitchOperationResult;
+  case kCancelled:
+    break;
+  case kCommitted:
+    return absl::FailedPreconditionError(
+        "AnimatedSpaceSwitchOperation has already been committed");
+  }
+
+  return absl::OkStatus();
 }
 
 } // namespace fasterswiper

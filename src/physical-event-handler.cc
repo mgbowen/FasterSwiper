@@ -18,6 +18,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "magic_enum/magic_enum.hpp"
 
 namespace fasterswiper {
 
@@ -44,8 +45,6 @@ PhysicalEventHandler::PhysicalEventHandler(
     : options_(std::move(options)),
       notification_manager_(std::move(notification_manager)),
       hotkey_configs_(std::move(hotkey_configs)) {
-  CHECK(notification_manager_ != nullptr);
-
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
 }
 
@@ -86,6 +85,8 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
     VLOG(2) << "HandleEvent(): Not a recognized event";
     return event;
   }
+
+  VLOG(2) << "HandleEvent(): parsed_event=" << *parsed_event;
 
   if (parsed_event->source != EventSource::kPhysical) {
     VLOG(2) << "HandleEvent(): Not a physical event";
@@ -175,8 +176,7 @@ absl::Status PhysicalEventHandler::HandleBeginGesture() {
 
   RETURN_IF_ERROR(SetUpForNewGesture());
 
-  animator_->SetPosition(initial_position_,
-                         {.wait_for_space_transition = false});
+  RETURN_IF_ERROR(animator_->SetPosition(initial_position_));
   return absl::OkStatus();
 }
 
@@ -193,7 +193,7 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
 
-  animator_->SetPosition(new_position, {.wait_for_space_transition = false});
+  RETURN_IF_ERROR(animator_->SetPosition(new_position));
   return absl::OkStatus();
 }
 
@@ -205,7 +205,7 @@ CalculateAnimationDuration(int64_t current_position, int64_t target_position,
   const absl::Duration raw_animation_duration =
       animation_duration_per_space *
       (static_cast<double>(std::abs(current_position - target_position)) /
-       OneSwipeInNanoswipes);
+       kOneSwipeInNanoswipes);
   return std::clamp(raw_animation_duration, absl::ZeroDuration(),
                     animation_duration_per_space);
 }
@@ -219,9 +219,9 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
       absl::MakeCleanup([] { VLOG(1) << "HandleEndGesture(): END"; });
 
   const auto [soft_min, soft_max] = animator_->position_soft_limit();
-  target_position_ = std::clamp(((target_position_ / OneSwipeInNanoswipes) +
+  target_position_ = std::clamp(((target_position_ / kOneSwipeInNanoswipes) +
                                  (swipe_event.progress > 0 ? 1 : -1)) *
-                                    OneSwipeInNanoswipes,
+                                    kOneSwipeInNanoswipes,
                                 soft_min, soft_max);
 
   const absl::Duration duration = CalculateAnimationDuration(
@@ -234,13 +234,12 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleEndGesture():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-
-  active_animation_future_ = animator_->AnimateToPosition({
+  RETURN_IF_ERROR(animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
       .easing_function = std::move(easing_function),
       .ticks_per_second = options_.frames_per_second(),
-  });
+  }));
 
   return absl::OkStatus();
 }
@@ -263,13 +262,12 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-
-  active_animation_future_ = animator_->AnimateToPosition({
+  RETURN_IF_ERROR(animator_->AnimateToPosition({
       .target_position = initial_position_,
       .duration = duration,
       .easing_function = std::move(easing_function),
       .ticks_per_second = options_.frames_per_second(),
-  });
+  }));
 
   return absl::OkStatus();
 }
@@ -289,8 +287,8 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   const auto [soft_min, soft_max] = animator_->position_soft_limit();
   if (direction != 0) {
     target_position_ =
-        std::clamp(((target_position_ / OneSwipeInNanoswipes) + direction) *
-                       OneSwipeInNanoswipes,
+        std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction) *
+                       kOneSwipeInNanoswipes,
                    soft_min, soft_max);
   } else if ((key_event.modifiers & kModifierKeyMask) ==
              kCGEventFlagMaskControl) {
@@ -330,7 +328,7 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
           absl::StrCat("Uninteresting key event ", key_event.key_code));
     }
 
-    const int64_t absolute_target = *digit * OneSwipeInNanoswipes;
+    const int64_t absolute_target = *digit * kOneSwipeInNanoswipes;
     if (absolute_target > soft_max) {
       VLOG(1) << "Ignoring shortcut: target space " << (*digit + 1)
               << " exceeds available spaces";
@@ -353,28 +351,35 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-
-  active_animation_future_ = animator_->AnimateToPosition({
+  RETURN_IF_ERROR(animator_->AnimateToPosition({
       .target_position = target_position_,
       .duration = duration,
       .easing_function = std::move(easing_function),
       .ticks_per_second = options_.frames_per_second(),
-  });
+  }));
 
   return absl::OkStatus();
 }
 
 absl::Status PhysicalEventHandler::SetUpForNewGesture() {
-  const bool is_active_animation =
-      animator_ != nullptr && active_animation_future_.valid() &&
-      active_animation_future_.wait_for(
-          std::chrono::steady_clock::duration::zero()) !=
-          std::future_status::ready;
+  bool need_new_animator = true;
+  if (animator_ != nullptr) {
+    const AnimatedSpaceSwitchOperationResult cancel_result =
+        animator_->CancelAnimation();
+    VLOG(1) << "SetUpForNewGesture(): cancel_result="
+            << magic_enum::enum_name(cancel_result);
 
-  if (is_active_animation) {
-    animator_->CancelAnimation();
-    active_animation_future_.wait();
-  } else {
+    switch (cancel_result) {
+      using enum AnimatedSpaceSwitchOperationResult;
+    case kCancelled:
+      need_new_animator = false;
+      break;
+    case kCommitted:
+      break;
+    }
+  }
+
+  if (need_new_animator) {
     ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
     animator_ = std::make_unique<SwipeAnimator>(std::move(space_state));
 
@@ -384,8 +389,8 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture() {
   initial_position_ = animator_->position();
 
   const auto [soft_min, soft_max] = animator_->position_soft_limit();
-  VLOG(1) << "SetUpForNewGesture():   is_active_animation="
-          << is_active_animation << ", space_state=" << animator_->space_state()
+  VLOG(1) << "SetUpForNewGesture():   need_new_animator=" << need_new_animator
+          << ", space_state=" << animator_->space_state()
           << ", soft_min=" << soft_min << ", soft_max=" << soft_max
           << ", initial_position_=" << initial_position_
           << ", target_position_=" << target_position_;

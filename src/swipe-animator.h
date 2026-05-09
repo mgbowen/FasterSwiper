@@ -9,6 +9,11 @@
 
 namespace fasterswiper {
 
+enum class AnimatedSpaceSwitchOperationResult {
+  kCancelled,
+  kCommitted,
+};
+
 class SwipeAnimator {
 public:
   explicit SwipeAnimator(SpaceState space_state);
@@ -22,10 +27,7 @@ public:
   SwipeAnimator &operator=(SwipeAnimator &&) = delete;
 
   // Cancel any active animation and instantly sets the position.
-  void SetPosition(int64_t new_position,
-                   SpaceSwitcher::SetPositionOptions options = {});
-
-  void WaitForPendingCommit();
+  absl::Status SetPosition(int64_t new_position);
 
   struct AnimateParameters {
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
@@ -47,32 +49,31 @@ public:
   // If an animation is already running, it is cancelled (the SpaceSwitcher
   // position is left wherever it currently is) and the new animation begins
   // from there.
-  [[nodiscard]] std::future<void> AnimateToPosition(AnimateParameters params);
+  absl::Status AnimateToPosition(AnimateParameters params);
 
-  void CancelAnimation();
-
-  [[nodiscard]] const SpaceSwitcher &space_switcher() const {
-    return *switcher_;
-  }
+  [[nodiscard]] AnimatedSpaceSwitchOperationResult CancelAnimation();
 
   [[nodiscard]] const SpaceState &space_state() const {
-    return switcher_->space_state();
+    return operation_->space_state();
   }
 
-  [[nodiscard]] int64_t position() { return switcher_->position(); }
+  [[nodiscard]] int64_t position() { return operation_->position(); }
 
   [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limit() const {
-    return switcher_->position_soft_limit();
+    return operation_->position_soft_limit();
   }
 
 private:
-  const std::unique_ptr<SpaceSwitcher> switcher_;
+  const std::unique_ptr<SpaceSwitchOperation> operation_;
   std::unique_ptr<PeriodicTimer> timer_;
+  std::shared_future<AnimatedSpaceSwitchOperationResult> pending_future_;
 
   struct AnimationState {
     int64_t start_position ABSL_REQUIRE_EXPLICIT_INIT;
     AnimateParameters params ABSL_REQUIRE_EXPLICIT_INIT;
   };
+
+  absl::Status CancelAnimationAndEnsureNotCommitted();
 };
 
 } // namespace fasterswiper

@@ -13,7 +13,6 @@ enum class PeriodicTimerTickResult {
 };
 
 enum class PeriodicTimerStopReason {
-  kUnknown,
   kFinished,
   kCancelled,
 };
@@ -21,8 +20,6 @@ enum class PeriodicTimerStopReason {
 constexpr std::string_view
 PeriodicTimerStopReasonToString(PeriodicTimerStopReason stop_reason) {
   switch (stop_reason) {
-  case PeriodicTimerStopReason::kUnknown:
-    return "kUnknown";
   case PeriodicTimerStopReason::kFinished:
     return "kFinished";
   case PeriodicTimerStopReason::kCancelled:
@@ -59,7 +56,7 @@ private:
 
   std::atomic_flag stop_requested_ = ATOMIC_FLAG_INIT;
   std::atomic<PeriodicTimerStopReason> stop_reason_ =
-      PeriodicTimerStopReason::kUnknown;
+      PeriodicTimerStopReason::kCancelled;
   std::atomic<bool> stopped_ = false;
 
   void HandleTick();

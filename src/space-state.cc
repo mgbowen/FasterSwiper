@@ -29,12 +29,12 @@ SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
       unit_factor_(static_cast<double>(count()) / (count() - 1)) {}
 
 int64_t SpaceState::ProgressToSwipes(double progress) const {
-  return RoundNanopositions(progress / unit_factor_ * OneSwipeInNanoswipes);
+  return RoundNanopositions(progress / unit_factor_ * kOneSwipeInNanoswipes);
 }
 
 double SpaceState::SwipesToProgress(int64_t nanopositions) const {
   return static_cast<double>(nanopositions) * unit_factor_ /
-         OneSwipeInNanoswipes;
+         kOneSwipeInNanoswipes;
 }
 
 absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {

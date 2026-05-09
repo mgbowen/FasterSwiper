@@ -114,17 +114,17 @@ bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
 }
 
 FS_Daemon *FS_Create(FS_DaemonOptions *options) {
-  absl::StatusOr<std::unique_ptr<NotificationManager>>
+  /*absl::StatusOr<std::unique_ptr<NotificationManager>>
       maybe_notification_manager = NotificationManager::Create();
   if (!maybe_notification_manager.ok()) {
     std::cerr << "Failed to create NotificationManager: "
               << maybe_notification_manager.status();
     return nullptr;
-  }
+  }*/
 
   absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
-      maybe_physical_event_handler = PhysicalEventHandler::Create(
-          options->options, *std::move(maybe_notification_manager));
+      maybe_physical_event_handler =
+          PhysicalEventHandler::Create(options->options, nullptr);
 
   if (!maybe_physical_event_handler.ok()) {
     std::cerr << "Failed to create PhysicalEventHandler: "

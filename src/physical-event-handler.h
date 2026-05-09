@@ -42,7 +42,6 @@ private:
   std::unique_ptr<SwipeAnimator> animator_;
   int64_t initial_position_ = 0;
   int64_t target_position_ = 0;
-  std::future<void> active_animation_future_;
 
   PhysicalEventHandler(
       proto::DaemonOptions options,
