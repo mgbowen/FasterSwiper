@@ -36,13 +36,14 @@ private:
   mutable absl::Mutex mutex_;
   bool gesture_started_ ABSL_GUARDED_BY(mutex_) = false;
   int64_t current_position_ ABSL_GUARDED_BY(mutex_) = 0;
+  std::optional<int64_t> deferred_position_ ABSL_GUARDED_BY(mutex_);
   int64_t latest_direction_ ABSL_GUARDED_BY(mutex_) = 0;
   bool is_committed_ ABSL_GUARDED_BY(mutex_) = false;
 
   [[nodiscard]] std::pair<int64_t, int64_t> unlocked_position_soft_limit() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  [[nodiscard]] double distance_from_origin() const
+  [[nodiscard]] int64_t distance_from_origin() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
   [[nodiscard]] double progress_from_origin() const

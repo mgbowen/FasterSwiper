@@ -44,9 +44,9 @@ absl::Status CheckForAccessibilityPermissions() {
   return absl::OkStatus();
 }
 
-json CaptureEvent(CGEventRef event, int64_t relative_timestamp_ns) {
+json CaptureEvent(CGEventRef event, int64_t delta_ns) {
   json j;
-  j["timestamp_ns"] = relative_timestamp_ns;
+  j["delta_ns"] = delta_ns;
   j["phase"] = static_cast<int>(
       CGEventGetIntegerValueField(event, kCGEventGesturePhase));
   j["motion"] = static_cast<int>(
@@ -76,7 +76,7 @@ absl::Status RecordGestures(const std::string &output_path) {
   }
 
   std::vector<json> captured_events;
-  std::optional<int64_t> first_event_time_ns;
+  std::optional<int64_t> last_event_ns;
 
   auto callback = [&](CGEventTapProxy proxy, CGEventType event_type,
                       CGEventRef event) -> CGEventRef {
@@ -92,13 +92,15 @@ absl::Status RecordGestures(const std::string &output_path) {
       return event;
     }
 
-    int64_t now_ns = UptimeInNanoseconds();
-    if (!first_event_time_ns) {
-      first_event_time_ns = now_ns;
+    const int64_t now_ns = UptimeInNanoseconds();
+    int64_t delta_ns = 0;
+    if (last_event_ns.has_value()) {
+      delta_ns = now_ns - *last_event_ns;
     }
 
-    captured_events.push_back(
-        CaptureEvent(event, now_ns - *first_event_time_ns));
+    last_event_ns = now_ns;
+
+    captured_events.push_back(CaptureEvent(event, delta_ns));
     std::cout << "Captured event (phase="
               << CGEventGetIntegerValueField(event, kCGEventGesturePhase)
               << ", progress="

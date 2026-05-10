@@ -4,27 +4,26 @@
 #include "src/const.h"
 #include "src/event.h"
 #include "src/macos-private.h"
+#include "src/mission-control.h"
 #include "src/periodic-timer.h"
 #include "src/space-state.h"
 
 #include <cfloat>
-#include <limits>
 #include <optional>
 #include <thread>
-#include <variant>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreGraphics/CGEvent.h>
 
 #include "absl/log/log.h"
-#include "absl/strings/str_cat.h"
+#include "src/string-util.h"
 
 namespace fasterswiper {
 
 namespace {
 
 constexpr double kEpsilon = FLT_TRUE_MIN;
-constexpr double kInstantSwitchVelocity = 2000;
+constexpr double kInstantSwitchVelocity = 50;
 
 } // namespace
 
@@ -57,7 +56,7 @@ SpaceSwitchOperation::unlocked_position_soft_limit() const {
                  kOneSwipeInNanoswipes};
 }
 
-double SpaceSwitchOperation::distance_from_origin() const {
+int64_t SpaceSwitchOperation::distance_from_origin() const {
   return current_position_ - origin_position_;
 }
 
@@ -66,12 +65,6 @@ double SpaceSwitchOperation::progress_from_origin() const {
 }
 
 namespace {
-
-// Integer division that rounds toward negative infinity, unlike C++ integer
-// division which truncates toward zero. b must be positive.
-int64_t FloorDiv(int64_t a, int64_t b) {
-  return a / b - (a % b != 0 && (a ^ b) < 0);
-}
 
 void PostGestureEvent(int phase, double progress,
                       std::optional<double> velocity = std::nullopt) {
@@ -100,22 +93,6 @@ void PostGestureEvent(int phase, double progress,
 
 } // namespace
 
-namespace {
-
-size_t Sign(auto spaceship_operator_result) {
-  if (spaceship_operator_result > 0) {
-    return 1;
-  }
-
-  if (spaceship_operator_result < 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-} // namespace
-
 void SpaceSwitchOperation::SetPosition(int64_t new_position) {
   absl::MutexLock lock(mutex_);
 
@@ -136,12 +113,26 @@ void SpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
     return;
   }
 
-  latest_direction_ = Sign(new_position <=> current_position_);
-  current_position_ = new_position;
+  latest_direction_ = (new_position - current_position_) > 0 ? 1 : -1;
 
   if (!gesture_started_) {
     PostGestureEvent(kGestureBegan, kEpsilon * latest_direction_);
     gesture_started_ = true;
+  }
+
+  const int64_t remainder = std::abs(new_position % kOneSwipeInNanoswipes);
+  const int64_t distance_to_space_threshold =
+      std::min(remainder, kOneSwipeInNanoswipes - remainder);
+
+  constexpr int64_t defer_abs_threshold = 1;
+  if (distance_to_space_threshold <= defer_abs_threshold) {
+    const int64_t threshold = (new_position + defer_abs_threshold) /
+                              kOneSwipeInNanoswipes * kOneSwipeInNanoswipes;
+    current_position_ = threshold - defer_abs_threshold * latest_direction_;
+    deferred_position_ = new_position;
+  } else {
+    current_position_ = new_position;
+    deferred_position_ = std::nullopt;
   }
 
   PostGestureEvent(kGestureChanged, progress_from_origin());
@@ -164,15 +155,22 @@ void SpaceSwitchOperation::CommitLocked() {
   VLOG(1) << "Commit(): space_state_=" << space_state_
           << ", origin_position_=" << origin_position_
           << ", current_position_=" << current_position_
+          << ", deferred_position_=" << OptionalToString(deferred_position_)
+          << ", latest_direction_=" << latest_direction_
           << ", distance_from_origin=" << distance_from_origin()
           << ", progress_from_origin=" << progress_from_origin();
 
-  const auto [soft_min, soft_max] = unlocked_position_soft_limit();
+  if (deferred_position_.has_value()) {
+    current_position_ = *deferred_position_;
+    deferred_position_ = std::nullopt;
+  }
 
-  int64_t num_spaces = std::abs(distance_from_origin() / kOneSwipeInNanoswipes);
+  const int64_t num_spaces =
+      std::abs(distance_from_origin() / kOneSwipeInNanoswipes);
 
   if (distance_from_origin() == 0) {
-    PostGestureEvent(kGestureCancelled, 0);
+    PostGestureEvent(kGestureCancelled, kEpsilon * latest_direction_ * -1,
+                     kEpsilon * latest_direction_);
     is_committed_ = true;
     return;
   }
@@ -180,17 +178,47 @@ void SpaceSwitchOperation::CommitLocked() {
   const double direction_from_origin_to_target =
       distance_from_origin() > 0 ? 1 : -1;
 
-  PostGestureEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
-                   kInstantSwitchVelocity * direction_from_origin_to_target);
-
-  for (int64_t i = 1; i < num_spaces; i++) {
-    PostGestureEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
-    PostGestureEvent(kGestureChanged,
+  if (num_spaces == 1) {
+    PostGestureEvent(kGestureEnded, progress_from_origin(),
                      kEpsilon * direction_from_origin_to_target);
+  } else {
+    bool is_mission_control_visible = false;
+    if (auto maybe_is_visible = IsMissionControlVisible();
+        maybe_is_visible.ok()) {
+      is_mission_control_visible = *maybe_is_visible;
+    } else {
+      LOG(ERROR) << "Failed to determine if Mission Control is visible: "
+                 << maybe_is_visible.status();
+    }
+
+    VLOG(1) << "Commit(): is_mission_control_visible="
+            << is_mission_control_visible;
+
+    // In the following conditions:
+    //   * We're not in Mission Control
+    //   * We've moved more than one space in this operation
+    // The commit gesture velocities needs to match the direction of the
+    // latest movement that occurred prior to the commit, not the direction of
+    // movement from origin to target. I've no idea why.
+    const int64_t gesture_direction = is_mission_control_visible
+                                          ? direction_from_origin_to_target
+                                          : latest_direction_;
+
     PostGestureEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
-                     kInstantSwitchVelocity * direction_from_origin_to_target);
+                     kInstantSwitchVelocity * latest_direction_);
+
+    for (int i = 0; i < num_spaces - 1; i++) {
+      PostGestureEvent(kGestureBegan,
+                       kEpsilon * direction_from_origin_to_target);
+      PostGestureEvent(kGestureChanged,
+                       kEpsilon * direction_from_origin_to_target);
+      PostGestureEvent(kGestureEnded,
+                       kEpsilon * direction_from_origin_to_target,
+                       kInstantSwitchVelocity * gesture_direction);
+    }
   }
 
+  // Wait for WindowServer to commit the space change.
   const int cid = SLSMainConnectionID();
   const CFSharedPtr<CFStringRef> display_id = space_state_.display_id();
 

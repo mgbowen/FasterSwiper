@@ -1,14 +1,16 @@
 #include "src/swipe-animator.h"
 
+#include "src/periodic-timer.h"
+#include "src/space-switcher.h"
+#include "src/status-macros.h"
+
 #include <algorithm>
 #include <cmath>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "src/periodic-timer.h"
-#include "src/space-switcher.h"
-#include "src/status-macros.h"
+#include "magic_enum/magic_enum.hpp"
 
 namespace fasterswiper {
 
@@ -72,29 +74,26 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
         operation_->SetPosition(finished ? state->params.target_position
                                          : interpolated_position);
 
-        if (finished) {
-          operation_->Commit();
-          return PeriodicTimerTickResult::kFinishTimer;
-        }
-
-        return PeriodicTimerTickResult::kContinueTimer;
+        return finished ? PeriodicTimerTickResult::kFinishTimer
+                        : PeriodicTimerTickResult::kContinueTimer;
       },
       .stopped_callback =
-          [promise = std::move(promise)](
-              PeriodicTimerStopReason stop_reason) mutable {
-            AnimatedSpaceSwitchOperationResult result;
-            switch (stop_reason) {
-              using enum PeriodicTimerStopReason;
-            case kFinished:
-              result = AnimatedSpaceSwitchOperationResult::kCommitted;
-              break;
-            case kCancelled:
-              result = AnimatedSpaceSwitchOperationResult::kCancelled;
-              break;
-            }
+          [this, promise = std::move(promise)](
+              PeriodicTimerStopReason stop_reason) mutable -> void {
+        AnimatedSpaceSwitchOperationResult result;
+        switch (stop_reason) {
+          using enum PeriodicTimerStopReason;
+        case kFinished:
+          operation_->Commit();
+          result = AnimatedSpaceSwitchOperationResult::kCommitted;
+          break;
+        case kCancelled:
+          result = AnimatedSpaceSwitchOperationResult::kCancelled;
+          break;
+        }
 
-            promise.set_value(result);
-          },
+        promise.set_value(result);
+      },
   });
 
   return absl::OkStatus();
@@ -109,8 +108,14 @@ AnimatedSpaceSwitchOperationResult SwipeAnimator::CancelAnimation() {
     return AnimatedSpaceSwitchOperationResult::kCancelled;
   }
 
+  VLOG(1) << "CancelAnimation(): stopping timer";
   timer_.reset();
-  return pending_future_.get();
+  VLOG(1) << "CancelAnimation(): timer stopped";
+
+  const AnimatedSpaceSwitchOperationResult result = pending_future_.get();
+  VLOG(1) << "CancelAnimation(): timer result="
+          << magic_enum::enum_name(result);
+  return result;
 }
 
 absl::Status SwipeAnimator::CancelAnimationAndEnsureNotCommitted() {

@@ -8,6 +8,7 @@
 #include "nlohmann/json.hpp"
 #include "src/cf-util.h"
 #include "src/macos-private.h"
+#include "src/periodic-timer.h"
 
 namespace fasterswiper {
 namespace {
@@ -88,20 +89,18 @@ absl::Status PlaybackGestures(const std::string &input_path) {
 
   std::cout << "Starting playback of " << events.size() << " events...\n";
 
-  auto playback_start = std::chrono::steady_clock::now();
-  const int64_t start_offset = events[0]["timestamp_ns"];
+  const int64_t playback_start_ns = UptimeInNanoseconds();
+  int64_t cumulative_delta_ns = 0;
 
   for (const auto &j : events) {
-    int64_t target_ns = j.value("timestamp_ns", 0LL) - start_offset;
+    const int64_t delta_ns = j["delta_ns"];
+    cumulative_delta_ns += delta_ns;
 
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                          now - playback_start)
-                          .count();
+    const int64_t now_ns = UptimeInNanoseconds();
+    auto target_ns = playback_start_ns + cumulative_delta_ns;
 
-    if (target_ns > elapsed_ns) {
-      std::this_thread::sleep_for(
-          std::chrono::nanoseconds(target_ns - elapsed_ns));
+    if (target_ns > now_ns) {
+      std::this_thread::sleep_for(std::chrono::nanoseconds(target_ns - now_ns));
     }
 
     PostEvent(j);
