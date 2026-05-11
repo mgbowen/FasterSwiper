@@ -3,6 +3,20 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "cf-collections-util",
+    hdrs = ["cf-collections-util.h"],
+    deps = [
+        ":CoreFoundation",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@gutil//gutil:status",
+    ],
+)
+
+cc_library(
     name = "cf-util",
     srcs = ["cf-util.cc"],
     hdrs = ["cf-util.h"],
@@ -12,6 +26,8 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@gutil//gutil:status",
     ],
 )
 
@@ -95,10 +111,11 @@ cc_library(
     srcs = ["hotkeys.cc"],
     hdrs = ["hotkeys.h"],
     deps = [
+        ":cf-collections-util",
         ":cf-util",
-        ":status-macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@gutil//gutil:status",
         "@magic_enum",
     ],
 )
@@ -112,10 +129,8 @@ cc_library(
         ":event",
         ":hotkeys",
         ":macos-private",
-        ":notifications",
         ":proto-util",
         ":space-state",
-        ":status-macros",
         ":swipe-animator",
         ":variant-util",
         "//src/public:fasterswiper_cc_proto",
@@ -123,6 +138,7 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@gutil//gutil:status",
     ],
 )
 
@@ -241,23 +257,13 @@ cc_library(
     srcs = ["mission-control.cc"],
     hdrs = ["mission-control.h"],
     deps = [
+        ":cf-collections-util",
         ":cf-util",
-        ":status-macros",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status:statusor",
-    ],
-)
-
-cc_library(
-    name = "notifications",
-    srcs = ["notifications.cc"],
-    hdrs = ["notifications.h"],
-    deps = [
-        ":cf-util",
-        ":macos-private",
-        ":status-macros",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@gutil//gutil:status",
     ],
 )
 

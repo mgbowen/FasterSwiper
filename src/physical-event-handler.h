@@ -1,10 +1,8 @@
 #pragma once
 
 #include "src/channel.h"
-#include "src/easing.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
-#include "src/notifications.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/swipe-animator.h"
 
@@ -16,8 +14,7 @@ namespace fasterswiper {
 class PhysicalEventHandler {
 public:
   static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-  Create(proto::DaemonOptions options,
-         std::unique_ptr<NotificationManager> notification_manager);
+  Create(proto::DaemonOptions options);
 
   ~PhysicalEventHandler();
 
@@ -32,7 +29,6 @@ public:
 
 private:
   const proto::DaemonOptions options_;
-  const std::unique_ptr<NotificationManager> notification_manager_;
   const HotkeyConfigurations hotkey_configs_;
 
   const absl::Duration animation_duration_per_space_;
@@ -43,10 +39,8 @@ private:
   int64_t initial_position_ = 0;
   int64_t target_position_ = 0;
 
-  PhysicalEventHandler(
-      proto::DaemonOptions options,
-      std::unique_ptr<NotificationManager> notification_manager,
-      HotkeyConfigurations hotkey_configs);
+  PhysicalEventHandler(proto::DaemonOptions options,
+                       HotkeyConfigurations hotkey_configs);
 
   void EventProcessorThread();
 

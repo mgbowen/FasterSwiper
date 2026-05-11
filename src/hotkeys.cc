@@ -1,11 +1,13 @@
 #include "src/hotkeys.h"
 
+#include "src/cf-collections-util.h"
 #include "src/cf-util.h"
-#include "src/status-macros.h"
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "gutil/status.h"
 #include "magic_enum/magic_enum.hpp"
+#include <CoreGraphics/CGRemoteOperation.h>
 
 namespace fasterswiper {
 
@@ -49,18 +51,9 @@ GetHotkeySettingsForHotkeyType(absl_nonnull CFDictionaryRef hotkey_prefs,
                      std::underlying_type_t<HotkeyType>(hotkey_type)));
   }
 
-  auto hotkey = (CFDictionaryRef)CFDictionaryGetValue(hotkey_prefs, dict_key);
-  if (hotkey == nullptr) {
-    // Not found.
-    return nullptr;
-  }
-
-  if (CFGetTypeID(hotkey) != CFDictionaryGetTypeID()) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Hotkey settings for HotkeyType ", magic_enum::enum_name(hotkey_type),
-        " was found, but it is not a dictionary"));
-  }
-
+  ASSIGN_OR_RETURN(absl_nullable auto hotkey,
+                   CFDictOptionalGetAs<CFDictionaryRef>(hotkey_prefs, dict_key),
+                   _ << "HotkeyType " << magic_enum::enum_name(hotkey_type));
   return hotkey;
 }
 
@@ -94,68 +87,53 @@ ParseHotkeyForHotkeyType(HotkeyType hotkey_type,
                          absl_nonnull CFDictionaryRef hotkey_settings) {
   ASSIGN_OR_RETURN(Hotkey result, DefaultHotkeyForHotkeyType(hotkey_type));
 
-  auto enabled_ref = static_cast<CFBooleanRef>(
-      CFDictionaryGetValue(hotkey_settings, CFSTR("enabled")));
-  if (enabled_ref != nullptr) {
-    if (CFGetTypeID(enabled_ref) != CFBooleanGetTypeID()) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "For HotkeyType ", magic_enum::enum_name(hotkey_type),
-          ", the value for \"enabled\" was found, but it is not a boolean"));
-    }
+  auto ctx = absl::StrCat("HotkeyType ", magic_enum::enum_name(hotkey_type));
 
-    result.enabled = CFBooleanGetValue(enabled_ref);
+  // "enabled" (optional boolean)
+  ASSIGN_OR_RETURN(std::optional<bool> maybe_enabled,
+                   CFDictOptionalGetAs<bool>(hotkey_settings, CFSTR("enabled")),
+                   _ << ctx << " \"enabled\"");
+  if (maybe_enabled.has_value()) {
+    result.enabled = *maybe_enabled;
   }
 
-  auto value_dict = static_cast<CFDictionaryRef>(
-      CFDictionaryGetValue(hotkey_settings, CFSTR("value")));
-  if (value_dict != nullptr) {
-    if (CFGetTypeID(value_dict) != CFDictionaryGetTypeID()) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "For HotkeyType ", magic_enum::enum_name(hotkey_type),
-          ", the value for \"value\" was found, but it is not a dictionary"));
-    }
+  // "value" dict
+  ASSIGN_OR_RETURN(
+      absl_nullable auto value_dict,
+      CFDictOptionalGetAs<CFDictionaryRef>(hotkey_settings, CFSTR("value")),
+      _ << ctx << " \"value\"");
+  if (value_dict == nullptr) {
+    return result;
+  }
 
-    auto parameters_array = static_cast<CFArrayRef>(
-        CFDictionaryGetValue(value_dict, CFSTR("parameters")));
-    if (parameters_array != nullptr) {
-      if (CFGetTypeID(parameters_array) != CFArrayGetTypeID()) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("For HotkeyType ", magic_enum::enum_name(hotkey_type),
-                         ", the value for \"parameters\" was found, but it is "
-                         "not an array"));
-      }
+  // "parameters" array inside "value"
+  ASSIGN_OR_RETURN(
+      absl_nullable auto parameters_array,
+      CFDictOptionalGetAs<CFArrayRef>(value_dict, CFSTR("parameters")),
+      _ << ctx << " \"parameters\"");
+  if (parameters_array == nullptr) {
+    return result;
+  }
 
-      if (CFArrayGetCount(parameters_array) < 3) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "For HotkeyType ", magic_enum::enum_name(hotkey_type),
-            ", the value for \"parameters\" does not have enough elements"));
-      }
+  if (CFArrayGetCount(parameters_array) < 3) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(ctx, " \"parameters\" does not have enough elements"));
+  }
 
-      auto key_code_ref =
-          static_cast<CFNumberRef>(CFArrayGetValueAtIndex(parameters_array, 1));
-      if (key_code_ref != nullptr) {
-        if (CFGetTypeID(key_code_ref) != CFNumberGetTypeID()) {
-          return absl::InvalidArgumentError(absl::StrCat(
-              "For HotkeyType ", magic_enum::enum_name(hotkey_type),
-              ", the key code value for \"parameters\" is not a number"));
-        }
+  // parameters[1] = key code
+  ASSIGN_OR_RETURN(std::optional<CGKeyCode> maybe_key_code,
+                   CFArrayOptionalGetAs<int>(parameters_array, 1),
+                   _ << ctx << " parameters[1]");
+  if (maybe_key_code.has_value()) {
+    result.key_code = *maybe_key_code;
+  }
 
-        CFNumberGetValue(key_code_ref, kCFNumberIntType, &result.key_code);
-      }
-
-      auto modifiers_ref =
-          static_cast<CFNumberRef>(CFArrayGetValueAtIndex(parameters_array, 2));
-      if (modifiers_ref != nullptr) {
-        if (CFGetTypeID(modifiers_ref) != CFNumberGetTypeID()) {
-          return absl::InvalidArgumentError(absl::StrCat(
-              "For HotkeyType ", magic_enum::enum_name(hotkey_type),
-              ", the modifiers value for \"parameters\" is not a number"));
-        }
-
-        CFNumberGetValue(modifiers_ref, kCFNumberIntType, &result.modifiers);
-        result.modifiers &= kModifierKeyMask;
-      }
-    }
+  // parameters[2] = modifiers
+  ASSIGN_OR_RETURN(auto maybe_modifiers,
+                   CFArrayOptionalGetAs<CGEventFlags>(parameters_array, 2),
+                   _ << ctx << " parameters[2]");
+  if (maybe_modifiers.has_value()) {
+    result.modifiers &= *maybe_modifiers;
   }
 
   return result;
@@ -168,14 +146,10 @@ LoadHotkeyForHotkeyType(HotkeyType hotkey_type,
       absl_nullable CFDictionaryRef hotkey_settings,
       GetHotkeySettingsForHotkeyType(all_hotkey_settings, hotkey_type));
   if (hotkey_settings == nullptr) {
-    ASSIGN_OR_RETURN(Hotkey default_hotkey,
-                     DefaultHotkeyForHotkeyType(hotkey_type));
-    return default_hotkey;
+    return DefaultHotkeyForHotkeyType(hotkey_type);
   }
 
-  ASSIGN_OR_RETURN(Hotkey hotkey,
-                   ParseHotkeyForHotkeyType(hotkey_type, hotkey_settings));
-  return hotkey;
+  return ParseHotkeyForHotkeyType(hotkey_type, hotkey_settings);
 }
 
 } // namespace

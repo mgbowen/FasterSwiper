@@ -18,7 +18,6 @@ cc_library(
         "//src:easing",
         "//src:event-tap-manager",
         "//src:macos-private",
-        "//src:notifications",
         "//src:physical-event-handler",
         "//src:version",
         "@abseil-cpp//absl/flags:parse",

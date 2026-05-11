@@ -2,7 +2,6 @@
 
 #include "src/periodic-timer.h"
 #include "src/space-switcher.h"
-#include "src/status-macros.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +9,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "gutil/status.h"
 #include "magic_enum/magic_enum.hpp"
 
 namespace fasterswiper {

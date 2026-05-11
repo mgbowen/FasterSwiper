@@ -4,11 +4,9 @@
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
-#include "src/notifications.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/space-state.h"
-#include "src/status-macros.h"
 #include "src/variant-util.h"
 
 #include <algorithm>
@@ -18,33 +16,27 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "gutil/status.h"
 #include "magic_enum/magic_enum.hpp"
 
 namespace fasterswiper {
 
 absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-PhysicalEventHandler::Create(
-    proto::DaemonOptions options,
-    std::unique_ptr<NotificationManager> notification_manager) {
+PhysicalEventHandler::Create(proto::DaemonOptions options) {
   HotkeyConfigurations hotkey_configs;
   ASSIGN_OR_RETURN(hotkey_configs, LoadHotkeyConfiguration());
 
   VLOG(1) << "PhysicalEventHandler::Create(): Loaded hotkey configuration: "
           << hotkey_configs;
 
-  auto result = absl::WrapUnique(new PhysicalEventHandler(
-      std::move(options), std::move(notification_manager),
-      std::move(hotkey_configs)));
+  auto result = absl::WrapUnique(
+      new PhysicalEventHandler(std::move(options), std::move(hotkey_configs)));
   return result;
 }
 
-PhysicalEventHandler::PhysicalEventHandler(
-    proto::DaemonOptions options,
-    std::unique_ptr<NotificationManager> notification_manager,
-    HotkeyConfigurations hotkey_configs)
-    : options_(std::move(options)),
-      notification_manager_(std::move(notification_manager)),
-      hotkey_configs_(std::move(hotkey_configs)) {
+PhysicalEventHandler::PhysicalEventHandler(proto::DaemonOptions options,
+                                           HotkeyConfigurations hotkey_configs)
+    : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
 }
 
