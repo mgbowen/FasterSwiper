@@ -1,9 +1,6 @@
 #pragma once
 
 #include "src/space-state.h"
-#include "src/string-util.h"
-
-#include <variant>
 
 namespace fasterswiper {
 

@@ -6,8 +6,8 @@ swift_library(
     name = "swift",
     srcs = [
         "BezierCurve.swift",
-        "FasterSwiperDaemon.swift",
-        "VersionInfo.swift",
+        "Daemon.swift",
+        "DaemonOptions.swift",
     ],
     module_name = "FasterSwiper_Daemon",
     deps = [

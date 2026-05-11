@@ -36,6 +36,16 @@ using ::fasterswiper::WrapCFUnique;
 
 namespace proto = fasterswiper::proto;
 
+proto::DaemonOptions GetDefaultDaemonOptions() {
+  proto::DaemonOptions options;
+  *options.mutable_animation_duration_per_space() =
+      ToProtoDuration(absl::Milliseconds(200));
+  options.set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+  options.set_frames_per_second(240);
+  options.set_intercept_keyboard_events(true);
+  return options;
+}
+
 } // namespace
 
 extern "C" {
@@ -63,16 +73,35 @@ bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options) {
     return false;
   }
 
-  proto::DaemonOptions options;
-  *options.mutable_animation_duration_per_space() =
-      ToProtoDuration(absl::Milliseconds(200));
-  options.set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
-  options.set_frames_per_second(240);
-  options.set_intercept_keyboard_events(true);
-
   auto daemon_options = new FS_DaemonOptions;
-  daemon_options->options = std::move(options);
+  daemon_options->options = GetDefaultDaemonOptions();
   *out_daemon_options = daemon_options;
+  return true;
+}
+
+bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
+  proto::DaemonOptions default_options = GetDefaultDaemonOptions();
+
+  if (!daemon_options->options.has_animation_duration_per_space()) {
+    *daemon_options->options.mutable_animation_duration_per_space() =
+        std::move(*default_options.mutable_animation_duration_per_space());
+  }
+
+  if (!daemon_options->options.has_easing_function()) {
+    daemon_options->options.set_easing_function(
+        default_options.easing_function());
+  }
+
+  if (!daemon_options->options.has_frames_per_second()) {
+    daemon_options->options.set_frames_per_second(
+        default_options.frames_per_second());
+  }
+
+  if (!daemon_options->options.has_intercept_keyboard_events()) {
+    daemon_options->options.set_intercept_keyboard_events(
+        default_options.intercept_keyboard_events());
+  }
+
   return true;
 }
 

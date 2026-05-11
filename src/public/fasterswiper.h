@@ -11,6 +11,8 @@ typedef struct FS_DaemonOptions FS_DaemonOptions;
 
 bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options);
 
+bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options);
+
 bool FS_LoadDaemonOptionsFromBinaryProto(const char *data, size_t len,
                                          FS_DaemonOptions **out_daemon_options);
 

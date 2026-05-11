@@ -148,7 +148,7 @@ void SpaceSwitchOperation::Commit() {
 
 void SpaceSwitchOperation::CommitLocked() {
   if (is_committed_) {
-    LOG(ERROR) << "SpaceSwitchOperation already committed";
+    VLOG(1) << "Commit(): SpaceSwitchOperation already committed";
     return;
   }
 
