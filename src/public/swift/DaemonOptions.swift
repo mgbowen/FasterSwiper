@@ -60,7 +60,7 @@ private func getDaemonOptions(from ptr: OpaquePointer) throws -> DaemonOptions {
         throw DaemonOptionsError.loadFailed
     }
 
-    return try DaemonOptions(serializedData: optionsBinaryProto)
+    return try DaemonOptions(serializedBytes: optionsBinaryProto)
 }
 
 class OpaqueDaemonOptions {

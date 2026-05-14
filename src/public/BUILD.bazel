@@ -1,7 +1,7 @@
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@rules_swift//proto:proto.bzl", "swift_proto_library")
+load("@rules_swift//proto:proto.bzl", "swift_proto_compiler", "swift_proto_library")
 load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
 
 package(default_visibility = ["//visibility:public"])
@@ -45,8 +45,29 @@ cc_proto_library(
     deps = [":fasterswiper_proto"],
 )
 
+swift_proto_compiler(
+    name = "swift_protobuf_spm",
+    plugin = "@swiftpkg_swift_protobuf//:protoc-gen-swift",
+    plugin_name = "swift",
+    plugin_option_allowlist = [
+        "Visibility",
+        "FileNaming",
+        "ProtoPathModuleMappings",
+        "ImplementationOnlyImports",
+        "UseAccessLevelOnImports",
+    ],
+    plugin_options = {
+        "Visibility": "Public",
+        "FileNaming": "FullPath",
+    },
+    suffixes = [".pb.swift"],
+    visibility = ["//visibility:public"],
+    deps = ["@swiftpkg_swift_protobuf//:SwiftProtobuf"],
+)
+
 swift_proto_library(
     name = "fasterswiper_swift_proto",
+    compilers = [":swift_protobuf_spm"],
     module_name = "FasterSwiper_Proto",
     protos = [":fasterswiper_proto"],
     deps = [

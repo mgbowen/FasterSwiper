@@ -1,5 +1,19 @@
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
+load("@rules_xcodeproj//xcodeproj:defs.bzl", "top_level_target", "xcodeproj")
 
 refresh_compile_commands(
     name = "refresh_compile_commands",
+)
+
+xcodeproj(
+    name = "xcodeproj",
+    tags = ["manual"],
+    top_level_targets = [
+        top_level_target(
+            "//src/app:FasterSwiper_app",
+            target_environments = [
+                "device",
+            ],
+        ),
+    ],
 )

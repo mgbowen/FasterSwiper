@@ -1,27 +1,29 @@
-syntax = "proto2";
+edition = "2024";
 
 import "google/protobuf/duration.proto";
 
 package fasterswiper.proto;
 
+option features.enum_type = CLOSED;
+
 enum EasingFunction {
-    EASING_FUNCTION_LINEAR = 1;
-    EASING_FUNCTION_QUADRATIC_EASE_OUT = 2;
-    EASING_FUNCTION_QUINTIC_EASE_OUT = 3;
-    EASING_FUNCTION_CUBIC_BEZIER_CURVE = 4;
+    EASING_FUNCTION_LINEAR = 0;
+    EASING_FUNCTION_QUADRATIC_EASE_OUT = 1;
+    EASING_FUNCTION_QUINTIC_EASE_OUT = 2;
+    EASING_FUNCTION_CUBIC_BEZIER_CURVE = 3;
 }
 
 message CubicBezierCurve {
-    optional double p1x = 1;
-    optional double p1y = 2;
-    optional double p2x = 3;
-    optional double p2y = 4;
+    double p1x = 1;
+    double p1y = 2;
+    double p2x = 3;
+    double p2y = 4;
 }
 
 message DaemonOptions {
-    optional google.protobuf.Duration animation_duration_per_space = 1;
-    optional EasingFunction easing_function = 2;
-    optional CubicBezierCurve cubic_bezier_curve = 3;
-    optional int64 frames_per_second = 4;
-    optional bool intercept_keyboard_events = 5;
+    google.protobuf.Duration animation_duration_per_space = 1;
+    EasingFunction easing_function = 2;
+    CubicBezierCurve cubic_bezier_curve = 3;
+    int64 frames_per_second = 4;
+    bool intercept_keyboard_events = 5;
 }

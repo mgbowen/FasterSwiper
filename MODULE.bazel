@@ -10,6 +10,23 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1")
 bazel_dep(name = "protobuf", version = "34.1")
 bazel_dep(name = "gutil", version = "20260309.0.bcr.1")
+bazel_dep(name = "rules_swift_package_manager", version = "1.17.1")
+
+swift_deps = use_extension(
+    "@rules_swift_package_manager//:extensions.bzl",
+    "swift_deps",
+)
+swift_deps.from_package(
+    declare_swift_deps_info = True,
+    resolved = "//:Package.resolved",
+    swift = "//:Package.swift",
+)
+use_repo(
+    swift_deps,
+    "swift_deps_info",
+    "swift_package",
+    "swiftpkg_swift_protobuf",
+)
 
 # Workaround for protobuf breakage in Bazel 9+
 bazel_dep(name = "rules_go", version = "0.60.0")

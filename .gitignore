@@ -1,4 +1,5 @@
 /bazel-*
 /compile_commands.json
+/xcodeproj.xcodeproj/
 
 .DS_Store

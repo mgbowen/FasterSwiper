@@ -11,13 +11,13 @@ public class SettingsStore {
         get {
             access(keyPath: \.options)
             if let data = getOptionsBinaryProto() {
-                return try! DaemonOptions(serializedData: data)
+                return try! DaemonOptions(serializedBytes: data)
             }
 
             return .default
         }
         set {
-            print(newValue)
+            print(newValue.textFormatString())
             withMutation(keyPath: \.options) {
                 do {
                     try UserDefaults.standard.set(
