@@ -317,7 +317,7 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
     direction = 1;
     axis = Axis::kHorizontal;
   } else {
-    return absl::InternalError("HandleKeyEvent recieved uninteresting event");
+    axis = Axis::kHorizontal;
   }
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));
