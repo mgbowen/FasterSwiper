@@ -192,37 +192,13 @@ cc_library(
 )
 
 cc_library(
-    name = "space-switcher",
-    srcs = ["space-switcher.cc"],
-    hdrs = ["space-switcher.h"],
-    deps = [
-        ":cf-util",
-        ":const",
-        ":event",
-        ":macos-private",
-        ":mission-control",
-        ":periodic-timer",
-        ":space-state",
-        ":string-util",
-        "//src/engine:movement-engine",
-        "//src/engine:position-reporter",
-        "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/synchronization",
-    ],
-)
-
-cc_library(
     name = "swipe-animator",
     srcs = ["swipe-animator.cc"],
     hdrs = ["swipe-animator.h"],
     deps = [
         ":easing",
         ":periodic-timer",
-        ":space-switcher",
+        "//src/engine:space-switch-operation",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",

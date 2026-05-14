@@ -1,9 +1,18 @@
-#include "src/engine/movement-engine.h"
+#include "src/engine/space-switch-operation.h"
 
+#include "src/cf-util.h"
 #include "src/engine/const.h"
+#include "src/event.h"
+#include "src/macos-private.h"
+#include "src/string-util.h"
+
+#include <cfloat>
+#include <optional>
+
+#include <ApplicationServices/ApplicationServices.h>
+#include <CoreGraphics/CGEvent.h>
 
 #include "absl/log/log.h"
-#include "src/event.h"
 
 namespace fasterswiper {
 
@@ -27,25 +36,92 @@ size_t Sign(auto spaceship_operator_result) {
   return 0;
 }
 
-void PostEvent(int phase, const AxisAdapter *absl_nonnull axis_adapter,
-               double progress, std::optional<double> velocity) {
+} // namespace
+
+SpaceSwitchOperation::SpaceSwitchOperation(
+    std::unique_ptr<AxisAdapter> axis_adapter)
+    : axis_adapter_(std::move(axis_adapter)) {}
+
+SpaceSwitchOperation::~SpaceSwitchOperation() {
+  absl::MutexLock lock(mutex_);
+  if (!is_committed_) {
+    LOG(FATAL)
+        << "SpaceSwitchOperation must be committed before being destroyed";
+  }
+}
+
+const AxisAdapter &SpaceSwitchOperation::axis_adapter() const {
+  absl::MutexLock lock(mutex_);
+  return axis_adapter_locked();
+}
+
+const AxisAdapter &SpaceSwitchOperation::axis_adapter_locked() const {
+  return *axis_adapter_;
+}
+
+int64_t SpaceSwitchOperation::position() const {
+  absl::MutexLock lock(mutex_);
+  return position_locked();
+}
+
+std::pair<int64_t, int64_t> SpaceSwitchOperation::position_soft_limits() const {
+  absl::MutexLock lock(mutex_);
+  return axis_adapter_->position_soft_limits();
+}
+
+void SpaceSwitchOperation::SetPosition(int64_t new_position) {
+  absl::MutexLock lock(mutex_);
+
+  VLOG(1) << "BEGIN SetPosition(new_position=" << new_position
+          << "): current_position=" << position_locked();
+  SetPositionLocked(new_position);
+  VLOG(1) << "END SetPosition(" << new_position
+          << "): current_position_=" << position_locked();
+}
+
+void SpaceSwitchOperation::Commit() {
+  absl::MutexLock lock(mutex_);
+  VLOG(1) << "BEGIN Commit()";
+
+  if (is_committed_) {
+    VLOG(1) << "Already committed";
+  } else {
+    CommitLocked();
+    is_committed_ = true;
+  }
+
+  VLOG(1) << "END Commit()";
+}
+
+void SpaceSwitchOperation::PostEvent(int phase, double progress,
+                                     std::optional<double> velocity) {
   CFUniquePtr<CGEventRef> event = CreateDockControlGestureEvent(
-      phase, static_cast<int>(axis_adapter->movement_direction()), progress,
+      phase, static_cast<int>(axis_adapter_->movement_direction()), progress,
       velocity);
   VLOG(1) << "PostEvent(): event=" << CFEventToDebugString(event.get());
 
   CGEventPost(kCGSessionEventTap, event.get());
 }
 
-} // namespace
+ContinuousSpaceSwitchOperation::ContinuousSpaceSwitchOperation(
+    std::unique_ptr<AxisAdapter> _axis_adapter)
+    : SpaceSwitchOperation(std::move(_axis_adapter)),
+      origin_position_(*axis_adapter_locked().committed_position()),
+      current_position_(origin_position_) {}
 
-ContinuousMovementEngine::ContinuousMovementEngine(
-    AxisAdapter *absl_nonnull axis_adapter)
-    : axis_adapter_(axis_adapter) {
-  Reset();
+int64_t ContinuousSpaceSwitchOperation::distance_from_origin() const {
+  return current_position_ - origin_position_;
 }
 
-void ContinuousMovementEngine::SetPosition(int64_t new_position) {
+double ContinuousSpaceSwitchOperation::progress_from_origin() const {
+  return axis_adapter_locked().NanoswipesToProgress(distance_from_origin());
+}
+
+int64_t ContinuousSpaceSwitchOperation::position_locked() const {
+  return current_position_;
+}
+
+void ContinuousSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
   if (new_position == current_position_) {
     return;
   }
@@ -77,7 +153,7 @@ void ContinuousMovementEngine::SetPosition(int64_t new_position) {
   PostEvent(kGestureChanged, progress_from_origin());
 }
 
-void ContinuousMovementEngine::Commit() {
+void ContinuousSpaceSwitchOperation::CommitLocked() {
   VLOG(1) << "Commit(): origin_position_=" << origin_position_
           << ", current_position_=" << current_position_
           << ", deferred_position_=" << OptionalToString(deferred_position_)
@@ -110,45 +186,28 @@ void ContinuousMovementEngine::Commit() {
                 kInstantSwitchVelocity * latest_direction_);
     }
 
-    (void)axis_adapter_->WaitForCommittedPositionChanged(
+    (void)axis_adapter_locked().WaitForCommittedPositionChanged(
         origin_position_, absl::Milliseconds(200));
   }
-
-  Reset();
 }
 
-int64_t ContinuousMovementEngine::distance_from_origin() const {
-  return current_position_ - origin_position_;
+SegmentedSpaceSwitchOperation::SegmentedSpaceSwitchOperation(
+    std::unique_ptr<AxisAdapter> _axis_adapter)
+    : SpaceSwitchOperation(std::move(_axis_adapter)),
+      origin_position_(*axis_adapter_locked().committed_position()),
+      current_position_(origin_position_) {}
+
+int64_t SegmentedSpaceSwitchOperation::position_locked() const {
+  return current_position_;
 }
 
-double ContinuousMovementEngine::progress_from_origin() const {
-  return axis_adapter_->NanoswipesToProgress(distance_from_origin());
-}
-
-void ContinuousMovementEngine::Reset() {
-  gesture_started_ = false;
-  origin_position_ = *axis_adapter_->committed_position();
-  current_position_ = origin_position_;
-  latest_direction_ = 0;
-}
-
-void ContinuousMovementEngine::PostEvent(int phase, double progress,
-                                         std::optional<double> velocity) const {
-  ::fasterswiper::PostEvent(phase, axis_adapter_, progress, velocity);
-}
-
-SegmentedMovementEngine::SegmentedMovementEngine(
-    AxisAdapter *absl_nonnull axis_adapter)
-    : axis_adapter_(axis_adapter) {
-  Reset();
-}
-
-void SegmentedMovementEngine::SetPosition(int64_t new_position) {
+void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
   if (new_position == current_position_) {
     return;
   }
 
-  const auto [soft_min, soft_max] = axis_adapter_->position_soft_limits();
+  const auto [soft_min, soft_max] =
+      axis_adapter_locked().position_soft_limits();
 
   // Progress toward the target position, starting and committing gestures as
   // needed.
@@ -158,6 +217,7 @@ void SegmentedMovementEngine::SetPosition(int64_t new_position) {
     if (!gesture_started_) {
       PostEvent(kGestureBegan, is_moving_right ? kEpsilon : -kEpsilon);
       gesture_started_ = true;
+      origin_position_ = current_position_;
     }
 
     int64_t next_boundary =
@@ -181,7 +241,7 @@ void SegmentedMovementEngine::SetPosition(int64_t new_position) {
             : new_position;
     const int64_t distance_from_origin = target_position - origin_position_;
     const double progress_from_origin =
-        axis_adapter_->NanoswipesToProgress(distance_from_origin);
+        axis_adapter_locked().NanoswipesToProgress(distance_from_origin);
 
     const bool boundary_reached =
         (target_position % kOneSwipeInNanoswipes) == 0 &&
@@ -225,8 +285,9 @@ void SegmentedMovementEngine::SetPosition(int64_t new_position) {
       } else if (origin_to_current_position_sign ==
                  current_to_new_position_sign) {
         // Moving away from the gesture origin.
-        const double transitory_progress = axis_adapter_->NanoswipesToProgress(
-            (kOneSwipeInNanoswipes - 1) * current_to_new_position_sign);
+        const double transitory_progress =
+            axis_adapter_locked().NanoswipesToProgress(
+                (kOneSwipeInNanoswipes - 1) * current_to_new_position_sign);
         PostEvent(kGestureChanged, transitory_progress);
 
         const double velocity = kEpsilon * current_to_new_position_sign;
@@ -250,7 +311,6 @@ void SegmentedMovementEngine::SetPosition(int64_t new_position) {
         PostEvent(kGestureCancelled, transitory_progress, velocity);
       }
 
-      origin_position_ = current_position_;
       gesture_started_ = false;
     } else {
       PostEvent(kGestureChanged, progress_from_origin);
@@ -260,42 +320,11 @@ void SegmentedMovementEngine::SetPosition(int64_t new_position) {
   }
 }
 
-void SegmentedMovementEngine::Commit() {
-  if (overall_origin_position_ - current_position_ != 0) {
-    (void)axis_adapter_->WaitForCommittedPositionChanged(
-        overall_origin_position_, absl::Milliseconds(200));
+void SegmentedSpaceSwitchOperation::CommitLocked() {
+  if (operation_origin_position_ - current_position_ != 0) {
+    (void)axis_adapter_locked().WaitForCommittedPositionChanged(
+        origin_position_, absl::Milliseconds(200));
   }
-
-  Reset();
-}
-
-void SegmentedMovementEngine::Reset() {
-  gesture_started_ = false;
-  overall_origin_position_ = *axis_adapter_->committed_position();
-  origin_position_ = overall_origin_position_;
-  current_position_ = overall_origin_position_;
-}
-
-int64_t SegmentedMovementEngine::GetNextBoundary(bool is_moving_right) const {
-  const auto [soft_min, soft_max] = axis_adapter_->position_soft_limits();
-  int64_t next_boundary =
-      is_moving_right
-          ? (FloorDiv(current_position_, kOneSwipeInNanoswipes) + 1) *
-                kOneSwipeInNanoswipes
-          : FloorDiv(current_position_ - 1, kOneSwipeInNanoswipes) *
-                kOneSwipeInNanoswipes;
-  if (next_boundary < soft_min) {
-    return is_moving_right ? soft_min : std::numeric_limits<int64_t>::min();
-  } else if (next_boundary > soft_max) {
-    return is_moving_right ? std::numeric_limits<int64_t>::max() : soft_max;
-  }
-
-  return next_boundary;
-}
-
-void SegmentedMovementEngine::PostEvent(int phase, double progress,
-                                        std::optional<double> velocity) const {
-  ::fasterswiper::PostEvent(phase, axis_adapter_, progress, velocity);
 }
 
 } // namespace fasterswiper

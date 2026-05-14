@@ -1,8 +1,8 @@
 #include "src/physical-event-handler.h"
 
 #include "src/const.h"
-#include "src/engine/movement-engine.h"
-#include "src/engine/position-reporter.h"
+#include "src/engine/axis-adapter.h"
+#include "src/engine/space-switch-operation.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
@@ -125,7 +125,7 @@ PhysicalEventHandler::GetEventDestination(const DockControlEvent &event) const {
 
   const bool movement_matches_active_animation =
       static_cast<int>(
-          animator_->operation().axis_adapter()->movement_direction()) ==
+          animator_->operation().axis_adapter().movement_direction()) ==
       event.direction;
   if (movement_matches_active_animation) {
     return EventDestination::kHandle;
@@ -220,7 +220,7 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
 
   const int64_t new_position =
       initial_position_ +
-      animator_->operation().axis_adapter()->ProgressToNanoswipes(
+      animator_->operation().axis_adapter().ProgressToNanoswipes(
           swipe_event.progress);
 
   VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
@@ -416,8 +416,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
   }
 
   if (need_new_animator) {
-    std::unique_ptr<AxisAdapter> axis_adapter;
-    std::unique_ptr<MovementEngine> movement_engine;
+    std::unique_ptr<SpaceSwitchOperation> operation;
 
     switch (axis) {
       using enum Axis;
@@ -430,25 +429,25 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
       VLOG(1) << "SetUpForNewGesture(): space_state=" << space_state
               << ", active_window=" << magic_enum::enum_name(active_window);
 
-      axis_adapter = std::make_unique<HorizontalAxisAdapter>(space_state);
-      movement_engine =
-          active_window == ActiveMultitaskingWindow::kDesktop
-              ? static_cast<std::unique_ptr<MovementEngine>>(
-                    std::make_unique<ContinuousMovementEngine>(
-                        axis_adapter.get()))
-              : std::make_unique<SegmentedMovementEngine>(axis_adapter.get());
+      std::unique_ptr<AxisAdapter> axis_adapter =
+          std::make_unique<HorizontalAxisAdapter>(space_state);
+      operation = active_window == ActiveMultitaskingWindow::kDesktop
+                      ? static_cast<std::unique_ptr<SpaceSwitchOperation>>(
+                            std::make_unique<ContinuousSpaceSwitchOperation>(
+                                std::move(axis_adapter)))
+                      : std::make_unique<SegmentedSpaceSwitchOperation>(
+                            std::move(axis_adapter));
       break;
     }
     case kVertical: {
-      axis_adapter = std::make_unique<VerticalAxisAdapter>();
-      movement_engine =
-          std::make_unique<SegmentedMovementEngine>(axis_adapter.get());
+      std::unique_ptr<AxisAdapter> axis_adapter =
+          std::make_unique<VerticalAxisAdapter>();
+      operation = std::make_unique<SegmentedSpaceSwitchOperation>(
+          std::move(axis_adapter));
       break;
     }
     }
 
-    auto operation = std::make_unique<SpaceSwitchOperation>(
-        std::move(axis_adapter), std::move(movement_engine));
     animator_ = std::make_unique<SwipeAnimator>(std::move(operation));
 
     target_position_ = animator_->position();

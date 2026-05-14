@@ -1,7 +1,7 @@
 #include "src/swipe-animator.h"
 
+#include "src/engine/space-switch-operation.h"
 #include "src/periodic-timer.h"
-#include "src/space-switcher.h"
 
 #include <algorithm>
 #include <cmath>

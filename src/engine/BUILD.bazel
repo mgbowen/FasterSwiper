@@ -24,9 +24,9 @@ cc_library(
 )
 
 cc_library(
-    name = "position-reporter",
-    srcs = ["position-reporter.cc"],
-    hdrs = ["position-reporter.h"],
+    name = "axis-adapter",
+    srcs = ["axis-adapter.cc"],
+    hdrs = ["axis-adapter.h"],
     deps = [
         "//src:cf-util",
         "//src:const",
@@ -46,12 +46,12 @@ cc_library(
 )
 
 cc_library(
-    name = "movement-engine",
-    srcs = ["movement-engine.cc"],
-    hdrs = ["movement-engine.h"],
+    name = "space-switch-operation",
+    srcs = ["space-switch-operation.cc"],
+    hdrs = ["space-switch-operation.h"],
     deps = [
+        ":axis-adapter",
         ":const",
-        ":position-reporter",
         "//src:cf-util",
         "//src:const",
         "//src:event",

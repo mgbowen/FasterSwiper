@@ -54,7 +54,6 @@ cc_binary(
         "//src:event-tap-manager",
         "//src:macos-private",
         "//src:space-state",
-        "//src:space-switcher",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/time",
@@ -99,15 +98,14 @@ cc_binary(
 )
 
 cc_binary(
-    name = "position-reporter",
-    srcs = ["position-reporter.cc"],
+    name = "axis-adapter",
+    srcs = ["axis-adapter.cc"],
     deps = [
         "//src:cf-util",
         "//src:event-tap-manager",
         "//src:macos-private",
         "//src:space-state",
-        "//src:space-switcher",
-        "//src/engine:position-reporter",
+        "//src/engine:axis-adapter",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/time",

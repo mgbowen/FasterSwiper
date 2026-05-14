@@ -1,8 +1,8 @@
 #pragma once
 
 #include "src/easing.h"
+#include "src/engine/space-switch-operation.h"
 #include "src/periodic-timer.h"
-#include "src/space-switcher.h"
 
 #include <future>
 #include <memory>
