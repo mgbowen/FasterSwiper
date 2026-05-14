@@ -281,18 +281,15 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
         // Instant switch to an adjacent space.
         PostEvent(kGestureChanged, kEpsilon * current_to_new_position_sign);
         PostEvent(kGestureEnded, kEpsilon * current_to_new_position_sign,
-                  2000 * current_to_new_position_sign);
+                  kInstantSwitchVelocity * current_to_new_position_sign);
       } else if (origin_to_current_position_sign ==
                  current_to_new_position_sign) {
         // Moving away from the gesture origin.
-        const double transitory_progress =
-            axis_adapter_locked().NanoswipesToProgress(
-                (kOneSwipeInNanoswipes - 1) * current_to_new_position_sign);
-        PostEvent(kGestureChanged, transitory_progress);
-
-        const double velocity = kEpsilon * current_to_new_position_sign;
-        PostEvent(kGestureEnded, kEpsilon * current_to_new_position_sign,
-                  kInstantSwitchVelocity * current_to_new_position_sign);
+        const double progress = axis_adapter_locked().NanoswipesToProgress(
+            (kOneSwipeInNanoswipes - 1) * current_to_new_position_sign);
+        PostEvent(kGestureChanged, progress_from_origin);
+        PostEvent(kGestureEnded, progress_from_origin,
+                  kEpsilon * current_to_new_position_sign);
       } else {
         // Moving towards the gesture origin.
         const double transitory_progress =
@@ -323,7 +320,7 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
 void SegmentedSpaceSwitchOperation::CommitLocked() {
   if (operation_origin_position_ - current_position_ != 0) {
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        origin_position_, absl::Milliseconds(200));
+        operation_origin_position_, absl::Milliseconds(200));
   }
 }
 
