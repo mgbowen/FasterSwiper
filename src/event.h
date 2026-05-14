@@ -7,6 +7,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 
 #include "absl/strings/str_format.h"
+#include "src/cf-util.h"
 #include "src/hotkeys.h"
 #include "src/variant-util.h"
 
@@ -98,5 +99,9 @@ std::optional<Event> ParseEvent(CGEventRef event);
 std::string EventGesturePhaseToString(int phase);
 
 std::string CFEventToDebugString(CGEventRef event);
+
+CFUniquePtr<CGEventRef>
+CreateDockControlGestureEvent(int phase, int direction, double progress,
+                              std::optional<double> velocity = std::nullopt);
 
 } // namespace fasterswiper

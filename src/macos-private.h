@@ -5,12 +5,14 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
+using SLSSpaceId = size_t;
+
 extern "C" {
 int SLSMainConnectionID(void);
-uint64_t SLSGetActiveSpace(int cid);
+SLSSpaceId SLSGetActiveSpace(int cid);
 CFArrayRef SLSCopyManagedDisplaySpaces(int cid);
 bool SLSManagedDisplayIsAnimating(int cid, CFStringRef display);
-uint64_t SLSManagedDisplayGetCurrentSpace(int cid, CFStringRef uuid);
+int64_t SLSManagedDisplayGetCurrentSpace(int cid, CFStringRef uuid);
 
 enum CGSEventType {
   kCGSWorkspaceWillChange = 1400,
@@ -34,6 +36,31 @@ CGError CGSRegisterNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
                               void *userData);
 CGError CGSRemoveNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
                             void *userData);
+
+CFStringRef SLSSpaceCopyName(int cid, SLSSpaceId sid);
+
+typedef enum {
+  CGSSpaceIncludesCurrent = 1 << 0, // Dock, Notification Center, etc.
+  CGSSpaceIncludesOthers = 1 << 1,  // Expose
+
+  CGSSpaceIncludesUser = 1 << 2, // User controlled spaces
+  CGSSpaceIncludesOS = 1 << 3,   // OS X controlled spaces
+
+  CGSSpaceVisible = 1 << 16, // ?
+
+  kCGSCurrentSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesCurrent,
+  kCGSOtherSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers,
+  kCGSAllSpacesMask =
+      CGSSpaceIncludesUser | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+
+  kCGSCurrentOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesCurrent,
+  kCGSOtherOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers,
+  kCGSAllOSSpacesMask =
+      CGSSpaceIncludesOS | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+
+  kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask, // ?
+} CGSSpaceMask;
+CFArrayRef SLSCopySpaces(int cid, CGSSpaceMask type);
 }
 
 namespace fasterswiper {
@@ -66,6 +93,7 @@ constexpr auto kCGSEventDockControl = static_cast<CGEventType>(30);
 constexpr int kIOHIDEventTypeDockSwipe = 23;
 
 constexpr int kCGGestureMotionHorizontal = 1;
+constexpr int kCGGestureMotionVertical = 2;
 
 constexpr int kGestureBegan = 1;
 constexpr int kGestureChanged = 2;

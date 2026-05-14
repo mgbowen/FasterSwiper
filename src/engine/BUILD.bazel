@@ -1,0 +1,70 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "const",
+    hdrs = ["const.h"],
+    deps = [
+        "//src:cf-util",
+        "//src:const",
+        "//src:event",
+        "//src:macos-private",
+        "//src:mission-control",
+        "//src:periodic-timer",
+        "//src:space-state",
+        "//src:string-util",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "position-reporter",
+    srcs = ["position-reporter.cc"],
+    hdrs = ["position-reporter.h"],
+    deps = [
+        "//src:cf-util",
+        "//src:const",
+        "//src:event",
+        "//src:macos-private",
+        "//src:mission-control",
+        "//src:periodic-timer",
+        "//src:space-state",
+        "//src:string-util",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "movement-engine",
+    srcs = ["movement-engine.cc"],
+    hdrs = ["movement-engine.h"],
+    deps = [
+        ":const",
+        ":position-reporter",
+        "//src:cf-util",
+        "//src:const",
+        "//src:event",
+        "//src:macos-private",
+        "//src:mission-control",
+        "//src:periodic-timer",
+        "//src:space-state",
+        "//src:string-util",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)

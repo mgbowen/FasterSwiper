@@ -97,3 +97,19 @@ cc_binary(
     name = "space-change-monitor",
     deps = [":space-change-monitor-lib"],
 )
+
+cc_binary(
+    name = "position-reporter",
+    srcs = ["position-reporter.cc"],
+    deps = [
+        "//src:cf-util",
+        "//src:event-tap-manager",
+        "//src:macos-private",
+        "//src:space-state",
+        "//src:space-switcher",
+        "//src/engine:position-reporter",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/time",
+    ],
+)

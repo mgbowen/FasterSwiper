@@ -14,13 +14,26 @@
 
 namespace fasterswiper {
 
-SwipeAnimator::SwipeAnimator(SpaceState space_state)
-    : operation_(
-          std::make_unique<SpaceSwitchOperation>(std::move(space_state))) {}
+SwipeAnimator::SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation)
+    : operation_(std::move(operation)) {}
 
 SwipeAnimator::~SwipeAnimator() {
   (void)CancelAnimation();
   operation_->Commit();
+}
+
+bool SwipeAnimator::is_committed() const {
+  if (!pending_future_.valid()) {
+    return false;
+  }
+
+  if (pending_future_.wait_for(std::chrono::seconds(0)) ==
+      std::future_status::timeout) {
+    return false;
+  }
+
+  return pending_future_.get() ==
+         AnimatedSpaceSwitchOperationResult::kCommitted;
 }
 
 absl::Status SwipeAnimator::SetPosition(int64_t new_position) {

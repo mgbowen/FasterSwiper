@@ -1,9 +1,12 @@
 #include "src/physical-event-handler.h"
 
 #include "src/const.h"
+#include "src/engine/movement-engine.h"
+#include "src/engine/position-reporter.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
+#include "src/mission-control.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/space-state.h"
@@ -87,12 +90,23 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
 
   VLOG(2) << "HandleEvent(): Received physical event " << *parsed_event;
 
-  const bool is_event_interesting = std::visit(
-      overloaded{[&](const auto &event) { return IsEventInteresting(event); }},
+  const EventDestination event_destination = std::visit(
+      overloaded{[&](const auto &event) { return GetEventDestination(event); }},
       parsed_event->data);
-  if (!is_event_interesting) {
-    VLOG(2) << "HandleEvent(): Not an interesting event";
+  VLOG(2) << "HandleEvent(): Event destination="
+          << magic_enum::enum_name(event_destination);
+
+  switch (event_destination) {
+    using enum EventDestination;
+  case kHandle:
+    VLOG(2) << "HandleEvent(): Handling event";
+    break;
+  case kPassthrough:
+    VLOG(2) << "HandleEvent(): Passing event through";
     return event;
+  case kSwallow:
+    VLOG(2) << "HandleEvent(): Swallowing event";
+    return nullptr;
   }
 
   absl::Status status = channel_.Write(*std::move(parsed_event));
@@ -103,18 +117,31 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
   return nullptr;
 }
 
-bool PhysicalEventHandler::IsEventInteresting(
-    const DockControlEvent &event) const {
-  return event.direction == kCGGestureMotionHorizontal;
+PhysicalEventHandler::EventDestination
+PhysicalEventHandler::GetEventDestination(const DockControlEvent &event) const {
+  if (animator_ == nullptr || animator_->is_committed()) {
+    return EventDestination::kHandle;
+  }
+
+  const bool movement_matches_active_animation =
+      static_cast<int>(
+          animator_->operation().axis_adapter()->movement_direction()) ==
+      event.direction;
+  if (movement_matches_active_animation) {
+    return EventDestination::kHandle;
+  }
+
+  return EventDestination::kSwallow;
 }
 
-bool PhysicalEventHandler::IsEventInteresting(const KeyEvent &event) const {
+PhysicalEventHandler::EventDestination
+PhysicalEventHandler::GetEventDestination(const KeyEvent &event) const {
   if (event.key_state != KeyState::kDown) {
-    return false;
+    return EventDestination::kPassthrough;
   }
 
   if (event.ConcernsAnyHotkey(hotkey_configs_)) {
-    return true;
+    return EventDestination::kHandle;
   }
 
   // Check for Control + 1-9
@@ -129,11 +156,11 @@ bool PhysicalEventHandler::IsEventInteresting(const KeyEvent &event) const {
     case 26:
     case 28:
     case 25:
-      return true;
+      return EventDestination::kHandle;
     }
   }
 
-  return false;
+  return EventDestination::kPassthrough;
 }
 
 absl::Status PhysicalEventHandler::HandleDockControlEvent(
@@ -142,7 +169,7 @@ absl::Status PhysicalEventHandler::HandleDockControlEvent(
           << dock_control_event;
 
   if (dock_control_event.phase == kGestureBegan) {
-    return HandleBeginGesture();
+    return HandleBeginGesture(dock_control_event);
   }
 
   if (dock_control_event.phase == kGestureChanged) {
@@ -161,13 +188,26 @@ absl::Status PhysicalEventHandler::HandleDockControlEvent(
                                           dock_control_event.phase));
 }
 
-absl::Status PhysicalEventHandler::HandleBeginGesture() {
+absl::Status
+PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleBeginGesture(): BEGIN";
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleBeginGesture(): END"; });
 
-  RETURN_IF_ERROR(SetUpForNewGesture());
+  Axis axis;
+  switch (swipe_event.direction) {
+  case kCGGestureMotionHorizontal:
+    axis = Axis::kHorizontal;
+    break;
+  case kCGGestureMotionVertical:
+    axis = Axis::kVertical;
+    break;
+  default:
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unknown DockControlEvent.direction ", swipe_event.direction));
+  }
 
+  RETURN_IF_ERROR(SetUpForNewGesture(axis));
   RETURN_IF_ERROR(animator_->SetPosition(initial_position_));
   return absl::OkStatus();
 }
@@ -180,7 +220,8 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
 
   const int64_t new_position =
       initial_position_ +
-      animator_->space_state().ProgressToSwipes(swipe_event.progress);
+      animator_->operation().axis_adapter()->ProgressToNanoswipes(
+          swipe_event.progress);
 
   VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
@@ -210,7 +251,7 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleEndGesture(): END"; });
 
-  const auto [soft_min, soft_max] = animator_->position_soft_limit();
+  const auto [soft_min, soft_max] = animator_->position_soft_limits();
   target_position_ = std::clamp(((target_position_ / kOneSwipeInNanoswipes) +
                                  (swipe_event.progress > 0 ? 1 : -1)) *
                                     kOneSwipeInNanoswipes,
@@ -267,16 +308,19 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
 absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   VLOG(1) << "HandleKeyEvent(): key_event=" << key_event;
 
-  RETURN_IF_ERROR(SetUpForNewGesture());
-
+  Axis axis;
   int64_t direction = 0;
   if (key_event.ConcernsHotkey(hotkey_configs_.move_space_left)) {
     direction = -1;
+    axis = Axis::kHorizontal;
   } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
+    axis = Axis::kHorizontal;
   }
 
-  const auto [soft_min, soft_max] = animator_->position_soft_limit();
+  RETURN_IF_ERROR(SetUpForNewGesture(axis));
+
+  const auto [soft_min, soft_max] = animator_->position_soft_limits();
   if (direction != 0) {
     target_position_ =
         std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction) *
@@ -353,7 +397,7 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   return absl::OkStatus();
 }
 
-absl::Status PhysicalEventHandler::SetUpForNewGesture() {
+absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
   bool need_new_animator = true;
   if (animator_ != nullptr) {
     const AnimatedSpaceSwitchOperationResult cancel_result =
@@ -372,17 +416,48 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture() {
   }
 
   if (need_new_animator) {
-    ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
-    animator_ = std::make_unique<SwipeAnimator>(std::move(space_state));
+    std::unique_ptr<AxisAdapter> axis_adapter;
+    std::unique_ptr<MovementEngine> movement_engine;
+
+    switch (axis) {
+      using enum Axis;
+    case kHorizontal: {
+      ASSIGN_OR_RETURN(SpaceState space_state,
+                       LoadSpaceStateForActiveDisplay());
+      ASSIGN_OR_RETURN(const ActiveMultitaskingWindow active_window,
+                       GetActiveMultitaskingWindow());
+
+      VLOG(1) << "SetUpForNewGesture(): space_state=" << space_state
+              << ", active_window=" << magic_enum::enum_name(active_window);
+
+      axis_adapter = std::make_unique<HorizontalAxisAdapter>(space_state);
+      movement_engine =
+          active_window == ActiveMultitaskingWindow::kDesktop
+              ? static_cast<std::unique_ptr<MovementEngine>>(
+                    std::make_unique<ContinuousMovementEngine>(
+                        axis_adapter.get()))
+              : std::make_unique<SegmentedMovementEngine>(axis_adapter.get());
+      break;
+    }
+    case kVertical: {
+      axis_adapter = std::make_unique<VerticalAxisAdapter>();
+      movement_engine =
+          std::make_unique<SegmentedMovementEngine>(axis_adapter.get());
+      break;
+    }
+    }
+
+    auto operation = std::make_unique<SpaceSwitchOperation>(
+        std::move(axis_adapter), std::move(movement_engine));
+    animator_ = std::make_unique<SwipeAnimator>(std::move(operation));
 
     target_position_ = animator_->position();
   }
 
   initial_position_ = animator_->position();
 
-  const auto [soft_min, soft_max] = animator_->position_soft_limit();
-  VLOG(1) << "SetUpForNewGesture():   need_new_animator=" << need_new_animator
-          << ", space_state=" << animator_->space_state()
+  const auto [soft_min, soft_max] = animator_->position_soft_limits();
+  VLOG(1) << "SetUpForNewGesture(): need_new_animator=" << need_new_animator
           << ", soft_min=" << soft_min << ", soft_max=" << soft_max
           << ", initial_position_=" << initial_position_
           << ", target_position_=" << target_position_;

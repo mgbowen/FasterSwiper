@@ -44,19 +44,25 @@ private:
 
   void EventProcessorThread();
 
-  bool IsEventInteresting(const DockControlEvent &event) const;
-  bool IsEventInteresting(const KeyEvent &event) const;
+  enum class EventDestination {
+    kPassthrough,
+    kSwallow,
+    kHandle,
+  };
+
+  EventDestination GetEventDestination(const DockControlEvent &event) const;
+  EventDestination GetEventDestination(const KeyEvent &event) const;
 
   absl::Status
   HandleDockControlEvent(const DockControlEvent &dock_control_event);
-  absl::Status HandleBeginGesture();
+  absl::Status HandleBeginGesture(const DockControlEvent &swipe_event);
   absl::Status HandleChangeGesture(const DockControlEvent &swipe_event);
   absl::Status HandleEndGesture(const DockControlEvent &swipe_event);
   absl::Status HandleCancelGesture(const DockControlEvent &swipe_event);
 
   absl::Status HandleKeyEvent(const KeyEvent &key_event);
 
-  absl::Status SetUpForNewGesture();
+  absl::Status SetUpForNewGesture(Axis axis);
 };
 
 } // namespace fasterswiper

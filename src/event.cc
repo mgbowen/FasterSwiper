@@ -140,4 +140,30 @@ std::string CFEventToDebugString(CGEventRef event) {
       CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX));
 }
 
+CFUniquePtr<CGEventRef>
+CreateDockControlGestureEvent(int phase, int direction, double progress,
+                              std::optional<double> velocity) {
+  auto event = WrapCFUnique(CGEventCreate(NULL));
+  if (!event) {
+    LOG(FATAL) << "CGEventCreate() return nullptr";
+  }
+
+  CGEventSetIntegerValueField(event.get(), kCGSEventTypeField,
+                              static_cast<int64_t>(kCGSEventDockControl));
+  CGEventSetIntegerValueField(event.get(), kCGEventGestureHIDType,
+                              kIOHIDEventTypeDockSwipe);
+  CGEventSetIntegerValueField(event.get(), kCGEventGesturePhase, phase);
+  CGEventSetIntegerValueField(event.get(), kCGEventGestureSwipeMotion,
+                              direction);
+  CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeProgress,
+                             progress);
+
+  if (velocity.has_value()) {
+    CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeVelocityX,
+                               *velocity);
+  }
+
+  return event;
+}
+
 } // namespace fasterswiper

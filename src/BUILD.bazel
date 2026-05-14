@@ -204,6 +204,8 @@ cc_library(
         ":periodic-timer",
         ":space-state",
         ":string-util",
+        "//src/engine:movement-engine",
+        "//src/engine:position-reporter",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -259,6 +261,7 @@ cc_library(
     deps = [
         ":cf-collections-util",
         ":cf-util",
+        ":macos-private",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status:statusor",

@@ -16,8 +16,7 @@ enum class AnimatedSpaceSwitchOperationResult {
 
 class SwipeAnimator {
 public:
-  explicit SwipeAnimator(SpaceState space_state);
-
+  explicit SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation);
   ~SwipeAnimator();
 
   // Non-copyable, non-movable.
@@ -25,6 +24,10 @@ public:
   SwipeAnimator &operator=(const SwipeAnimator &) = delete;
   SwipeAnimator(SwipeAnimator &&) = delete;
   SwipeAnimator &operator=(SwipeAnimator &&) = delete;
+
+  const SpaceSwitchOperation &operation() const { return *operation_; }
+
+  bool is_committed() const;
 
   // Cancel any active animation and instantly sets the position.
   absl::Status SetPosition(int64_t new_position);
@@ -53,14 +56,10 @@ public:
 
   [[nodiscard]] AnimatedSpaceSwitchOperationResult CancelAnimation();
 
-  [[nodiscard]] const SpaceState &space_state() const {
-    return operation_->space_state();
-  }
-
   [[nodiscard]] int64_t position() { return operation_->position(); }
 
-  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limit() const {
-    return operation_->position_soft_limit();
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits() const {
+    return operation_->position_soft_limits();
   }
 
 private:
