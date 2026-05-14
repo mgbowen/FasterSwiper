@@ -3,10 +3,9 @@
 #include <iostream>
 #include <thread>
 
-#include "absl/flags/parse.h"
-#include "absl/time/time.h"
 #include "src/space-state.h"
-#include "src/space-switcher.h"
+#include <absl/flags/parse.h>
+#include <absl/time/time.h>
 
 using namespace fasterswiper;
 
@@ -60,12 +59,6 @@ int main(int argc, char *argv[]) {
   CFRunLoopAddSource(CFRunLoopGetCurrent(), run_loop_source.get(),
                      kCFRunLoopCommonModes);
   tap_manager->SetEnabled(true);
-
-  auto op =
-      std::make_unique<SpaceSwitchOperation>(*LoadSpaceStateForActiveDisplay());
-  op->SetPosition(1'000'000);
-  op->Commit();
-  return 0;
 
   std::thread animator_thread([&] {
     constexpr auto sleep_duration = absl::Milliseconds(1200);

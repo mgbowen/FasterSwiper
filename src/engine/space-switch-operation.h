@@ -41,10 +41,13 @@ protected:
                  std::optional<double> velocity = std::nullopt)
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
+  // Protected to allow for Abseil thread annotations, do not use in derived
+  // classes.
+  mutable absl::Mutex mutex_;
+
 private:
   const std::unique_ptr<AxisAdapter> axis_adapter_;
 
-  mutable absl::Mutex mutex_;
   bool is_committed_ ABSL_GUARDED_BY(mutex_) = false;
 };
 
@@ -60,12 +63,16 @@ private:
   std::optional<int64_t> deferred_position_;
   int64_t latest_direction_ = 0;
 
-  [[nodiscard]] int64_t distance_from_origin() const;
-  [[nodiscard]] double progress_from_origin() const;
+  [[nodiscard]] int64_t distance_from_origin() const
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  [[nodiscard]] double progress_from_origin() const
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  [[nodiscard]] int64_t position_locked() const override;
-  void SetPositionLocked(int64_t new_position) override;
-  void CommitLocked() override;
+  [[nodiscard]] int64_t position_locked() const override
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  void SetPositionLocked(int64_t new_position) override
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  void CommitLocked() override ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 };
 
 class SegmentedSpaceSwitchOperation : public SpaceSwitchOperation {
@@ -79,9 +86,11 @@ private:
   int64_t origin_position_ = 0;
   int64_t current_position_ = 0;
 
-  [[nodiscard]] int64_t position_locked() const override;
-  void SetPositionLocked(int64_t new_position) override;
-  void CommitLocked() override;
+  [[nodiscard]] int64_t position_locked() const override
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  void SetPositionLocked(int64_t new_position) override
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  void CommitLocked() override ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 };
 
 } // namespace fasterswiper

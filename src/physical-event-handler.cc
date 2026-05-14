@@ -16,11 +16,11 @@
 #include <memory>
 #include <optional>
 
-#include "absl/cleanup/cleanup.h"
-#include "absl/log/check.h"
-#include "absl/log/log.h"
-#include "gutil/status.h"
-#include "magic_enum/magic_enum.hpp"
+#include <absl/cleanup/cleanup.h>
+#include <absl/log/check.h>
+#include <absl/log/log.h>
+#include <gutil/status.h>
+#include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
 
@@ -316,6 +316,8 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
     axis = Axis::kHorizontal;
+  } else {
+    return absl::InternalError("HandleKeyEvent recieved uninteresting event");
   }
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));

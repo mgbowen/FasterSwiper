@@ -3,12 +3,12 @@
 #include <iostream>
 #include <thread>
 
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "nlohmann/json.hpp"
 #include "src/cf-util.h"
 #include "src/macos-private.h"
 #include "src/periodic-timer.h"
+#include <absl/status/status.h>
+#include <absl/strings/str_cat.h>
 
 namespace fasterswiper {
 namespace {

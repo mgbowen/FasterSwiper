@@ -3,12 +3,12 @@
 #include <thread>
 #include <vector>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "absl/synchronization/notification.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #include "gtest/gtest.h"
+#include <absl/status/status.h>
+#include <absl/status/statusor.h>
+#include <absl/synchronization/notification.h>
+#include <absl/time/clock.h>
+#include <absl/time/time.h>
 
 namespace fasterswiper {
 namespace {
@@ -196,7 +196,8 @@ TEST(ChannelTest, MultipleProducersMultipleConsumers) {
     consumers.emplace_back([&] {
       while (true) {
         absl::StatusOr<int> result = channel.Read();
-        if (!result.ok()) break;
+        if (!result.ok())
+          break;
         total_consumed.fetch_add(1, std::memory_order_relaxed);
       }
     });
@@ -213,9 +214,11 @@ TEST(ChannelTest, MultipleProducersMultipleConsumers) {
     });
   }
 
-  for (auto &t : producers) t.join();
+  for (auto &t : producers)
+    t.join();
   channel.CloseWriter();
-  for (auto &t : consumers) t.join();
+  for (auto &t : consumers)
+    t.join();
 
   EXPECT_EQ(total_consumed.load(), kNumProducers * kItemsPerProducer);
 }
@@ -251,5 +254,5 @@ TEST(ChannelTest, CloseWriterThenCloseReader) {
   EXPECT_TRUE(absl::IsCancelled(channel.Read().status()));
 }
 
-}  // namespace
-}  // namespace fasterswiper
+} // namespace
+} // namespace fasterswiper

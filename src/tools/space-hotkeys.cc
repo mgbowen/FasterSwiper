@@ -12,10 +12,10 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-#include "absl/flags/parse.h"
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
-#include "absl/time/time.h"
+#include <absl/flags/parse.h>
+#include <absl/status/status.h>
+#include <absl/strings/str_cat.h>
+#include <absl/time/time.h>
 
 namespace fasterswiper {
 namespace {

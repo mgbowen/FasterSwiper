@@ -5,8 +5,8 @@
 #include "src/mission-control.h"
 #include "src/periodic-timer.h"
 
-#include "absl/log/log.h"
-#include "gutil/status.h"
+#include <absl/log/log.h>
+#include <gutil/status.h>
 #include <thread>
 
 namespace fasterswiper {

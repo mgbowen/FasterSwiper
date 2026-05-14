@@ -12,7 +12,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreGraphics/CGEvent.h>
 
-#include "absl/log/log.h"
+#include <absl/log/log.h>
 
 namespace fasterswiper {
 
@@ -285,8 +285,6 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
       } else if (origin_to_current_position_sign ==
                  current_to_new_position_sign) {
         // Moving away from the gesture origin.
-        const double progress = axis_adapter_locked().NanoswipesToProgress(
-            (kOneSwipeInNanoswipes - 1) * current_to_new_position_sign);
         PostEvent(kGestureChanged, progress_from_origin);
         PostEvent(kGestureEnded, progress_from_origin,
                   kEpsilon * current_to_new_position_sign);

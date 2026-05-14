@@ -96,18 +96,3 @@ cc_binary(
     name = "space-change-monitor",
     deps = [":space-change-monitor-lib"],
 )
-
-cc_binary(
-    name = "axis-adapter",
-    srcs = ["axis-adapter.cc"],
-    deps = [
-        "//src:cf-util",
-        "//src:event-tap-manager",
-        "//src:macos-private",
-        "//src:space-state",
-        "//src/engine:axis-adapter",
-        "@abseil-cpp//absl/flags:parse",
-        "@abseil-cpp//absl/log:flags",
-        "@abseil-cpp//absl/time",
-    ],
-)

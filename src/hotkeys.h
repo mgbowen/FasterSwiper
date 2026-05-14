@@ -3,8 +3,8 @@
 #include <CoreGraphics/CGEventTypes.h>
 #include <CoreGraphics/CGRemoteOperation.h>
 
-#include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
+#include <absl/status/statusor.h>
+#include <absl/strings/str_cat.h>
 
 namespace fasterswiper {
 

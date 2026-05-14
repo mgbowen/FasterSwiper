@@ -3,5 +3,8 @@ build --host_cxxopt=-std=c++23
 build --workspace_status_command=$(pwd)/stamp.sh
 build --features=external_include_paths
 
-# Enable -Werror for all our code, but exclude for third-party.
-build --per_file_copt=-external/.*@-w
+build --per_file_copt=//.*@-Wall
+build --host_per_file_copt=//.*@-Wall
+
+build --per_file_copt=external/.*@-w
+build --host_per_file_copt=external/.*@-w

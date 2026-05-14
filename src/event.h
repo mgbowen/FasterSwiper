@@ -6,10 +6,10 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
-#include "absl/strings/str_format.h"
 #include "src/cf-util.h"
 #include "src/hotkeys.h"
 #include "src/variant-util.h"
+#include <absl/strings/str_format.h>
 
 namespace fasterswiper {
 

@@ -7,10 +7,10 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
+#include <absl/status/status.h>
+#include <absl/strings/str_cat.h>
 
 namespace fasterswiper {
 namespace {

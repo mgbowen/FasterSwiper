@@ -5,8 +5,8 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
-#include "absl/status/statusor.h"
-#include "absl/strings/str_join.h"
+#include <absl/status/statusor.h>
+#include <absl/strings/str_join.h>
 
 namespace fasterswiper {
 

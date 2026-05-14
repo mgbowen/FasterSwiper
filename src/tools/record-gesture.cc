@@ -8,10 +8,10 @@
 #include <iostream>
 #include <vector>
 
-#include "absl/base/no_destructor.h"
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "nlohmann/json.hpp"
+#include <absl/base/no_destructor.h>
+#include <absl/status/status.h>
+#include <absl/strings/str_cat.h>
 
 namespace fasterswiper {
 namespace {

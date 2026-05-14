@@ -8,7 +8,7 @@
 #include <cmath>
 #include <limits>
 
-#include "absl/log/check.h"
+#include <absl/log/check.h>
 
 namespace third_party::chromium::gfx {
 

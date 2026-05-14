@@ -7,8 +7,8 @@
 #include <string>
 #include <type_traits>
 
-#include "absl/base/nullability.h"
-#include "absl/status/statusor.h"
+#include <absl/base/nullability.h>
+#include <absl/status/statusor.h>
 
 namespace fasterswiper {
 

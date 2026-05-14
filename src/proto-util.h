@@ -1,7 +1,7 @@
 #pragma once
 
-#include "absl/time/time.h"
-#include "google/protobuf/duration.pb.h"
+#include <absl/time/time.h>
+#include <google/protobuf/duration.pb.h>
 
 namespace fasterswiper {
 
