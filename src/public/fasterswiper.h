@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+void FS_Init(int argc, char **argv);
+
 typedef struct FS_DaemonOptions FS_DaemonOptions;
 
 bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options);
@@ -36,9 +38,6 @@ bool FS_Start(FS_Daemon *state);
 
 // Stops FasterSwiper. Returns true on success, false otherwise.
 bool FS_Stop(FS_Daemon *state);
-
-// Parses command line flags from the given argc and argv.
-void FS_ParseCommandLine(int argc, char **argv);
 
 typedef struct {
   const char *version;

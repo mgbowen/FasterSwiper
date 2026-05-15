@@ -17,7 +17,11 @@
 #include <CoreGraphics/CGEventTypes.h>
 #include <IOKit/IOTypes.h>
 
+#include <absl/debugging/failure_signal_handler.h>
+#include <absl/debugging/symbolize.h>
 #include <absl/flags/parse.h>
+#include <absl/log/globals.h>
+#include <absl/log/initialize.h>
 #include <absl/log/log.h>
 #include <absl/status/status.h>
 #include <absl/status/statusor.h>
@@ -35,6 +39,8 @@ using ::fasterswiper::WrapCFUnique;
 
 namespace proto = fasterswiper::proto;
 
+std::once_flag init_flag;
+
 proto::DaemonOptions GetDefaultDaemonOptions() {
   proto::DaemonOptions options;
   *options.mutable_animation_duration_per_space() =
@@ -48,6 +54,22 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
 } // namespace
 
 extern "C" {
+
+void FS_Init(int argc, char **argv) {
+  std::call_once(init_flag, [&] {
+    std::vector<char *> positional_args;
+    std::vector<absl::UnrecognizedFlag> unrecognized_flags;
+    absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
+
+    absl::InitializeLog();
+    absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
+
+    absl::InitializeSymbolizer(argv[0]);
+    absl::InstallFailureSignalHandler(absl::FailureSignalHandlerOptions());
+
+    LOG(INFO) << "FasterSwiper initialized";
+  });
+}
 
 struct FS_Daemon {
   absl::Mutex mutex;
@@ -246,12 +268,6 @@ bool FS_Stop(FS_Daemon *state) {
   state->is_running = false;
 
   return true;
-}
-
-void FS_ParseCommandLine(int argc, char **argv) {
-  std::vector<char *> positional_args;
-  std::vector<absl::UnrecognizedFlag> unrecognized_flags;
-  absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
 }
 
 void FS_GetVersionInfo(FS_VersionInfo *info) {

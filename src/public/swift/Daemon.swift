@@ -34,11 +34,10 @@ public class Daemon: DaemonProtocol {
     }
 
     private var state: OpaquePointer?
-    private let initCommandLine: Void = {
-        FS_ParseCommandLine(CommandLine.argc, CommandLine.unsafeArgv)
-    }()
 
     public init() {
+       FS_Init(CommandLine.argc, CommandLine.unsafeArgv)
+
         var info = FS_VersionInfo()
         FS_GetVersionInfo(&info)
 

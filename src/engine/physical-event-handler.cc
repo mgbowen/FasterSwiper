@@ -218,6 +218,8 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleChangeGesture(): END"; });
 
+  RETURN_IF_ERROR(CheckGestureActive());
+
   const int64_t new_position =
       initial_position_ +
       animator_->operation().axis_adapter().ProgressToNanoswipes(
@@ -251,6 +253,8 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleEndGesture(): END"; });
 
+  RETURN_IF_ERROR(CheckGestureActive());
+
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
   target_position_ = std::clamp(((target_position_ / kOneSwipeInNanoswipes) +
                                  (swipe_event.progress > 0 ? 1 : -1)) *
@@ -282,6 +286,8 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture(): BEGIN";
   auto cleanup =
       absl::MakeCleanup([] { VLOG(1) << "HandleCancelGesture(): END"; });
+
+  RETURN_IF_ERROR(CheckGestureActive());
 
   const absl::Duration duration = CalculateAnimationDuration(
       animator_->position(), target_position_,
@@ -401,6 +407,14 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
       .easing_function = std::move(easing_function),
       .ticks_per_second = options_.frames_per_second(),
   }));
+
+  return absl::OkStatus();
+}
+
+absl::Status PhysicalEventHandler::CheckGestureActive() {
+  if (animator_ == nullptr) {
+    return absl::FailedPreconditionError("Gesture is not active");
+  }
 
   return absl::OkStatus();
 }

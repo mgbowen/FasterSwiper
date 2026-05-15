@@ -62,6 +62,7 @@ private:
 
   absl::Status HandleKeyEvent(const KeyEvent &key_event);
 
+  absl::Status CheckGestureActive();
   absl::Status SetUpForNewGesture(Axis axis);
 };
 
