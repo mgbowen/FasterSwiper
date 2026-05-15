@@ -4,15 +4,16 @@
 #include "src/engine/const.h"
 #include "src/event.h"
 #include "src/macos-private.h"
-#include "src/string-util.h"
 
 #include <cfloat>
 #include <optional>
+#include <variant>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreGraphics/CGEvent.h>
 
 #include <absl/log/log.h>
+#include <gutil/status.h>
 
 namespace fasterswiper {
 
@@ -66,6 +67,11 @@ int64_t SpaceSwitchOperation::position() const {
 
 std::pair<int64_t, int64_t> SpaceSwitchOperation::position_soft_limits() const {
   absl::MutexLock lock(mutex_);
+  return position_soft_limits_locked();
+}
+
+std::pair<int64_t, int64_t>
+SpaceSwitchOperation::position_soft_limits_locked() const {
   return axis_adapter_->position_soft_limits();
 }
 
@@ -103,14 +109,22 @@ void SpaceSwitchOperation::PostEvent(int phase, double progress,
   CGEventPost(kCGSessionEventTap, event.get());
 }
 
+absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>>
+ContinuousSpaceSwitchOperation::Create(
+    std::unique_ptr<AxisAdapter> axis_adapter) {
+  ASSIGN_OR_RETURN(const int64_t origin_position,
+                   axis_adapter->committed_position());
+  return absl::WrapUnique(new ContinuousSpaceSwitchOperation(
+      std::move(axis_adapter), origin_position));
+}
+
 ContinuousSpaceSwitchOperation::ContinuousSpaceSwitchOperation(
-    std::unique_ptr<AxisAdapter> _axis_adapter)
-    : SpaceSwitchOperation(std::move(_axis_adapter)),
-      origin_position_(*axis_adapter_locked().committed_position()),
-      current_position_(origin_position_) {}
+    std::unique_ptr<AxisAdapter> axis_adapter, int64_t origin_position)
+    : SpaceSwitchOperation(std::move(axis_adapter)),
+      origin_position_(origin_position), current_position_(origin_position_) {}
 
 int64_t ContinuousSpaceSwitchOperation::distance_from_origin() const {
-  return current_position_ - origin_position_;
+  return *current_position_ - origin_position_;
 }
 
 double ContinuousSpaceSwitchOperation::progress_from_origin() const {
@@ -118,7 +132,7 @@ double ContinuousSpaceSwitchOperation::progress_from_origin() const {
 }
 
 int64_t ContinuousSpaceSwitchOperation::position_locked() const {
-  return current_position_;
+  return *current_position_;
 }
 
 void ContinuousSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
@@ -126,45 +140,25 @@ void ContinuousSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
     return;
   }
 
-  latest_direction_ = (new_position - current_position_) > 0 ? 1 : -1;
+  latest_direction_ = (new_position - *current_position_) > 0 ? 1 : -1;
 
   if (!gesture_started_) {
     PostEvent(kGestureBegan, kEpsilon * latest_direction_);
     gesture_started_ = true;
   }
 
-  const int64_t remainder = std::abs(new_position % kOneSwipeInNanoswipes);
-  const int64_t distance_to_space_threshold =
-      std::min(remainder, kOneSwipeInNanoswipes - remainder);
-
-  constexpr int64_t defer_abs_threshold = 1;
-  if (distance_to_space_threshold <= defer_abs_threshold) {
-    const int64_t threshold =
-        (new_position >= 0 ? new_position + defer_abs_threshold
-                           : new_position - defer_abs_threshold) /
-        kOneSwipeInNanoswipes * kOneSwipeInNanoswipes;
-    current_position_ = threshold - defer_abs_threshold * latest_direction_;
-    deferred_position_ = new_position;
-  } else {
-    current_position_ = new_position;
-    deferred_position_ = std::nullopt;
-  }
-
+  current_position_.Set(new_position);
   PostEvent(kGestureChanged, progress_from_origin());
 }
 
 void ContinuousSpaceSwitchOperation::CommitLocked() {
   VLOG(1) << "Commit(): origin_position_=" << origin_position_
           << ", current_position_=" << current_position_
-          << ", deferred_position_=" << OptionalToString(deferred_position_)
           << ", latest_direction_=" << latest_direction_
           << ", distance_from_origin=" << distance_from_origin()
           << ", progress_from_origin=" << progress_from_origin();
 
-  if (deferred_position_.has_value()) {
-    current_position_ = *deferred_position_;
-    deferred_position_ = std::nullopt;
-  }
+  current_position_.CommitDeferred();
 
   const int64_t num_spaces =
       std::abs(distance_from_origin() / kOneSwipeInNanoswipes);
@@ -181,7 +175,6 @@ void ContinuousSpaceSwitchOperation::CommitLocked() {
 
     for (int i = 0; i < num_spaces - 1; i++) {
       PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
-      // PostEvent(kGestureChanged, kEpsilon * direction_from_origin_to_target);
       PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
                 kInstantSwitchVelocity * latest_direction_);
     }
@@ -191,135 +184,188 @@ void ContinuousSpaceSwitchOperation::CommitLocked() {
   }
 }
 
+absl::StatusOr<std::unique_ptr<SegmentedSpaceSwitchOperation>>
+SegmentedSpaceSwitchOperation::Create(
+    std::unique_ptr<AxisAdapter> axis_adapter) {
+  ASSIGN_OR_RETURN(const int64_t operation_origin_position,
+                   axis_adapter->committed_position());
+  return absl::WrapUnique(new SegmentedSpaceSwitchOperation(
+      std::move(axis_adapter), operation_origin_position));
+}
+
 SegmentedSpaceSwitchOperation::SegmentedSpaceSwitchOperation(
-    std::unique_ptr<AxisAdapter> _axis_adapter)
-    : SpaceSwitchOperation(std::move(_axis_adapter)),
-      origin_position_(*axis_adapter_locked().committed_position()),
-      current_position_(origin_position_) {}
+    std::unique_ptr<AxisAdapter> axis_adapter,
+    int64_t operation_origin_position)
+    : SpaceSwitchOperation(std::move(axis_adapter)),
+      operation_origin_position_(operation_origin_position),
+      current_position_(operation_origin_position_) {
+  VLOG(1) << "SegmentedSpaceSwitchOperation(): operation_origin_position_="
+          << operation_origin_position_;
+}
+
+std::string SegmentedSpaceSwitchOperation::StateToString(const State &state) {
+  return std::visit([](const auto &state) { return absl::StrCat(state); },
+                    state);
+}
 
 int64_t SegmentedSpaceSwitchOperation::position_locked() const {
-  return current_position_;
+  return *current_position_;
 }
 
 void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
-  if (new_position == current_position_) {
+  if (new_position == *current_position_) {
     return;
   }
 
-  const auto [soft_min, soft_max] =
-      axis_adapter_locked().position_soft_limits();
-
-  // Progress toward the target position, starting and committing gestures as
+  // Progress toward the target position, starting and ending gestures as
   // needed.
-  while (current_position_ != new_position) {
-    const bool is_moving_right = new_position > current_position_;
+  while (current_position_.deferred() != new_position) {
+    const bool is_moving_positive = new_position > current_position_;
 
-    if (!gesture_started_) {
-      PostEvent(kGestureBegan, is_moving_right ? kEpsilon : -kEpsilon);
-      gesture_started_ = true;
-      origin_position_ = current_position_;
+    if (std::holds_alternative<States::Idle>(state_)) {
+      SetState(States::GestureActive{
+          .origin_position = current_position_.deferred(),
+      });
+
+      PostEvent(kGestureBegan, is_moving_positive ? kEpsilon : -kEpsilon);
     }
 
-    int64_t next_boundary =
-        is_moving_right
-            ? (FloorDiv(current_position_, kOneSwipeInNanoswipes) + 1) *
-                  kOneSwipeInNanoswipes
-            : FloorDiv(current_position_ - 1, kOneSwipeInNanoswipes) *
-                  kOneSwipeInNanoswipes;
-    if (next_boundary < soft_min) {
-      next_boundary =
-          is_moving_right ? soft_min : std::numeric_limits<int64_t>::min();
-    } else if (next_boundary > soft_max) {
-      next_boundary =
-          is_moving_right ? std::numeric_limits<int64_t>::max() : soft_max;
-    }
+    auto &gesture_active = std::get<States::GestureActive>(state_);
 
-    const int64_t target_position =
-        ((is_moving_right && new_position >= next_boundary) ||
-         (!is_moving_right && new_position <= next_boundary))
+    const int64_t next_boundary = GetNextBoundary(is_moving_positive);
+    VLOG(1) << "next_boundary=" << next_boundary;
+
+    current_position_.Set(
+        ((is_moving_positive && new_position >= next_boundary) ||
+         (!is_moving_positive && new_position <= next_boundary))
             ? next_boundary
-            : new_position;
-    const int64_t distance_from_origin = target_position - origin_position_;
-    const double progress_from_origin =
-        axis_adapter_locked().NanoswipesToProgress(distance_from_origin);
+            : new_position);
+    VLOG(1) << "current_position_=" << current_position_;
 
-    const bool boundary_reached =
-        (target_position % kOneSwipeInNanoswipes) == 0 &&
-        target_position >= soft_min && target_position <= soft_max;
+    const bool is_boundary_reached =
+        current_position_.deferred() == next_boundary;
+    VLOG(1) << "is_boundary_reached=" << is_boundary_reached;
 
-    VLOG(1) << "Preparing to send gesture events, target_position="
-            << target_position
-            << ", progress_from_origin=" << progress_from_origin;
-
-    if (boundary_reached) {
-      // We've reached a boundary between spaces, commit the pending space
-      // transition.
-      //
-      // How we commit the transition depends on the gesture origin position
-      // and the target position we're moving towards. If we're moving away
-      // from the origin, we end the gesture, but if we're moving back towards
-      // the origin, we cancel it; in macOS' parlance, ending a gesture
-      // indicates the user wants to move to an adjacent space, whereas
-      // cancelling a gesture indicates they want to return to the space they
-      // were at when they started the gesture.
-      const int64_t origin_to_current_position_sign =
-          Sign(current_position_ <=> origin_position_);
-      const int64_t current_to_new_position_sign =
-          Sign(new_position <=> current_position_);
-
-      const bool is_rubberbanding =
-          (current_position_ < soft_min && current_to_new_position_sign > 0) ||
-          (current_position_ > soft_max && current_to_new_position_sign < 0);
-
-      VLOG(1) << "Boundary reached, origin_to_current_position_sign="
-              << origin_to_current_position_sign
-              << ", current_to_new_position_sign="
-              << current_to_new_position_sign
-              << ", is_rubberbanding=" << is_rubberbanding;
-
-      if (origin_to_current_position_sign == 0) {
-        // Instant switch to an adjacent space.
-        PostEvent(kGestureChanged, kEpsilon * current_to_new_position_sign);
-        PostEvent(kGestureEnded, kEpsilon * current_to_new_position_sign,
-                  kInstantSwitchVelocity * current_to_new_position_sign);
-      } else if (origin_to_current_position_sign ==
-                 current_to_new_position_sign) {
-        // Moving away from the gesture origin.
-        PostEvent(kGestureChanged, progress_from_origin);
-        PostEvent(kGestureEnded, progress_from_origin,
-                  kEpsilon * current_to_new_position_sign);
-      } else {
-        // Moving towards the gesture origin.
-        const double transitory_progress =
-            progress_from_origin - (kEpsilon * current_to_new_position_sign);
-        PostEvent(kGestureChanged, transitory_progress);
-
-        // Velocity is based on the direction a hand would be moving to cause
-        // the space movement we're making, but if we're rubberbanding, we
-        // reverse the initially calculated velocity because the actual space
-        // movement will be the opposite of what the "hand" is doing, e.g. if
-        // we're at the soft min and the hand is moving left, the space movement
-        // will initially be left, but when the hand lets go, the space will
-        // move right to go back to the soft min.
-        const double velocity = (is_rubberbanding ? -kEpsilon : kEpsilon) *
-                                current_to_new_position_sign;
-        PostEvent(kGestureCancelled, transitory_progress, velocity);
-      }
-
-      gesture_started_ = false;
+    if (is_boundary_reached) {
+      EndGesture(gesture_active);
     } else {
-      PostEvent(kGestureChanged, progress_from_origin);
+      const double progress = axis_adapter_locked().NanoswipesToProgress(
+          *current_position_ - gesture_active.origin_position);
+      PostEvent(kGestureChanged, progress);
     }
-
-    current_position_ = target_position;
   }
 }
 
+void SegmentedSpaceSwitchOperation::SetState(State new_state) {
+  VLOG(1) << "SegmentedSpaceSwitchOperation::SetState(): new_state="
+          << StateToString(new_state);
+  state_ = std::move(new_state);
+}
+
+void SegmentedSpaceSwitchOperation::EndGesture(
+    const States::GestureActive &gesture_active) {
+  if (!current_position_.has_deferred()) {
+    LOG(ERROR) << "current_position_ is not deferred!";
+  }
+
+  // We've reached a boundary between spaces, commit the pending space
+  // transition.
+  //
+  // How we commit the transition depends on the gesture origin position
+  // and the target position we're moving towards. If we're moving away
+  // from the origin, we end the gesture, but if we're moving back towards
+  // the origin, we cancel it; in macOS' parlance, ending a gesture
+  // indicates the user wants to move to an adjacent space, whereas
+  // cancelling a gesture indicates they want to return to the space they
+  // were at when they started the gesture.
+  const int64_t origin_to_effective_position_sign =
+      Sign(*current_position_ <=> gesture_active.origin_position);
+  const int64_t current_to_new_position_sign =
+      Sign(current_position_.deferred() <=> *current_position_);
+
+  const auto [soft_min, soft_max] = position_soft_limits_locked();
+  const bool is_rubberbanding =
+      (current_position_ < soft_min && current_to_new_position_sign > 0) ||
+      (current_position_ > soft_max && current_to_new_position_sign < 0);
+
+  VLOG(1) << "Boundary reached, origin_to_effective_position_sign="
+          << origin_to_effective_position_sign
+          << ", current_to_new_position_sign=" << current_to_new_position_sign
+          << ", is_rubberbanding=" << is_rubberbanding;
+
+  if (gesture_active.origin_position == current_position_.deferred()) {
+    // Ending on the gesture origin.
+    const int64_t effective_sign = is_rubberbanding
+                                       ? -current_to_new_position_sign
+                                       : current_to_new_position_sign;
+    const double signed_epsilon = kEpsilon * effective_sign;
+    PostEvent(kGestureChanged, signed_epsilon);
+    PostEvent(kGestureCancelled, signed_epsilon, signed_epsilon);
+  } else {
+    // Moving away from the gesture origin.
+    const double progress = axis_adapter_locked().NanoswipesToProgress(
+        current_position_.deferred() - gesture_active.origin_position);
+    PostEvent(kGestureChanged, progress);
+    PostEvent(kGestureEnded, progress, kEpsilon * current_to_new_position_sign);
+  }
+
+  current_position_.CommitDeferred();
+  SetState(States::Idle{});
+}
+
 void SegmentedSpaceSwitchOperation::CommitLocked() {
-  if (operation_origin_position_ - current_position_ != 0) {
+  if (const auto *gesture_active =
+          std::get_if<States::GestureActive>(&state_)) {
+    if (current_position_.deferred() % kOneSwipeInNanoswipes != 0) {
+      current_position_.Set(
+          FloorDiv(current_position_.deferred(), kOneSwipeInNanoswipes) *
+          kOneSwipeInNanoswipes);
+    }
+
+    EndGesture(*gesture_active);
+  }
+
+  if (operation_origin_position_ != current_position_.deferred()) {
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
         operation_origin_position_, absl::Milliseconds(200));
   }
+}
+
+int64_t
+SegmentedSpaceSwitchOperation::GetNextBoundary(bool is_moving_positive) {
+  VLOG(2) << "GetNextBoundary(): is_moving_positive=" << is_moving_positive
+          << ", current_position_=" << current_position_
+          << ", operation_origin_position_=" << operation_origin_position_;
+
+  const auto &gesture_active = std::get<States::GestureActive>(state_);
+
+  const int64_t positive_boundary =
+      (FloorDiv(gesture_active.origin_position + 1, kOneSwipeInNanoswipes) +
+       1) *
+      kOneSwipeInNanoswipes;
+  VLOG(2) << "GetNextBoundary(): positive_boundary=" << positive_boundary;
+
+  const int64_t negative_boundary =
+      FloorDiv(gesture_active.origin_position - 1, kOneSwipeInNanoswipes) *
+      kOneSwipeInNanoswipes;
+  VLOG(2) << "GetNextBoundary(): negative_boundary=" << negative_boundary;
+
+  const int64_t initial_next_boundary =
+      is_moving_positive ? positive_boundary : negative_boundary;
+  VLOG(2) << "GetNextBoundary(): initial_next_boundary="
+          << initial_next_boundary;
+
+  const auto [soft_min, soft_max] = position_soft_limits_locked();
+
+  if (initial_next_boundary < soft_min) {
+    return is_moving_positive ? soft_min : std::numeric_limits<int64_t>::min();
+  }
+
+  if (initial_next_boundary > soft_max) {
+    return is_moving_positive ? std::numeric_limits<int64_t>::max() : soft_max;
+  }
+
+  return initial_next_boundary;
 }
 
 } // namespace fasterswiper

@@ -1,7 +1,7 @@
 #include "src/physical-event-handler.h"
 
-#include "src/const.h"
 #include "src/engine/axis-adapter.h"
+#include "src/engine/const.h"
 #include "src/engine/space-switch-operation.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
@@ -316,6 +316,12 @@ absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
   } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
     axis = Axis::kHorizontal;
+  } else if (key_event.ConcernsHotkey(hotkey_configs_.open_mission_control)) {
+    direction = 1;
+    axis = Axis::kVertical;
+  } else if (key_event.ConcernsHotkey(hotkey_configs_.open_app_expose)) {
+    direction = -1;
+    axis = Axis::kVertical;
   } else {
     axis = Axis::kHorizontal;
   }
@@ -433,22 +439,28 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
 
       std::unique_ptr<AxisAdapter> axis_adapter =
           std::make_unique<HorizontalAxisAdapter>(space_state);
-      operation = active_window == ActiveMultitaskingWindow::kDesktop
-                      ? static_cast<std::unique_ptr<SpaceSwitchOperation>>(
-                            std::make_unique<ContinuousSpaceSwitchOperation>(
-                                std::move(axis_adapter)))
-                      : std::make_unique<SegmentedSpaceSwitchOperation>(
-                            std::move(axis_adapter));
+      ASSIGN_OR_RETURN(
+          operation,
+          active_window == ActiveMultitaskingWindow::kDesktop
+              ? static_cast<
+                    absl::StatusOr<std::unique_ptr<SpaceSwitchOperation>>>(
+                    ContinuousSpaceSwitchOperation::Create(
+                        std::move(axis_adapter)))
+              : SegmentedSpaceSwitchOperation::Create(std::move(axis_adapter)));
       break;
     }
     case kVertical: {
       std::unique_ptr<AxisAdapter> axis_adapter =
           std::make_unique<VerticalAxisAdapter>();
-      operation = std::make_unique<SegmentedSpaceSwitchOperation>(
-          std::move(axis_adapter));
+      ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
+                                      std::move(axis_adapter)));
       break;
     }
     }
+
+    VLOG(1) << "SetUpForNewGesture(): axis_adapter.debug_name="
+            << operation->axis_adapter().debug_name()
+            << ", operation.debug_name=" << operation->debug_name();
 
     animator_ = std::make_unique<SwipeAnimator>(std::move(operation));
 

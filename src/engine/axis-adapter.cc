@@ -1,6 +1,6 @@
 #include "src/engine/axis-adapter.h"
 
-#include "src/const.h"
+#include "src/engine/const.h"
 #include "src/macos-private.h"
 #include "src/mission-control.h"
 #include "src/periodic-timer.h"
@@ -76,6 +76,16 @@ absl::StatusOr<int64_t> HorizontalAxisAdapter::committed_position() const {
 
 std::pair<int64_t, int64_t>
 HorizontalAxisAdapter::position_soft_limits() const {
+  const absl::StatusOr<ActiveMultitaskingWindow> maybe_active_window =
+      GetActiveMultitaskingWindow();
+
+  if (maybe_active_window.ok() &&
+      *maybe_active_window == ActiveMultitaskingWindow::kAppExpose) {
+    const int64_t current_space_position =
+        space_state_.index() * kOneSwipeInNanoswipes;
+    return {current_space_position, current_space_position};
+  }
+
   return {0, static_cast<int64_t>(space_state_.count() - 1) *
                  kOneSwipeInNanoswipes};
 }

@@ -1,6 +1,9 @@
 #pragma once
 
 #include "src/engine/axis-adapter.h"
+#include "src/engine/deferred-position.h"
+
+#include <absl/status/statusor.h>
 
 namespace fasterswiper {
 
@@ -15,6 +18,8 @@ public:
   SpaceSwitchOperation(SpaceSwitchOperation &&) = delete;
   SpaceSwitchOperation &operator=(SpaceSwitchOperation &&) = delete;
 
+  [[nodiscard]] virtual constexpr absl::string_view debug_name() const = 0;
+
   [[nodiscard]] const AxisAdapter &axis_adapter() const
       ABSL_LOCKS_EXCLUDED(mutex_);
 
@@ -28,6 +33,9 @@ public:
   void Commit() ABSL_LOCKS_EXCLUDED(mutex_);
 
 protected:
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits_locked() const
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+
   [[nodiscard]] virtual int64_t position_locked() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_) = 0;
   virtual void SetPositionLocked(int64_t new_position)
@@ -53,15 +61,22 @@ private:
 
 class ContinuousSpaceSwitchOperation : public SpaceSwitchOperation {
 public:
-  ContinuousSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter);
+  static absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>>
+  Create(std::unique_ptr<AxisAdapter> axis_adapter);
+
+  constexpr absl::string_view debug_name() const override {
+    return "ContinuousSpaceSwitchOperation";
+  }
 
 private:
   const int64_t origin_position_ = 0;
 
   bool gesture_started_ = false;
-  int64_t current_position_ = 0;
-  std::optional<int64_t> deferred_position_;
+  DeferredPosition current_position_;
   int64_t latest_direction_ = 0;
+
+  ContinuousSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
+                                 int64_t origin_position);
 
   [[nodiscard]] int64_t distance_from_origin() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
@@ -77,20 +92,55 @@ private:
 
 class SegmentedSpaceSwitchOperation : public SpaceSwitchOperation {
 public:
-  SegmentedSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter);
+  static absl::StatusOr<std::unique_ptr<SegmentedSpaceSwitchOperation>>
+  Create(std::unique_ptr<AxisAdapter> axis_adapter);
+
+  constexpr absl::string_view debug_name() const override {
+    return "SegmentedSpaceSwitchOperation";
+  }
 
 private:
   const int64_t operation_origin_position_ = 0;
+  DeferredPosition current_position_;
 
-  bool gesture_started_ = false;
-  int64_t origin_position_ = 0;
-  int64_t current_position_ = 0;
+  struct States {
+    struct Idle {
+      template <typename Sink>
+      friend void AbslStringify(Sink &sink, const Idle &state) {
+        absl::Format(&sink, "Idle{}");
+      }
+    };
+
+    struct GestureActive {
+      int64_t origin_position = 0;
+
+      template <typename Sink>
+      friend void AbslStringify(Sink &sink, const GestureActive &state) {
+        absl::Format(&sink, "GestureActive{origin_position=%d}",
+                     state.origin_position);
+      }
+    };
+  };
+
+  using State = std::variant<States::Idle, States::GestureActive>;
+  State state_ = States::Idle{};
+
+  SegmentedSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
+                                int64_t operation_origin_position);
+
+  static std::string StateToString(const State &state);
 
   [[nodiscard]] int64_t position_locked() const override
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
   void SetPositionLocked(int64_t new_position) override
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
   void CommitLocked() override ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+
+  void SetState(State new_state) ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  void EndGesture(const States::GestureActive &gesture_active)
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  int64_t GetNextBoundary(bool is_moving_positive)
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 };
 
 } // namespace fasterswiper

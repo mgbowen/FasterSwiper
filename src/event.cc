@@ -72,7 +72,9 @@ bool KeyEvent::ConcernsHotkey(const Hotkey &hotkey) const {
 bool KeyEvent::ConcernsAnyHotkey(
     const HotkeyConfigurations &hotkey_configs) const {
   return ConcernsHotkey(hotkey_configs.move_space_left) ||
-         ConcernsHotkey(hotkey_configs.move_space_right);
+         ConcernsHotkey(hotkey_configs.move_space_right) ||
+         ConcernsHotkey(hotkey_configs.open_mission_control) ||
+         ConcernsHotkey(hotkey_configs.open_app_expose);
 }
 
 std::optional<Event> ParseEvent(CGEventRef event) {
@@ -131,13 +133,31 @@ std::string EventGesturePhaseToString(int phase) {
   return absl::StrCat("(unknown gesture phase ", phase, ")");
 }
 
+namespace {
+
+std::string EventDoubleToString(double val) {
+  if (val > 0 && val < 0.000'001) {
+    return absl::StrFormat("<%f", val);
+  }
+
+  if (val < 0 && val > -0.000'001) {
+    return absl::StrFormat(">%f", val);
+  }
+
+  return absl::StrFormat("%f", val);
+}
+
+} // namespace
+
 std::string CFEventToDebugString(CGEventRef event) {
-  return absl::StrFormat(
-      "CFEvent{phase=%s, progress=%f, velocity_x=%f}",
-      EventGesturePhaseToString(
-          CGEventGetIntegerValueField(event, kCGEventGesturePhase)),
-      CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress),
-      CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX));
+
+  return absl::StrFormat("CFEvent{phase=%s, progress=%s, velocity_x=%s}",
+                         EventGesturePhaseToString(CGEventGetIntegerValueField(
+                             event, kCGEventGesturePhase)),
+                         EventDoubleToString(CGEventGetDoubleValueField(
+                             event, kCGEventGestureSwipeProgress)),
+                         EventDoubleToString(CGEventGetDoubleValueField(
+                             event, kCGEventGestureSwipeVelocityX)));
 }
 
 CFUniquePtr<CGEventRef>

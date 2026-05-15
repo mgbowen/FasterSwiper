@@ -19,6 +19,8 @@ class AxisAdapter {
 public:
   virtual ~AxisAdapter() = default;
 
+  [[nodiscard]] virtual constexpr absl::string_view debug_name() const = 0;
+
   [[nodiscard]] virtual Axis movement_direction() const = 0;
 
   [[nodiscard]] virtual double
@@ -40,6 +42,10 @@ class HorizontalAxisAdapter : public AxisAdapter {
 public:
   HorizontalAxisAdapter(SpaceState space_state);
   ~HorizontalAxisAdapter() override = default;
+
+  constexpr absl::string_view debug_name() const override {
+    return "HorizontalAxisAdapter";
+  }
 
   [[nodiscard]] Axis movement_direction() const override {
     return Axis::kHorizontal;
@@ -66,6 +72,10 @@ class VerticalAxisAdapter : public AxisAdapter {
 public:
   VerticalAxisAdapter() = default;
   ~VerticalAxisAdapter() override = default;
+
+  constexpr absl::string_view debug_name() const override {
+    return "VerticalAxisAdapter";
+  }
 
   [[nodiscard]] Axis movement_direction() const override {
     return Axis::kVertical;

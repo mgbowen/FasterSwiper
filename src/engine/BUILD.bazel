@@ -5,9 +5,15 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "const",
     hdrs = ["const.h"],
+)
+
+cc_library(
+    name = "deferred-position",
+    srcs = ["deferred-position.cc"],
+    hdrs = ["deferred-position.h"],
     deps = [
+        ":const",
         "//src:cf-util",
-        "//src:const",
         "//src:event",
         "//src:macos-private",
         "//src:mission-control",
@@ -29,7 +35,6 @@ cc_library(
     hdrs = ["axis-adapter.h"],
     deps = [
         "//src:cf-util",
-        "//src:const",
         "//src:event",
         "//src:macos-private",
         "//src:mission-control",
@@ -52,8 +57,8 @@ cc_library(
     deps = [
         ":axis-adapter",
         ":const",
+        ":deferred-position",
         "//src:cf-util",
-        "//src:const",
         "//src:event",
         "//src:macos-private",
         "//src:mission-control",

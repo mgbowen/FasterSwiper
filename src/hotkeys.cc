@@ -36,6 +36,10 @@ absl_nullable CFStringRef HotkeyTypeToDictionaryKey(HotkeyType hotkey_type) {
     return CFSTR("79");
   case kMoveSpaceRight:
     return CFSTR("81");
+  case kOpenMissionControl:
+    return CFSTR("32");
+  case kOpenAppExpose:
+    return CFSTR("33");
   }
 
   return nullptr;
@@ -59,6 +63,8 @@ GetHotkeySettingsForHotkeyType(absl_nonnull CFDictionaryRef hotkey_prefs,
 
 constexpr CGKeyCode kKeyCodeLeftArrow = 123;
 constexpr CGKeyCode kKeyCodeRightArrow = 124;
+constexpr CGKeyCode kKeyCodeDownArrow = 125;
+constexpr CGKeyCode kKeyCodeUpArrow = 126;
 
 absl::StatusOr<Hotkey> DefaultHotkeyForHotkeyType(HotkeyType hotkey_type) {
   switch (hotkey_type) {
@@ -73,6 +79,18 @@ absl::StatusOr<Hotkey> DefaultHotkeyForHotkeyType(HotkeyType hotkey_type) {
     return Hotkey{
         .enabled = true,
         .key_code = kKeyCodeRightArrow,
+        .modifiers = kCGEventFlagMaskControl,
+    };
+  case kOpenMissionControl:
+    return Hotkey{
+        .enabled = true,
+        .key_code = kKeyCodeUpArrow,
+        .modifiers = kCGEventFlagMaskControl,
+    };
+  case kOpenAppExpose:
+    return Hotkey{
+        .enabled = true,
+        .key_code = kKeyCodeDownArrow,
         .modifiers = kCGEventFlagMaskControl,
     };
   }
@@ -164,6 +182,12 @@ absl::StatusOr<HotkeyConfigurations> LoadHotkeyConfiguration() {
                                            all_hotkey_settings.get()));
   ASSIGN_OR_RETURN(result.move_space_right,
                    LoadHotkeyForHotkeyType(HotkeyType::kMoveSpaceRight,
+                                           all_hotkey_settings.get()));
+  ASSIGN_OR_RETURN(result.open_mission_control,
+                   LoadHotkeyForHotkeyType(HotkeyType::kOpenMissionControl,
+                                           all_hotkey_settings.get()));
+  ASSIGN_OR_RETURN(result.open_app_expose,
+                   LoadHotkeyForHotkeyType(HotkeyType::kOpenAppExpose,
                                            all_hotkey_settings.get()));
 
   return result;

@@ -57,11 +57,6 @@ cc_test(
 )
 
 cc_library(
-    name = "const",
-    hdrs = ["const.h"],
-)
-
-cc_library(
     name = "easing",
     srcs = ["easing.cc"],
     hdrs = ["easing.h"],
@@ -180,9 +175,9 @@ cc_library(
     deps = [
         ":CoreFoundation",
         ":cf-util",
-        ":const",
         ":macos-private",
         ":string-util",
+        "//src/engine:const",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status",

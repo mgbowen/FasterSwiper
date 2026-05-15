@@ -21,6 +21,8 @@ constexpr CGEventFlags kModifierKeyMask =
 enum class HotkeyType {
   kMoveSpaceLeft,
   kMoveSpaceRight,
+  kOpenMissionControl,
+  kOpenAppExpose,
 };
 
 struct Hotkey {
@@ -39,14 +41,20 @@ struct Hotkey {
 struct HotkeyConfigurations {
   Hotkey move_space_left;
   Hotkey move_space_right;
+  Hotkey open_mission_control;
+  Hotkey open_app_expose;
 
   template <typename Sink>
   friend void AbslStringify(Sink &sink,
                             const HotkeyConfigurations &hotkey_configs) {
     absl::Format(
-        &sink, "HotkeyConfigurations{move_space_left=%s, move_space_right=%s}",
+        &sink,
+        "HotkeyConfigurations{move_space_left=%s, move_space_right=%s, "
+        "open_mission_control=%s, open_app_expose=%s}",
         absl::StrCat(hotkey_configs.move_space_left),
-        absl::StrCat(hotkey_configs.move_space_right));
+        absl::StrCat(hotkey_configs.move_space_right),
+        absl::StrCat(hotkey_configs.open_mission_control),
+        absl::StrCat(hotkey_configs.open_app_expose));
   }
 };
 
