@@ -1,10 +1,10 @@
 #pragma once
 
 #include "src/channel.h"
+#include "src/engine/swipe-animator.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/public/fasterswiper.pb.h"
-#include "src/swipe-animator.h"
 
 #include <memory>
 #include <thread>

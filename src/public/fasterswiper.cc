@@ -2,9 +2,9 @@
 
 #include "src/cf-util.h"
 #include "src/easing.h"
+#include "src/engine/physical-event-handler.h"
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
-#include "src/physical-event-handler.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/version.h"

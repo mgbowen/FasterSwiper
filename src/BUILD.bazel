@@ -116,28 +116,6 @@ cc_library(
 )
 
 cc_library(
-    name = "physical-event-handler",
-    srcs = ["physical-event-handler.cc"],
-    hdrs = ["physical-event-handler.h"],
-    deps = [
-        ":channel",
-        ":event",
-        ":hotkeys",
-        ":macos-private",
-        ":proto-util",
-        ":space-state",
-        ":swipe-animator",
-        ":variant-util",
-        "//src/public:fasterswiper_cc_proto",
-        "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@gutil//gutil:status",
-    ],
-)
-
-cc_library(
     name = "macos-private",
     hdrs = ["macos-private.h"],
     deps = [
@@ -183,20 +161,6 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
-    ],
-)
-
-cc_library(
-    name = "swipe-animator",
-    srcs = ["swipe-animator.cc"],
-    hdrs = ["swipe-animator.h"],
-    deps = [
-        ":easing",
-        ":periodic-timer",
-        "//src/engine:space-switch-operation",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
     ],
 )
 
