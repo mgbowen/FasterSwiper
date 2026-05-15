@@ -56,10 +56,4 @@ absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow() {
   return ActiveMultitaskingWindow::kDesktop;
 }
 
-absl::StatusOr<bool> IsMissionControlVisible() {
-  ASSIGN_OR_RETURN(ActiveMultitaskingWindow multitasking_window,
-                   GetActiveMultitaskingWindow());
-  return multitasking_window == ActiveMultitaskingWindow::kMissionControl;
-}
-
 } // namespace fasterswiper

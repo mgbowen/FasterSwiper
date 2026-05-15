@@ -25,7 +25,7 @@ int64_t FloorDiv(int64_t a, int64_t b) {
   return a / b - (a % b != 0 && (a ^ b) < 0);
 }
 
-size_t Sign(auto spaceship_operator_result) {
+int Sign(auto spaceship_operator_result) {
   if (spaceship_operator_result > 0) {
     return 1;
   }

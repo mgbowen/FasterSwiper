@@ -19,18 +19,7 @@ constexpr int64_t kAppExposePosition = -1 * kOneSwipeInNanoswipes;
 
 } // namespace
 
-HorizontalAxisAdapter::HorizontalAxisAdapter(SpaceState space_state)
-    : space_state_(std::move(space_state)) {}
-
-double HorizontalAxisAdapter::NanoswipesToProgress(int64_t nanoswipes) const {
-  return space_state_.SwipesToProgress(nanoswipes);
-}
-
-int64_t HorizontalAxisAdapter::ProgressToNanoswipes(double progress) const {
-  return space_state_.ProgressToSwipes(progress);
-}
-
-bool HorizontalAxisAdapter::WaitForCommittedPositionChanged(
+bool AxisAdapter::WaitForCommittedPositionChanged(
     int64_t original_position, absl::Duration deadline) const {
   // Wait for WindowServer to commit the space change.
   const int64_t start_time = UptimeInNanoseconds();
@@ -57,6 +46,17 @@ bool HorizontalAxisAdapter::WaitForCommittedPositionChanged(
   }
 
   return true;
+}
+
+HorizontalAxisAdapter::HorizontalAxisAdapter(SpaceState space_state)
+    : space_state_(std::move(space_state)) {}
+
+double HorizontalAxisAdapter::NanoswipesToProgress(int64_t nanoswipes) const {
+  return space_state_.SwipesToProgress(nanoswipes);
+}
+
+int64_t HorizontalAxisAdapter::ProgressToNanoswipes(double progress) const {
+  return space_state_.ProgressToSwipes(progress);
 }
 
 absl::StatusOr<int64_t> HorizontalAxisAdapter::committed_position() const {
@@ -96,35 +96,6 @@ double VerticalAxisAdapter::NanoswipesToProgress(int64_t position) const {
 
 int64_t VerticalAxisAdapter::ProgressToNanoswipes(double progress) const {
   return static_cast<int64_t>(progress * kOneSwipeInNanoswipes);
-}
-
-bool VerticalAxisAdapter::WaitForCommittedPositionChanged(
-    int64_t original_position, absl::Duration deadline) const {
-  // Wait for WindowServer to commit the space change.
-  const int64_t start_time = UptimeInNanoseconds();
-  const int64_t deadline_ns = start_time + absl::ToInt64Nanoseconds(deadline);
-  while (UptimeInNanoseconds() < deadline_ns) {
-    const int64_t new_committed_position = *committed_position();
-
-    VLOG_EVERY_N_SEC(1, 0.1) << "WaitForPendingCommit: waiting for gesture "
-                                "commit, new_committed_position="
-                             << new_committed_position;
-
-    if (original_position != new_committed_position) {
-      const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
-      VLOG(1) << "Commit(): took " << commit_latency_ns / 1e6 << "ms";
-      break;
-    }
-
-    std::this_thread::yield();
-  }
-
-  if (UptimeInNanoseconds() >= deadline_ns) {
-    LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
-    return false;
-  }
-
-  return true;
 }
 
 absl::StatusOr<int64_t> VerticalAxisAdapter::committed_position() const {

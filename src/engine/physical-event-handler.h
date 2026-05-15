@@ -31,8 +31,6 @@ private:
   const proto::DaemonOptions options_;
   const HotkeyConfigurations hotkey_configs_;
 
-  const absl::Duration animation_duration_per_space_;
-
   std::thread event_processor_thread_;
   Channel<Event> channel_{1024};
   std::unique_ptr<SwipeAnimator> animator_;

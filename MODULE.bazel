@@ -28,9 +28,6 @@ use_repo(
     "swiftpkg_swift_protobuf",
 )
 
-# Workaround for protobuf breakage in Bazel 9+
-bazel_dep(name = "rules_go", version = "0.60.0")
-
 # Override needed because the latest BCR release isn't compatible with Bazel 9
 bazel_dep(name = "magic_enum")
 git_override(
