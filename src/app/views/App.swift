@@ -1,7 +1,7 @@
-//
-//  Main.swift
-//  FasterSwiper_Previews
-//
-//  Created by Matthew Bowen on 5/16/26.
-//
+import SwiftUI
 
+@main
+public struct FasterSwiperSwiftUIPreviews: App {
+    public init() {}
+    public var body: some Scene {}
+}

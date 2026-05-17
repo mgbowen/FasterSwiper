@@ -25,6 +25,7 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
 
 struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
     @State var viewModel: VM
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Form {
@@ -100,27 +101,30 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
 
             Section {
                 LabeledContent("Keyboard:") {
-                    Toggle(
-                        "Intercept Mission Control shortcuts",
-                        isOn: $viewModel.interceptMissionControlShortcuts
-                    )
+                    VStack(alignment: .leading) {
+                        Toggle(
+                            "Intercept Mission Control shortcuts",
+                            isOn: $viewModel.interceptMissionControlShortcuts
+                        )
+                        Text(
+                            "Change these shortcuts in\n[System Settings → Keyboard → Keyboard Shortcuts](x-apple.systempreferences:com.apple.Keyboard?ModifierKeys) → Mission Control"
+                        )
+                        .fixedSize(horizontal: false, vertical: true)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
                 }
-                Section {
-                    Toggle(
-                        "Enable jump-to-space shortcuts",
-                        isOn: $viewModel.enableJumpToSpaceShortcuts
-                    )
-                } footer: {
-                    Text(
-                        "⌘+1 through ⌘+0 to switch directly to spaces 1 through 10, respectively."
-                    )
-                    .fixedSize(
-                        horizontal: false,
-                        vertical: true
-                    )
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
+                Toggle(
+                    "Enable jump-to-space shortcuts",
+                    isOn: $viewModel.enableJumpToSpaceShortcuts
+                )
+                Text(
+                    "⌃+1 through ⌃+0 to switch directly to spaces 1 through 10, respectively."
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .font(.caption)
+                .foregroundColor(.secondary)
+
             }
         }
     }
