@@ -13,7 +13,7 @@ bazel_dep(name = "gutil", version = "20260309.0.bcr.1")
 bazel_dep(name = "rules_swift_package_manager", version = "1.17.1")
 
 # Fixes some issue with transitive rules_android dependency
-bazel_dep(name = "rules_android", version = "0.6.4")
+bazel_dep(name = "rules_android", version = "0.7.2")
 
 swift_deps = use_extension(
     "@rules_swift_package_manager//:extensions.bzl",
