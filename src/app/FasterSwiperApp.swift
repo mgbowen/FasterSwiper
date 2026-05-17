@@ -47,8 +47,13 @@ struct FasterSwiperApp: App {
 
         Settings {
             SettingsView(viewModel: settingsViewModel)
+                .onAppear {
+                    NSApp.setActivationPolicy(.regular)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
                 .onDisappear {
-                    WindowTracker.shared.reportWindowClosed()
+                    NSApp.setActivationPolicy(.accessory)
+                    NSApp.deactivate()
                 }
         }
     }

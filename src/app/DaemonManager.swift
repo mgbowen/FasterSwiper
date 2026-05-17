@@ -43,7 +43,9 @@ public final class DaemonManager {
         case .stopped, .genericError:
             start()
         case .accessibilityPermissionDenied:
-            requestAccessibilityPermissions()
+            if requestAccessibilityPermissions() {
+                start()
+            }
         }
     }
 
@@ -73,8 +75,8 @@ public final class DaemonManager {
         }
     }
 
-    private func requestAccessibilityPermissions() {
+    private func requestAccessibilityPermissions() -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
+        return AXIsProcessTrustedWithOptions(options)
     }
 }
