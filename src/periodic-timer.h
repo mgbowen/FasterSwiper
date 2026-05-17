@@ -32,7 +32,6 @@ int64_t UptimeInNanoseconds();
 class PeriodicTimer {
 public:
   struct Parameters {
-    // The period in nanoseconds.
     int64_t period_ns = 0;
     absl::AnyInvocable<PeriodicTimerTickResult(
         int64_t /* time_since_timer_start_ns */)>

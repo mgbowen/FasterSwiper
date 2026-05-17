@@ -1,19 +1,23 @@
 import AppKit
 import FasterSwiper_Daemon
+import FasterSwiper_Views
 import SwiftUI
 
 @main
 struct FasterSwiperApp: App {
     @State private var settingsStore: SettingsStore
     @State private var daemonManager: DaemonManager
+    @State private var settingsViewModel: SettingsViewModel
     @Environment(\.openSettings) private var openSettingsAction
 
     init() {
         let store = SettingsStore()
         let manager = DaemonManager(daemon: Daemon(), settingsStore: store)
+        let viewModel = SettingsViewModel(store: store, daemonManager: manager)
         
         _settingsStore = State(initialValue: store)
         _daemonManager = State(initialValue: manager)
+        _settingsViewModel = State(initialValue: viewModel)
 
         Task { @MainActor in
             manager.start()
@@ -42,25 +46,30 @@ struct FasterSwiperApp: App {
         }
 
         Settings {
-            SettingsView()
-                .environment(settingsStore)
-                .environment(daemonManager)
+            SettingsView(viewModel: settingsViewModel)
                 .onDisappear {
                     WindowTracker.shared.reportWindowClosed()
                 }
         }
     }
 
+    private var statusInfo: (text: String, color: Color) {
+        switch daemonManager.status {
+        case .running:
+            return ("FasterSwiper Active", .green)
+        case .stopped:
+            return ("FasterSwiper Stopped", .gray)
+        case .accessibilityPermissionDenied:
+            return ("Permissions Required", .red)
+        case .genericError:
+            return ("Failed to Start", .red)
+        }
+    }
+
     @ViewBuilder
     private var statusItem: some View {
-        let (text, color) = switch daemonManager.status {
-        case .running: ("FasterSwiper Active", Color.green)
-        case .stopped: ("FasterSwiper Stopped", Color.gray)
-        case .accessibilityPermissionDenied: ("Permissions Required", Color.red)
-        case .genericError: ("Failed to Start", Color.red)
-        }
-
-        let nsColor: NSColor = switch color {
+        let info = statusInfo
+        let nsColor: NSColor = switch info.color {
         case .red: .systemRed
         case .gray: .systemGray
         case .green: .systemGreen
@@ -73,7 +82,7 @@ struct FasterSwiperApp: App {
             daemonManager.toggle()
         }) {
             Label {
-                Text(text)
+                Text(info.text)
             } icon: {
                 Image(nsImage: icon)
             }
@@ -82,28 +91,13 @@ struct FasterSwiperApp: App {
 
     private func openSettings() {
         WindowTracker.shared.reportWindowOpened()
+        settingsViewModel.selectedTab = .settings
         openSettingsAction()
     }
 
     private func openAbout() {
-        let versionInfo = daemonManager.version
-        let appVersion = "Version " + (versionInfo.version ?? "HEAD")
-        let version = String(versionInfo.gitHash.prefix(7)) + (versionInfo.isDirty ? ", dirty" : "")
-
-        let linkAttributes: [NSAttributedString.Key: Any] = [
-            .link: NSURL(string: "https://github.com/mgbowen/FasterSwiper/blob/main/ATTRIBUTION.md")!,
-            .foregroundColor: NSColor.linkColor,
-        ]
-        let credits = NSAttributedString(string: "Third-Party Software", attributes: linkAttributes)
-
-        let options: [NSApplication.AboutPanelOptionKey: Any] = [
-            .applicationName: "FasterSwiper",
-            .version: version,
-            .applicationVersion: appVersion,
-            .credits: credits,
-            NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Matthew Bowen. All rights reserved.",
-        ]
-
-        NSApp.orderFrontStandardAboutPanel(options: options)
+        WindowTracker.shared.reportWindowOpened()
+        settingsViewModel.selectedTab = .about
+        openSettingsAction()
     }
 }
