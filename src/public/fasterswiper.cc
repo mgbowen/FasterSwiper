@@ -47,7 +47,8 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
       ToProtoDuration(absl::Milliseconds(200));
   options.set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
   options.set_frames_per_second(240);
-  options.set_intercept_keyboard_events(true);
+  options.set_intercept_mission_control_shortcuts(true);
+  options.set_enable_jump_to_space_shortcuts(true);
   return options;
 }
 
@@ -117,9 +118,14 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
         default_options.frames_per_second());
   }
 
-  if (!daemon_options->options.has_intercept_keyboard_events()) {
-    daemon_options->options.set_intercept_keyboard_events(
-        default_options.intercept_keyboard_events());
+  if (!daemon_options->options.has_intercept_mission_control_shortcuts()) {
+    daemon_options->options.set_intercept_mission_control_shortcuts(
+        default_options.intercept_mission_control_shortcuts());
+  }
+
+  if (!daemon_options->options.has_enable_jump_to_space_shortcuts()) {
+    daemon_options->options.set_enable_jump_to_space_shortcuts(
+        default_options.enable_jump_to_space_shortcuts());
   }
 
   return true;
@@ -185,7 +191,8 @@ FS_Daemon *FS_Create(FS_DaemonOptions *options) {
   std::vector<CGEventType> event_types;
   event_types.push_back(kCGSEventDockControl);
 
-  if (options->options.intercept_keyboard_events()) {
+  if (options->options.intercept_mission_control_shortcuts() ||
+      options->options.enable_jump_to_space_shortcuts()) {
     event_types.push_back(kCGEventKeyDown);
   }
 

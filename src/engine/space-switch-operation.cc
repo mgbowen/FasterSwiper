@@ -100,7 +100,7 @@ void SpaceSwitchOperation::Commit() {
 }
 
 void SpaceSwitchOperation::PostEvent(int phase, double progress,
-                                     std::optional<double> velocity) {
+                                     std::optional<double> velocity) const {
   CFUniquePtr<CGEventRef> event = CreateDockControlGestureEvent(
       phase, static_cast<int>(axis_adapter_->movement_direction()), progress,
       velocity);

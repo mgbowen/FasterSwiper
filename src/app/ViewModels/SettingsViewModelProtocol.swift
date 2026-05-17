@@ -27,7 +27,8 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var showCubicBezierField: Bool { get }
     var cubicBezierCurveText: String { get set }
     var framesPerSecond: Int { get set }
-    var interceptKeyboardEvents: Bool { get set }
+    var interceptMissionControlShortcuts: Bool { get set }
+    var enableJumpToSpaceShortcuts: Bool { get set }
 
     var versionText: String { get }
 }

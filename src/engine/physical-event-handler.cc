@@ -19,6 +19,7 @@
 #include <absl/cleanup/cleanup.h>
 #include <absl/log/check.h>
 #include <absl/log/log.h>
+#include <absl/log/vlog_is_on.h>
 #include <gutil/status.h>
 #include <magic_enum/magic_enum.hpp>
 
@@ -52,24 +53,31 @@ PhysicalEventHandler::~PhysicalEventHandler() {
 
 void PhysicalEventHandler::EventProcessorThread() {
   while (true) {
-    absl::StatusOr<Event> event = channel_.Read();
-    if (!event.ok()) {
+    absl::StatusOr<Command> maybe_command = channel_.Read();
+    if (!maybe_command.ok()) {
+      VLOG(1)
+          << "EventProcessorThread(): channel_.Read() returned non-OK status: "
+          << maybe_command.status();
       break;
     }
 
-    absl::Status status = std::visit(
-        overloaded{[&](const DockControlEvent &dock_control_event) {
-                     return HandleDockControlEvent(dock_control_event);
-                   },
-                   [&](const KeyEvent &key_event) {
-                     return HandleKeyEvent(key_event);
-                   }},
-        event->data);
+    absl::Status status =
+        std::visit([&](auto command) { return HandleCommand(command); },
+                   *std::move(maybe_command));
     if (!status.ok()) {
       LOG(ERROR) << "EventProcessorThread(): Failed to handle event: "
                  << status;
     }
   }
+}
+
+namespace {
+
+enum class UninterestingEventDecision {
+  kPassthrough,
+  kSwallow,
+};
+
 }
 
 CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
@@ -90,102 +98,121 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
 
   VLOG(2) << "HandleEvent(): Received physical event " << *parsed_event;
 
-  const EventDestination event_destination = std::visit(
-      overloaded{[&](const auto &event) { return GetEventDestination(event); }},
-      parsed_event->data);
-  VLOG(2) << "HandleEvent(): Event destination="
-          << magic_enum::enum_name(event_destination);
+  using EventDecision = std::variant<UninterestingEventDecision, Command>;
 
-  switch (event_destination) {
-    using enum EventDestination;
-  case kHandle:
-    VLOG(2) << "HandleEvent(): Handling event";
-    break;
-  case kPassthrough:
-    VLOG(2) << "HandleEvent(): Passing event through";
-    return event;
-  case kSwallow:
-    VLOG(2) << "HandleEvent(): Swallowing event";
-    return nullptr;
-  }
+  EventDecision decision =
+      std::visit(overloaded{
+                     [&](DockControlEvent event) -> EventDecision {
+                       return GestureCommand{
+                           .event = std::move(event),
+                       };
+                     },
+                     [&](KeyEvent event) -> EventDecision {
+                       if (event.key_state != KeyState::kDown) {
+                         return UninterestingEventDecision::kPassthrough;
+                       }
 
-  absl::Status status = channel_.Write(*std::move(parsed_event));
-  if (!status.ok()) {
-    LOG(ERROR) << "HandleEvent(): Failed to write to channel: " << status;
-  }
+                       if (options_.intercept_mission_control_shortcuts()) {
+                         if (std::optional<RelativeMoveCommand> maybe_command =
+                                 TryGetRelativeMoveCommandFromKeyEvent(event);
+                             maybe_command.has_value()) {
+                           return *std::move(maybe_command);
+                         }
+                       }
 
-  return nullptr;
+                       if (options_.enable_jump_to_space_shortcuts()) {
+                         if (std::optional<JumpToSpaceCommand> maybe_command =
+                                 TryGetJumpToSpaceCommand(event);
+                             maybe_command.has_value()) {
+                           return *std::move(maybe_command);
+                         }
+                       }
+
+                       return UninterestingEventDecision::kPassthrough;
+                     },
+                 },
+                 std::move(parsed_event->data));
+
+  absl_nullable CGEventRef return_value = event;
+  std::visit(
+      overloaded{
+          [&](UninterestingEventDecision decision) {
+            VLOG(2) << "HandleEvent(): decision=UninterestingEventDecision::"
+                    << magic_enum::enum_name(decision);
+            switch (decision) {
+              using enum UninterestingEventDecision;
+            case kPassthrough:
+              break;
+            case kSwallow:
+              return_value = nullptr;
+              break;
+            }
+          },
+          [&](Command command) {
+            if (VLOG_IS_ON(2)) {
+              std::visit(
+                  [](const auto &command) {
+                    VLOG(2)
+                        << "HandleEvent(): decision=" << absl::StrCat(command);
+                  },
+                  command);
+            }
+
+            absl::Status status = channel_.Write(std::move(command));
+            if (!status.ok()) {
+              LOG(ERROR) << "HandleEvent(): Failed to write to channel: "
+                         << status;
+            } else {
+              return_value = nullptr;
+            }
+          },
+      },
+      std::move(decision));
+
+  return return_value;
 }
 
-PhysicalEventHandler::EventDestination
-PhysicalEventHandler::GetEventDestination(const DockControlEvent &event) const {
-  if (animator_ == nullptr || animator_->is_committed()) {
-    return EventDestination::kHandle;
-  }
+absl::Status
+PhysicalEventHandler::HandleCommand(const GestureCommand &command) {
+  VLOG(1) << "HandleCommand(): command=" << command;
 
-  const bool movement_matches_active_animation =
-      static_cast<int>(
-          animator_->operation().axis_adapter().movement_direction()) ==
-      event.direction;
-  if (movement_matches_active_animation) {
-    return EventDestination::kHandle;
-  }
-
-  return EventDestination::kSwallow;
-}
-
-PhysicalEventHandler::EventDestination
-PhysicalEventHandler::GetEventDestination(const KeyEvent &event) const {
-  if (event.key_state != KeyState::kDown) {
-    return EventDestination::kPassthrough;
-  }
-
-  if (event.ConcernsAnyHotkey(hotkey_configs_)) {
-    return EventDestination::kHandle;
-  }
-
-  // Check for Control + 1-9
-  if ((event.modifiers & kModifierKeyMask) == kCGEventFlagMaskControl) {
-    switch (event.key_code) {
-    case 18:
-    case 19:
-    case 20:
-    case 21:
-    case 23:
-    case 22:
-    case 26:
-    case 28:
-    case 25:
-      return EventDestination::kHandle;
+  if (animator_ != nullptr && !animator_->is_committed()) {
+    // Active animation, make sure the requested gesture direction matches the
+    // animation's direction.
+    const Axis active_animation_direction =
+        animator_->operation().axis_adapter().movement_direction();
+    if (static_cast<int>(active_animation_direction) !=
+        command.event.direction) {
+      VLOG(1) << "HandleCommand(): Ignoring GestureCommand because an "
+                 "animation is active and its direction ("
+              << magic_enum::enum_name(active_animation_direction)
+              << ") does not match the "
+                 "command's requested direction ("
+              << magic_enum::enum_name(
+                     static_cast<Axis>(command.event.direction))
+              << ")";
+      return absl::OkStatus();
     }
   }
 
-  return EventDestination::kPassthrough;
-}
-
-absl::Status PhysicalEventHandler::HandleDockControlEvent(
-    const DockControlEvent &dock_control_event) {
-  VLOG(1) << "HandleDockControlEvent(): dock_control_event="
-          << dock_control_event;
-
-  if (dock_control_event.phase == kGestureBegan) {
-    return HandleBeginGesture(dock_control_event);
+  if (command.event.phase == kGestureBegan) {
+    return HandleBeginGesture(command.event);
   }
 
-  if (dock_control_event.phase == kGestureChanged) {
-    return HandleChangeGesture(dock_control_event);
+  if (command.event.phase == kGestureChanged) {
+    return HandleChangeGesture(command.event);
   }
 
-  if (dock_control_event.phase == kGestureCancelled) {
-    return HandleCancelGesture(dock_control_event);
+  if (command.event.phase == kGestureCancelled) {
+    return HandleCancelGesture(command.event);
   }
 
-  if (dock_control_event.phase == kGestureEnded) {
-    return HandleEndGesture(dock_control_event);
+  if (command.event.phase == kGestureEnded) {
+    return HandleEndGesture(command.event);
   }
 
-  return absl::InternalError(absl::StrCat("Unrecognized DockSwipeEvent phase ",
-                                          dock_control_event.phase));
+  return absl::InternalError(
+      absl::StrCat("Unrecognized DockSwipeEvent phase ", command.event.phase));
 }
 
 absl::Status
@@ -311,85 +338,77 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   return absl::OkStatus();
 }
 
-absl::Status PhysicalEventHandler::HandleKeyEvent(const KeyEvent &key_event) {
-  VLOG(1) << "HandleKeyEvent(): key_event=" << key_event;
+absl::Status
+PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
+  VLOG(1) << "HandleCommand(): command=" << command;
 
   Axis axis;
-  int64_t direction = 0;
-  if (key_event.ConcernsHotkey(hotkey_configs_.move_space_left)) {
+  int64_t direction;
+  switch (command.direction) {
+    using enum Direction;
+  case kLeft:
+    axis = Axis::kHorizontal;
     direction = -1;
+    break;
+  case kRight:
     axis = Axis::kHorizontal;
-  } else if (key_event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     direction = 1;
-    axis = Axis::kHorizontal;
-  } else if (key_event.ConcernsHotkey(hotkey_configs_.open_mission_control)) {
-    direction = 1;
+    break;
+  case kUp:
     axis = Axis::kVertical;
-  } else if (key_event.ConcernsHotkey(hotkey_configs_.open_app_expose)) {
+    direction = 1;
+    break;
+  case kDown:
+    axis = Axis::kVertical;
     direction = -1;
-    axis = Axis::kVertical;
-  } else {
-    axis = Axis::kHorizontal;
+    break;
   }
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));
 
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
-  if (direction != 0) {
-    target_position_ =
-        std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction) *
-                       kOneSwipeInNanoswipes,
-                   soft_min, soft_max);
-  } else if ((key_event.modifiers & kModifierKeyMask) ==
-             kCGEventFlagMaskControl) {
-    std::optional<int> digit;
-    switch (key_event.key_code) {
-    case 18:
-      digit = 0;
-      break;
-    case 19:
-      digit = 1;
-      break;
-    case 20:
-      digit = 2;
-      break;
-    case 21:
-      digit = 3;
-      break;
-    case 23:
-      digit = 4;
-      break;
-    case 22:
-      digit = 5;
-      break;
-    case 26:
-      digit = 6;
-      break;
-    case 28:
-      digit = 7;
-      break;
-    case 25:
-      digit = 8;
-      break;
-    }
+  target_position_ =
+      std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction) *
+                     kOneSwipeInNanoswipes,
+                 soft_min, soft_max);
 
-    if (!digit.has_value()) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Uninteresting key event ", key_event.key_code));
-    }
+  const absl::Duration duration = CalculateAnimationDuration(
+      animator_->position(), target_position_,
+      FromProtoDuration(options_.animation_duration_per_space()));
 
-    const int64_t absolute_target = *digit * kOneSwipeInNanoswipes;
-    if (absolute_target > soft_max) {
-      VLOG(1) << "Ignoring shortcut: target space " << (*digit + 1)
-              << " exceeds available spaces";
-      return absl::OkStatus();
-    }
+  VLOG(1) << "HandleKeyEvent():  initial_position=" << initial_position_;
+  VLOG(1) << "HandleKeyEvent():  current_position=" << animator_->position();
+  VLOG(1) << "HandleKeyEvent():  target_position=" << target_position_;
+  VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
-    target_position_ = absolute_target;
-  } else {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Uninteresting key event ", key_event.key_code));
+  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+  RETURN_IF_ERROR(animator_->AnimateToPosition({
+      .target_position = target_position_,
+      .duration = duration,
+      .easing_function = std::move(easing_function),
+      .ticks_per_second = options_.frames_per_second(),
+  }));
+
+  return absl::OkStatus();
+}
+
+absl::Status
+PhysicalEventHandler::HandleCommand(const JumpToSpaceCommand &command) {
+  VLOG(1) << "HandleCommand(): command=" << command;
+
+  ASSIGN_OR_RETURN(const SpaceState space_state,
+                   LoadSpaceStateForActiveDisplay());
+  if (command.space_index >= space_state.count()) {
+    VLOG(1) << "HandleCommand(): ignoring JumpToSpaceCommand, requested "
+               "space_index="
+            << command.space_index
+            << " is greater than the current number of spaces="
+            << space_state.count();
+    return absl::OkStatus();
   }
+
+  RETURN_IF_ERROR(SetUpForNewGesture(Axis::kHorizontal));
+  target_position_ = command.space_index * kOneSwipeInNanoswipes;
 
   const absl::Duration duration = CalculateAnimationDuration(
       animator_->position(), target_position_,
@@ -490,6 +509,85 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
           << ", target_position_=" << target_position_;
 
   return absl::OkStatus();
+}
+
+std::optional<PhysicalEventHandler::RelativeMoveCommand>
+PhysicalEventHandler::TryGetRelativeMoveCommandFromKeyEvent(
+    const KeyEvent &event) const {
+  if (event.ConcernsHotkey(hotkey_configs_.move_space_left)) {
+    return RelativeMoveCommand{
+        .direction = Direction::kLeft,
+    };
+  }
+
+  if (event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
+    return RelativeMoveCommand{
+        .direction = Direction::kRight,
+    };
+  }
+
+  if (event.ConcernsHotkey(hotkey_configs_.open_mission_control)) {
+    return RelativeMoveCommand{
+        .direction = Direction::kUp,
+    };
+  }
+
+  if (event.ConcernsHotkey(hotkey_configs_.open_app_expose)) {
+    return RelativeMoveCommand{
+        .direction = Direction::kDown,
+    };
+  }
+
+  return std::nullopt;
+}
+
+std::optional<PhysicalEventHandler::JumpToSpaceCommand>
+PhysicalEventHandler::TryGetJumpToSpaceCommand(const KeyEvent &event) const {
+  if ((event.modifiers & kModifierKeyMask) != kCGEventFlagMaskControl) {
+    return std::nullopt;
+  }
+
+  std::optional<int64_t> space_index;
+  switch (event.key_code) {
+  case 18:
+    space_index = 0;
+    break;
+  case 19:
+    space_index = 1;
+    break;
+  case 20:
+    space_index = 2;
+    break;
+  case 21:
+    space_index = 3;
+    break;
+  case 23:
+    space_index = 4;
+    break;
+  case 22:
+    space_index = 5;
+    break;
+  case 26:
+    space_index = 6;
+    break;
+  case 28:
+    space_index = 7;
+    break;
+  case 25:
+    space_index = 8;
+    break;
+  case 29:
+    space_index = 9;
+    break;
+  }
+
+  if (!space_index.has_value()) {
+    return std::nullopt;
+  }
+
+  return JumpToSpaceCommand{
+      .space_index = *space_index,
+  };
 }
 
 } // namespace fasterswiper

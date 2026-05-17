@@ -90,10 +90,18 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
-    var interceptKeyboardEvents: Bool {
-        get { store.options.interceptKeyboardEvents }
+    var interceptMissionControlShortcuts: Bool {
+        get { store.options.interceptMissionControlShortcuts }
         set {
-            store.options.interceptKeyboardEvents = newValue
+            store.options.interceptMissionControlShortcuts = newValue
+            scheduleRestart()
+        }
+    }
+
+    var enableJumpToSpaceShortcuts: Bool {
+        get { store.options.enableJumpToSpaceShortcuts }
+        set {
+            store.options.enableJumpToSpaceShortcuts = newValue
             scheduleRestart()
         }
     }

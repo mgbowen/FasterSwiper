@@ -25,5 +25,6 @@ message DaemonOptions {
     EasingFunction easing_function = 2;
     CubicBezierCurve cubic_bezier_curve = 3;
     int64 frames_per_second = 4;
-    bool intercept_keyboard_events = 5;
+    bool intercept_mission_control_shortcuts = 5;
+    bool enable_jump_to_space_shortcuts = 6;
 }

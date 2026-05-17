@@ -102,13 +102,13 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                 LabeledContent("Keyboard:") {
                     Toggle(
                         "Intercept Mission Control shortcuts",
-                        isOn: $viewModel.interceptKeyboardEvents
+                        isOn: $viewModel.interceptMissionControlShortcuts
                     )
                 }
                 Section {
                     Toggle(
-                        "Enable space switch shortcuts",
-                        isOn: $viewModel.interceptKeyboardEvents
+                        "Enable jump-to-space shortcuts",
+                        isOn: $viewModel.enableJumpToSpaceShortcuts
                     )
                 } footer: {
                     Text(
