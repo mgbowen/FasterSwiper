@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct SettingsView<VM: SettingsViewModelProtocol>: View {
     @Bindable public var viewModel: VM
+    @Environment(\.appearsActive) var appearsActive
 
     public init(viewModel: VM) {
         self.viewModel = viewModel
@@ -19,7 +20,13 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
             }
         }
         .scenePadding()
-        .frame(width: 600, height: 310)
+        .frame(width: 600, height: 375)
+        .onAppear {
+            viewModel.refreshLaunchAtLogin()
+        }
+        .onChange(of: appearsActive) {
+            viewModel.refreshLaunchAtLogin()
+        }
     }
 }
 
@@ -97,7 +104,7 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                 }
             }
 
-            Spacer().frame(height: 25)
+            Spacer().frame(height: 15)
 
             Section {
                 LabeledContent("Keyboard:") {
@@ -124,7 +131,17 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .font(.caption)
                 .foregroundColor(.secondary)
+            }
 
+            Spacer().frame(height: 15)
+
+            Section {
+                LabeledContent("Startup:") {
+                    Toggle(
+                        "Launch at login",
+                        isOn: $viewModel.launchAtLogin
+                    )
+                }
             }
         }
     }

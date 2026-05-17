@@ -19,8 +19,10 @@ public enum SettingsViewTab {
 
 @MainActor
 public protocol SettingsViewModelProtocol: AnyObject, Observable {
+    func refreshLaunchAtLogin()
+
     var selectedTab: SettingsViewTab { get set }
-    
+
     var animationDurationMs: Double { get set }
     var easingFunctionOptions: [PickerOption] { get }
     var selectedEasingFunctionTag: Int { get set }
@@ -29,6 +31,7 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var framesPerSecond: Int { get set }
     var interceptMissionControlShortcuts: Bool { get set }
     var enableJumpToSpaceShortcuts: Bool { get set }
+    var launchAtLogin: Bool { get set }
 
     var versionText: String { get }
 }

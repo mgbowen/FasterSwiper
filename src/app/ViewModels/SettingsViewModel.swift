@@ -1,6 +1,7 @@
 import FasterSwiper_Daemon
 import FasterSwiper_Views
 import Observation
+import ServiceManagement
 import SwiftProtobuf
 
 private func toProtoDuration(fromNanoseconds totalNanos: Int64)
@@ -28,10 +29,22 @@ private func toInt64Milliseconds(duration: Google_Protobuf_Duration) -> Int64 {
 final class SettingsViewModel: SettingsViewModelProtocol {
     private let store: SettingsStore
     private let daemonManager: DaemonManager
+    private var cachedLaunchAtLogin: Bool = false
 
     init(store: SettingsStore, daemonManager: DaemonManager) {
         self.store = store
         self.daemonManager = daemonManager
+    }
+
+    public func refreshLaunchAtLogin() {
+        self.cachedLaunchAtLogin =
+            switch SMAppService.mainApp.status {
+            case .enabled: true
+            case .requiresApproval: true
+            case .notRegistered: false
+            case .notFound: false
+            @unknown default: false
+            }
     }
 
     var selectedTab: SettingsViewTab = .settings
@@ -106,10 +119,26 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
+    var launchAtLogin: Bool {
+        get { self.cachedLaunchAtLogin }
+        set {
+            let service = SMAppService.mainApp
+            if newValue {
+                try? service.register()
+                self.cachedLaunchAtLogin = true
+            } else {
+                try? service.unregister()
+                self.cachedLaunchAtLogin = false
+            }
+        }
+    }
+
     var versionText: String {
         let versionInfo = daemonManager.version
         let appVersion = "Version " + (versionInfo.version ?? "HEAD")
-        let version = String(versionInfo.gitHash.prefix(7)) + (versionInfo.isDirty ? ", dirty" : "")
+        let version =
+            String(versionInfo.gitHash.prefix(7))
+            + (versionInfo.isDirty ? ", dirty" : "")
         return "\(appVersion) (\(version))"
     }
 
