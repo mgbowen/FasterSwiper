@@ -14,7 +14,7 @@ struct FasterSwiperApp: App {
         let store = SettingsStore()
         let manager = DaemonManager(daemon: Daemon(), settingsStore: store)
         let viewModel = SettingsViewModel(store: store, daemonManager: manager)
-        
+
         _settingsStore = State(initialValue: store)
         _daemonManager = State(initialValue: manager)
         _settingsViewModel = State(initialValue: viewModel)
@@ -25,7 +25,7 @@ struct FasterSwiperApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("FasterSwiper", systemImage: "macwindow.on.rectangle") {
+        MenuBarExtra("FasterSwiper", systemImage: "appwindow.swipe.rectangle") {
             Button("About FasterSwiper") {
                 openAbout()
             }
@@ -61,13 +61,13 @@ struct FasterSwiperApp: App {
     private var statusInfo: (text: String, color: Color) {
         switch daemonManager.status {
         case .running:
-            return ("FasterSwiper Active", .green)
+            return ("Running", .green)
         case .stopped:
-            return ("FasterSwiper Stopped", .gray)
+            return ("Stopped", .gray)
         case .accessibilityPermissionDenied:
-            return ("Permissions Required", .red)
+            return ("Permissions required", .red)
         case .genericError:
-            return ("Failed to Start", .red)
+            return ("Failed to start", .red)
         }
     }
 
@@ -80,7 +80,7 @@ struct FasterSwiperApp: App {
         case .green: .systemGreen
         default: .systemGray
         }
-        
+
         let icon = NSImage.stoplightIcon(color: nsColor)
 
         Button(action: {
