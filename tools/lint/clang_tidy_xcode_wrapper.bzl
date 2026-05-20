@@ -4,7 +4,10 @@ def _clang_tidy_xcode_wrapper_impl(ctx):
     executable = ctx.actions.declare_file(ctx.label.name)
 
     clang_tidy_file = ctx.file.clang_tidy
-    clang_tidy_runfiles_path = ctx.workspace_name + "/" + clang_tidy_file.short_path
+    if clang_tidy_file.short_path.startswith("../"):
+        clang_tidy_runfiles_path = clang_tidy_file.short_path[3:]
+    else:
+        clang_tidy_runfiles_path = ctx.workspace_name + "/" + clang_tidy_file.short_path
 
     ctx.actions.expand_template(
         template = ctx.file._template,

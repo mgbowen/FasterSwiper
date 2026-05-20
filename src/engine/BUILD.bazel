@@ -104,7 +104,6 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
-        "@gutil//gutil:status",
         "@magic_enum",
     ],
 )

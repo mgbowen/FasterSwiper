@@ -12,7 +12,6 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@gutil//gutil:status",
     ],
 )
 
@@ -28,7 +27,6 @@ cc_library(
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@gutil//gutil:status",
     ],
 )
 
@@ -123,7 +121,6 @@ cc_library(
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@gutil//gutil:status",
         "@magic_enum",
     ],
 )
@@ -207,7 +204,6 @@ cc_library(
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@gutil//gutil:status",
     ],
 )
 
