@@ -1,0 +1,23 @@
+UseColor: true
+
+Checks: >
+    abseil-*,
+    bugprone-*,
+    cppcoreguidelines-*,
+    clang-analyzer-*,
+    google-*,
+    performance-*,
+    -bugprone-easily-swappable-parameters,
+    -bugprone-narrowing-conversions,
+    -cppcoreguidelines-narrowing-conversions,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -clang-diagnostic-builtin-macro-redefined,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -cppcoreguidelines-owning-memory,
+    -performance-enum-size,
+
+WarningsAsErrors: "*"
+
+# Exclude Protobuf generated headers
+HeaderFilterRegex: '.*'
+ExcludeHeaderFilterRegex: '.*\.pb\.h$'

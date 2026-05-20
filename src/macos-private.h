@@ -14,7 +14,7 @@ CFArrayRef SLSCopyManagedDisplaySpaces(int cid);
 bool SLSManagedDisplayIsAnimating(int cid, CFStringRef display);
 int64_t SLSManagedDisplayGetCurrentSpace(int cid, CFStringRef uuid);
 
-enum CGSEventType {
+enum class CGSEventType {
   kCGSWorkspaceWillChange = 1400,
   kCGSWorkspaceDidChange = 1401,
   kCGSWorkspaceWindowIsViewable = 1402,
@@ -39,7 +39,7 @@ CGError CGSRemoveNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
 
 CFStringRef SLSSpaceCopyName(int cid, SLSSpaceId sid);
 
-typedef enum {
+enum class CGSSpaceMask {
   CGSSpaceIncludesCurrent = 1 << 0, // Dock, Notification Center, etc.
   CGSSpaceIncludesOthers = 1 << 1,  // Expose
 
@@ -59,7 +59,8 @@ typedef enum {
       CGSSpaceIncludesOS | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
 
   kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask, // ?
-} CGSSpaceMask;
+};
+
 CFArrayRef SLSCopySpaces(int cid, CGSSpaceMask type);
 }
 

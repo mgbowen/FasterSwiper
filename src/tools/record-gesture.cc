@@ -2,46 +2,35 @@
 #include "src/event-tap-manager.h"
 #include "src/macos-private.h"
 #include "src/periodic-timer.h"
+#include "src/tools/util/accessibility-check.h"
 
 #include <csignal>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-#include "nlohmann/json.hpp"
 #include <absl/base/no_destructor.h>
+#include <absl/log/check.h>
 #include <absl/status/status.h>
+#include <absl/status/status_macros.h>
 #include <absl/strings/str_cat.h>
+#include <nlohmann/json.hpp>
 
 namespace fasterswiper {
 namespace {
 
-using nlohmann::json;
+using ::nlohmann::json;
 
 const absl::NoDestructor<pid_t> kOwnPid([] { return getpid(); }());
-std::atomic<bool> g_stop_requested{false};
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+std::atomic<bool> stop_requested{false};
 
 void SignalHandler(int signal) {
   if (signal == SIGINT) {
-    g_stop_requested = true;
+    stop_requested = true;
     CFRunLoopStop(CFRunLoopGetMain());
   }
-}
-
-absl::Status CheckForAccessibilityPermissions() {
-  const void *keys[] = {kAXTrustedCheckOptionPrompt};
-  const void *values[] = {kCFBooleanTrue};
-  const auto opts = WrapCFUnique(
-      CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
-                         &kCFTypeDictionaryValueCallBacks));
-  const bool ok = AXIsProcessTrustedWithOptions(opts.get());
-  if (!ok) {
-    return absl::PermissionDeniedError(
-        "macOS accessibility permissions not granted. Please grant them in "
-        "System Settings > Privacy & Security > Accessibility.");
-  }
-
-  return absl::OkStatus();
 }
 
 json CaptureEvent(CGEventRef event, int64_t delta_ns) {
@@ -81,12 +70,14 @@ absl::Status RecordGestures(const std::string &output_path) {
   auto callback = [&](CGEventTapProxy proxy, CGEventType event_type,
                       CGEventRef event) -> CGEventRef {
     int et = CGEventGetIntegerValueField(event, kCGSEventTypeField);
-    if (et != kCGSEventDockControl)
+    if (et != kCGSEventDockControl) {
       return event;
+    }
 
     if (CGEventGetIntegerValueField(event, kCGEventGestureHIDType) !=
-        kIOHIDEventTypeDockSwipe)
+        kIOHIDEventTypeDockSwipe) {
       return event;
+    }
 
     if (CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) == 0) {
       return event;
@@ -110,14 +101,11 @@ absl::Status RecordGestures(const std::string &output_path) {
     return event;
   };
 
-  auto maybe_tap_manager = EventTapManager::Create(
-      kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault,
-      {kCGSEventDockControl}, callback);
-  if (!maybe_tap_manager.ok()) {
-    return maybe_tap_manager.status();
-  }
-
-  std::unique_ptr<EventTapManager> tap_manager = std::move(*maybe_tap_manager);
+  ASSIGN_OR_RETURN(auto tap_manager,
+                   EventTapManager::Create(kCGSessionEventTap,
+                                           kCGHeadInsertEventTap,
+                                           kCGEventTapOptionDefault,
+                                           {kCGSEventDockControl}, callback));
   CFUniquePtr<CFRunLoopSourceRef> src =
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
   CFRunLoopAddSource(CFRunLoopGetMain(), src.get(), kCFRunLoopCommonModes);
@@ -145,7 +133,7 @@ absl::Status RecordGestures(const std::string &output_path) {
     return absl::InternalError(
         absl::StrCat("Could not open file for writing: ", output_path));
   }
-  out << root.dump(2) << std::endl;
+  out << root.dump(2) << "\n";
 
   return absl::OkStatus();
 }
@@ -160,11 +148,6 @@ int main(int argc, char **argv) {
   }
 
   std::string output_path = argv[1];
-  if (absl::Status status = fasterswiper::RecordGestures(output_path);
-      !status.ok()) {
-    std::cerr << "ERROR: " << status << "\n";
-    return 1;
-  }
-
+  QCHECK_OK(fasterswiper::RecordGestures(output_path));
   return 0;
 }

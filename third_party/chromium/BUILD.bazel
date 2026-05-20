@@ -6,6 +6,7 @@ cc_library(
     name = "cubic-bezier",
     srcs = ["cubic-bezier.cc"],
     hdrs = ["cubic-bezier.h"],
+    tags = ["no-lint"],
     deps = [
         "@abseil-cpp//absl/log:check",
     ],

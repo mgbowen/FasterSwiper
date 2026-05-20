@@ -6,7 +6,7 @@
 #include "src/periodic-timer.h"
 
 #include <absl/log/log.h>
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 #include <thread>
 
 namespace fasterswiper {
@@ -33,7 +33,8 @@ bool AxisAdapter::WaitForCommittedPositionChanged(
 
     if (original_position != new_committed_position) {
       const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
-      VLOG(1) << "Commit(): took " << commit_latency_ns / 1e6 << "ms";
+      VLOG(1) << "Commit(): took "
+              << absl::Nanoseconds(commit_latency_ns);
       break;
     }
 

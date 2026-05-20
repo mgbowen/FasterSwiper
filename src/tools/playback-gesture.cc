@@ -1,40 +1,26 @@
+#include "src/cf-util.h"
+#include "src/macos-private.h"
+#include "src/periodic-timer.h"
+#include "src/tools/util/accessibility-check.h"
+
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
 
-#include "nlohmann/json.hpp"
-#include "src/cf-util.h"
-#include "src/macos-private.h"
-#include "src/periodic-timer.h"
+#include <absl/log/check.h>
 #include <absl/status/status.h>
 #include <absl/strings/str_cat.h>
+#include <nlohmann/json.hpp>
 
 namespace fasterswiper {
 namespace {
 
 using nlohmann::json;
 
-absl::Status CheckForAccessibilityPermissions() {
-  const void *keys[] = {kAXTrustedCheckOptionPrompt};
-  const void *values[] = {kCFBooleanTrue};
-  const auto opts = WrapCFUnique(
-      CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
-                         &kCFTypeDictionaryValueCallBacks));
-  const bool ok = AXIsProcessTrustedWithOptions(opts.get());
-  if (!ok) {
-    return absl::PermissionDeniedError(
-        "macOS accessibility permissions not granted. Please grant them in "
-        "System Settings > Privacy & Security > Accessibility.");
-  }
-
-  return absl::OkStatus();
-}
-
 void PostEvent(const json &j) {
-  auto dock = WrapCFUnique(CGEventCreate(NULL));
-  if (!dock)
-    return;
+  auto dock = WrapCFUnique(CGEventCreate(nullptr));
+  CHECK(dock != nullptr);
 
   CGEventSetIntegerValueField(dock.get(), kCGSEventTypeField,
                               static_cast<int64_t>(kCGSEventDockControl));
@@ -58,7 +44,7 @@ void PostEvent(const json &j) {
   CGEventPost(kCGSessionEventTap, dock.get());
 }
 
-absl::Status PlaybackGestures(const std::string &input_path) {
+absl::Status Run(const std::string &input_path) {
   if (absl::Status status = CheckForAccessibilityPermissions(); !status.ok()) {
     return status;
   }
@@ -69,12 +55,9 @@ absl::Status PlaybackGestures(const std::string &input_path) {
         absl::StrCat("Could not open file for reading: ", input_path));
   }
 
-  json root;
-  try {
-    in >> root;
-  } catch (const json::parse_error &e) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse JSON: ", e.what()));
+  json root = json::parse(in, /*cb=*/nullptr, /*allow_exceptions=*/false);
+  if (root.is_discarded()) {
+    return absl::InvalidArgumentError("Failed to parse JSON");
   }
 
   if (!root.contains("events") || !root["events"].is_array()) {
@@ -122,11 +105,6 @@ int main(int argc, char **argv) {
   }
 
   std::string input_path = argv[1];
-  if (absl::Status status = fasterswiper::PlaybackGestures(input_path);
-      !status.ok()) {
-    std::cerr << "ERROR: " << status << "\n";
-    return 1;
-  }
-
+  QCHECK_OK(::fasterswiper::Run(input_path));
   return 0;
 }

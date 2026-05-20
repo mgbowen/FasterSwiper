@@ -5,8 +5,8 @@
 
 #include <CoreGraphics/CGRemoteOperation.h>
 #include <absl/status/status.h>
+#include <absl/status/status_macros.h>
 #include <absl/strings/str_cat.h>
-#include <gutil/status.h>
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
@@ -50,9 +50,9 @@ GetHotkeySettingsForHotkeyType(absl_nonnull CFDictionaryRef hotkey_prefs,
                                HotkeyType hotkey_type) {
   absl_nullable CFStringRef dict_key = HotkeyTypeToDictionaryKey(hotkey_type);
   if (dict_key == nullptr) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Unknown HotkeyType ",
-                     std::underlying_type_t<HotkeyType>(hotkey_type)));
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unknown HotkeyType ",
+        static_cast<std::underlying_type_t<HotkeyType>>(hotkey_type)));
   }
 
   ASSIGN_OR_RETURN(absl_nullable auto hotkey,
@@ -176,7 +176,7 @@ absl::StatusOr<HotkeyConfigurations> LoadHotkeyConfiguration() {
   ASSIGN_OR_RETURN(CFUniquePtr<CFDictionaryRef> all_hotkey_settings,
                    LoadAllHotkeysSettings());
 
-  HotkeyConfigurations result;
+  HotkeyConfigurations result{};
   ASSIGN_OR_RETURN(result.move_space_left,
                    LoadHotkeyForHotkeyType(HotkeyType::kMoveSpaceLeft,
                                            all_hotkey_settings.get()));

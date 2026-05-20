@@ -25,6 +25,7 @@ cc_library(
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@gutil//gutil:status",
@@ -63,6 +64,15 @@ cc_library(
     deps = [
         "//src/public:fasterswiper_cc_proto",
         "//third_party/chromium:cubic-bezier",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "enum-util",
+    hdrs = ["enum-util.h"],
+    deps = [
     ],
 )
 
@@ -72,6 +82,7 @@ cc_library(
     hdrs = ["event.h"],
     deps = [
         ":CoreFoundation",
+        ":cf-util",
         ":hotkeys",
         ":macos-private",
         ":string-util",
@@ -108,6 +119,8 @@ cc_library(
     deps = [
         ":cf-collections-util",
         ":cf-util",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@gutil//gutil:status",
@@ -160,16 +173,8 @@ cc_library(
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-    ],
-)
-
-cc_library(
-    name = "status-macros",
-    hdrs = ["status-macros.h"],
-    deps = [
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
     ],
 )
 
@@ -199,6 +204,7 @@ cc_library(
         ":macos-private",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@gutil//gutil:status",

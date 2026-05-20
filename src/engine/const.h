@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cfloat>
 #include <cstdint>
 
 namespace fasterswiper {

@@ -17,6 +17,13 @@ enum class Axis {
 
 class AxisAdapter {
 public:
+  AxisAdapter() = default;
+
+  AxisAdapter(const AxisAdapter &) = default;
+  AxisAdapter(AxisAdapter &&) = default;
+  AxisAdapter &operator=(const AxisAdapter &) = default;
+  AxisAdapter &operator=(AxisAdapter &&) = default;
+
   virtual ~AxisAdapter() = default;
 
   [[nodiscard]] virtual constexpr absl::string_view debug_name() const = 0;
@@ -40,7 +47,13 @@ public:
 
 class HorizontalAxisAdapter : public AxisAdapter {
 public:
-  HorizontalAxisAdapter(SpaceState space_state);
+  explicit HorizontalAxisAdapter(SpaceState space_state);
+
+  HorizontalAxisAdapter(const HorizontalAxisAdapter &) = default;
+  HorizontalAxisAdapter(HorizontalAxisAdapter &&) = default;
+  HorizontalAxisAdapter &operator=(const HorizontalAxisAdapter &) = default;
+  HorizontalAxisAdapter &operator=(HorizontalAxisAdapter &&) = default;
+
   ~HorizontalAxisAdapter() override = default;
 
   constexpr absl::string_view debug_name() const override {
@@ -61,12 +74,18 @@ public:
   position_soft_limits() const override;
 
 private:
-  const SpaceState space_state_;
+  SpaceState space_state_;
 };
 
 class VerticalAxisAdapter : public AxisAdapter {
 public:
   VerticalAxisAdapter() = default;
+
+  VerticalAxisAdapter(const VerticalAxisAdapter &) = default;
+  VerticalAxisAdapter(VerticalAxisAdapter &&) = default;
+  VerticalAxisAdapter &operator=(const VerticalAxisAdapter &) = default;
+  VerticalAxisAdapter &operator=(VerticalAxisAdapter &&) = default;
+
   ~VerticalAxisAdapter() override = default;
 
   constexpr absl::string_view debug_name() const override {

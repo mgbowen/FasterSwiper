@@ -1,5 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("@rules_cc//cc:objc_library.bzl", "objc_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,6 +10,7 @@ cc_binary(
         "//src:event-tap-manager",
         "//src:macos-private",
         "//src:version",
+        "//src/tools/util:accessibility-check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],
@@ -25,6 +25,7 @@ cc_binary(
         "//src:event-tap-manager",
         "//src:macos-private",
         "//src:periodic-timer",
+        "//src/tools/util:accessibility-check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@nlohmann_json//:json",
@@ -40,6 +41,8 @@ cc_binary(
         "//src:event-tap-manager",
         "//src:macos-private",
         "//src:periodic-timer",
+        "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@nlohmann_json//:json",
@@ -61,15 +64,6 @@ cc_binary(
 )
 
 cc_binary(
-    name = "timer-test",
-    srcs = ["timer-test.cc"],
-    deps = [
-        "//src:periodic-timer",
-        "@abseil-cpp//absl/status",
-    ],
-)
-
-cc_binary(
     name = "show-space-state",
     srcs = ["show-space-state.cc"],
     deps = [
@@ -84,15 +78,4 @@ cc_binary(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],
-)
-
-objc_library(
-    name = "space-change-monitor-lib",
-    srcs = ["space-change-monitor.mm"],
-    sdk_frameworks = ["AppKit"],
-)
-
-cc_binary(
-    name = "space-change-monitor",
-    deps = [":space-change-monitor-lib"],
 )

@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "accessibility-check",
+    srcs = ["accessibility-check.h"],
+    hdrs = ["accessibility-check.h"],
+    deps = [
+        "//src:cf-util",
+        "@abseil-cpp//absl/status",
+    ],
+)

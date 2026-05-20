@@ -31,7 +31,7 @@ public:
 
 private:
   struct GestureCommand {
-    const DockControlEvent event ABSL_REQUIRE_EXPLICIT_INIT;
+    DockControlEvent event ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
     friend void AbslStringify(Sink &sink, const GestureCommand &command) {
@@ -39,7 +39,7 @@ private:
     }
   };
 
-  enum class Direction {
+  enum class ArrowKeyDirection {
     kLeft,
     kRight,
     kUp,
@@ -47,17 +47,19 @@ private:
   };
 
   struct RelativeMoveCommand {
-    const Direction direction ABSL_REQUIRE_EXPLICIT_INIT;
+    ArrowKeyDirection arrow_key_direction ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
     friend void AbslStringify(Sink &sink, const RelativeMoveCommand &command) {
-      absl::Format(&sink, "RelativeMoveCommand{event=%s}",
-                   magic_enum::enum_name(command.direction));
+      absl::Format(
+          &sink,
+          "RelativeMoveCommand{arrow_key_direction=%s}",
+          magic_enum::enum_name(command.arrow_key_direction));
     }
   };
 
   struct JumpToSpaceCommand {
-    const int64_t space_index ABSL_REQUIRE_EXPLICIT_INIT;
+    int64_t space_index ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
     friend void AbslStringify(Sink &sink, const JumpToSpaceCommand &command) {

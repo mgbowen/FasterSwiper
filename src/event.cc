@@ -45,20 +45,25 @@ std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
   VLOG(1) << "ParseKeyEvent(): key_code=" << key_code
           << ", modifiers=" << modifiers;
 
-  KeyState key_state;
-  switch (event_type) {
-  case kCGEventKeyDown:
-    key_state = KeyState::kDown;
-    break;
-  case kCGEventKeyUp:
-    key_state = KeyState::kUp;
-    break;
-  default:
+  auto key_state = [&]() -> std::optional<KeyState> {
+    switch (event_type) {
+    case kCGEventKeyDown:
+      return KeyState::kDown;
+      break;
+    case kCGEventKeyUp:
+      return KeyState::kUp;
+      break;
+    default:
+      return std::nullopt;
+    }
+  }();
+
+  if (!key_state.has_value()) {
     return std::nullopt;
   }
 
   return KeyEvent{
-      .key_code = key_code, .modifiers = modifiers, .key_state = key_state};
+      .key_code = key_code, .modifiers = modifiers, .key_state = *key_state};
 }
 
 } // namespace
@@ -79,7 +84,7 @@ bool KeyEvent::ConcernsAnyHotkey(
 
 std::optional<Event> ParseEvent(CGEventRef event) {
   VLOG(1) << "ParseEvent(): BEGIN";
-  auto cleanup = absl::MakeCleanup([] { VLOG(1) << "ParseEvent(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "ParseEvent(): END"; };
 
   const auto event_type = static_cast<CGEventType>(
       CGEventGetIntegerValueField(event, kCGSEventTypeField));
@@ -128,9 +133,9 @@ std::string EventGesturePhaseToString(int phase) {
     return "kGestureEnded";
   case kGestureCancelled:
     return "kGestureCancelled";
+  default:
+    return absl::StrCat("(unknown gesture phase ", phase, ")");
   }
-
-  return absl::StrCat("(unknown gesture phase ", phase, ")");
 }
 
 namespace {

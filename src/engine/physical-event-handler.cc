@@ -3,6 +3,7 @@
 #include "src/engine/axis-adapter.h"
 #include "src/engine/const.h"
 #include "src/engine/space-switch-operation.h"
+#include "src/enum-util.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
@@ -20,27 +21,27 @@
 #include <absl/log/check.h>
 #include <absl/log/log.h>
 #include <absl/log/vlog_is_on.h>
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
 
 absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
 PhysicalEventHandler::Create(proto::DaemonOptions options) {
-  HotkeyConfigurations hotkey_configs;
+  HotkeyConfigurations hotkey_configs{};
   ASSIGN_OR_RETURN(hotkey_configs, LoadHotkeyConfiguration());
 
   VLOG(1) << "PhysicalEventHandler::Create(): Loaded hotkey configuration: "
           << hotkey_configs;
 
   auto result = absl::WrapUnique(
-      new PhysicalEventHandler(std::move(options), std::move(hotkey_configs)));
+      new PhysicalEventHandler(std::move(options), hotkey_configs));
   return result;
 }
 
 PhysicalEventHandler::PhysicalEventHandler(proto::DaemonOptions options,
                                            HotkeyConfigurations hotkey_configs)
-    : options_(std::move(options)), hotkey_configs_(std::move(hotkey_configs)) {
+    : options_(std::move(options)), hotkey_configs_(hotkey_configs) {
   event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
 }
 
@@ -104,7 +105,7 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
       std::visit(overloaded{
                      [&](DockControlEvent event) -> EventDecision {
                        return GestureCommand{
-                           .event = std::move(event),
+                           .event = event,
                        };
                      },
                      [&](KeyEvent event) -> EventDecision {
@@ -131,45 +132,43 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
                        return UninterestingEventDecision::kPassthrough;
                      },
                  },
-                 std::move(parsed_event->data));
+                 parsed_event->data);
 
-  absl_nullable CGEventRef return_value = event;
-  std::visit(
+  return std::visit(
       overloaded{
-          [&](UninterestingEventDecision decision) {
+          [&](UninterestingEventDecision decision) -> CGEventRef {
             VLOG(2) << "HandleEvent(): decision=UninterestingEventDecision::"
                     << magic_enum::enum_name(decision);
             switch (decision) {
               using enum UninterestingEventDecision;
             case kPassthrough:
-              break;
+              return event;
             case kSwallow:
-              return_value = nullptr;
-              break;
+              return nullptr;
             }
+
+            AbortOnUnknownEnum(decision);
           },
-          [&](Command command) {
+          [&](Command command) -> CGEventRef {
             if (VLOG_IS_ON(2)) {
               std::visit(
                   [](const auto &command) {
-                    VLOG(2)
-                        << "HandleEvent(): decision=" << absl::StrCat(command);
+                    VLOG(2) << "HandleEvent(): decision=" << command;
                   },
                   command);
             }
 
-            absl::Status status = channel_.Write(std::move(command));
+            absl::Status status = channel_.Write(command);
             if (!status.ok()) {
               LOG(ERROR) << "HandleEvent(): Failed to write to channel: "
                          << status;
-            } else {
-              return_value = nullptr;
+              return event;
             }
+
+            return nullptr;
           },
       },
-      std::move(decision));
-
-  return return_value;
+      decision);
 }
 
 absl::Status
@@ -218,21 +217,18 @@ PhysicalEventHandler::HandleCommand(const GestureCommand &command) {
 absl::Status
 PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleBeginGesture(): BEGIN";
-  auto cleanup =
-      absl::MakeCleanup([] { VLOG(1) << "HandleBeginGesture(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "HandleBeginGesture(): END"; };
 
-  Axis axis;
-  switch (swipe_event.direction) {
-  case kCGGestureMotionHorizontal:
-    axis = Axis::kHorizontal;
-    break;
-  case kCGGestureMotionVertical:
-    axis = Axis::kVertical;
-    break;
-  default:
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Unknown DockControlEvent.direction ", swipe_event.direction));
-  }
+  const Axis axis = [&] {
+    switch (swipe_event.direction) {
+    case kCGGestureMotionHorizontal:
+      return Axis::kHorizontal;
+    case kCGGestureMotionVertical:
+      return Axis::kVertical;
+    default:
+      LOG(FATAL) << "Unknown direction " << swipe_event.direction;
+    }
+  }();
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));
   RETURN_IF_ERROR(animator_->SetPosition(initial_position_));
@@ -242,8 +238,7 @@ PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event) {
 absl::Status
 PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleChangeGesture(): BEGIN";
-  auto cleanup =
-      absl::MakeCleanup([] { VLOG(1) << "HandleChangeGesture(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "HandleChangeGesture(): END"; };
 
   RETURN_IF_ERROR(CheckGestureActive());
 
@@ -277,8 +272,7 @@ CalculateAnimationDuration(int64_t current_position, int64_t target_position,
 absl::Status
 PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleEndGesture(): BEGIN";
-  auto cleanup =
-      absl::MakeCleanup([] { VLOG(1) << "HandleEndGesture(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "HandleEndGesture(): END"; };
 
   RETURN_IF_ERROR(CheckGestureActive());
 
@@ -311,8 +305,7 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
 absl::Status
 PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture(): BEGIN";
-  auto cleanup =
-      absl::MakeCleanup([] { VLOG(1) << "HandleCancelGesture(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "HandleCancelGesture(): END"; };
 
   RETURN_IF_ERROR(CheckGestureActive());
 
@@ -342,33 +335,27 @@ absl::Status
 PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
   VLOG(1) << "HandleCommand(): command=" << command;
 
-  Axis axis;
-  int64_t direction;
-  switch (command.direction) {
-    using enum Direction;
-  case kLeft:
-    axis = Axis::kHorizontal;
-    direction = -1;
-    break;
-  case kRight:
-    axis = Axis::kHorizontal;
-    direction = 1;
-    break;
-  case kUp:
-    axis = Axis::kVertical;
-    direction = 1;
-    break;
-  case kDown:
-    axis = Axis::kVertical;
-    direction = -1;
-    break;
-  }
+  const auto [axis, direction_sign] = [&] {
+    switch (command.arrow_key_direction) {
+      using enum ArrowKeyDirection;
+    case kLeft:
+      return std::make_pair(Axis::kHorizontal, -1);
+    case kRight:
+      return std::make_pair(Axis::kHorizontal, 1);
+    case kUp:
+      return std::make_pair(Axis::kVertical, 1);
+    case kDown:
+      return std::make_pair(Axis::kVertical, -1);
+    }
+
+    AbortOnUnknownEnum(command.arrow_key_direction);
+  }();
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));
 
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
   target_position_ =
-      std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction) *
+      std::clamp(((target_position_ / kOneSwipeInNanoswipes) + direction_sign) *
                      kOneSwipeInNanoswipes,
                  soft_min, soft_max);
 
@@ -516,25 +503,25 @@ PhysicalEventHandler::TryGetRelativeMoveCommandFromKeyEvent(
     const KeyEvent &event) const {
   if (event.ConcernsHotkey(hotkey_configs_.move_space_left)) {
     return RelativeMoveCommand{
-        .direction = Direction::kLeft,
+        .arrow_key_direction = ArrowKeyDirection::kLeft,
     };
   }
 
   if (event.ConcernsHotkey(hotkey_configs_.move_space_right)) {
     return RelativeMoveCommand{
-        .direction = Direction::kRight,
+        .arrow_key_direction = ArrowKeyDirection::kRight,
     };
   }
 
   if (event.ConcernsHotkey(hotkey_configs_.open_mission_control)) {
     return RelativeMoveCommand{
-        .direction = Direction::kUp,
+        .arrow_key_direction = ArrowKeyDirection::kUp,
     };
   }
 
   if (event.ConcernsHotkey(hotkey_configs_.open_app_expose)) {
     return RelativeMoveCommand{
-        .direction = Direction::kDown,
+        .arrow_key_direction = ArrowKeyDirection::kDown,
     };
   }
 
@@ -547,39 +534,32 @@ PhysicalEventHandler::TryGetJumpToSpaceCommand(const KeyEvent &event) const {
     return std::nullopt;
   }
 
-  std::optional<int64_t> space_index;
-  switch (event.key_code) {
-  case 18:
-    space_index = 0;
-    break;
-  case 19:
-    space_index = 1;
-    break;
-  case 20:
-    space_index = 2;
-    break;
-  case 21:
-    space_index = 3;
-    break;
-  case 23:
-    space_index = 4;
-    break;
-  case 22:
-    space_index = 5;
-    break;
-  case 26:
-    space_index = 6;
-    break;
-  case 28:
-    space_index = 7;
-    break;
-  case 25:
-    space_index = 8;
-    break;
-  case 29:
-    space_index = 9;
-    break;
-  }
+  auto space_index = [&]() -> std::optional<int64_t> {
+    switch (event.key_code) {
+    case 18:
+      return 0;
+    case 19:
+      return 1;
+    case 20:
+      return 2;
+    case 21:
+      return 3;
+    case 23:
+      return 4;
+    case 22:
+      return 5;
+    case 26:
+      return 6;
+    case 28:
+      return 7;
+    case 25:
+      return 8;
+    case 29:
+      return 9;
+    default:
+      return std::nullopt;
+    }
+  }();
 
   if (!space_index.has_value()) {
     return std::nullopt;

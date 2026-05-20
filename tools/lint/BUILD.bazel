@@ -1,0 +1,12 @@
+load("//tools/lint:clang_tidy_xcode_wrapper.bzl", "clang_tidy_xcode_wrapper")
+
+package(default_visibility = ["//:__subpackages__"])
+
+clang_tidy_xcode_wrapper(
+    name = "clang-tidy",
+    clang_tidy = select(
+        {
+            "@bazel_tools//src/conditions:darwin_arm64": "@llvm_toolchain_llvm//:bin/clang-tidy",
+        },
+    ),
+)

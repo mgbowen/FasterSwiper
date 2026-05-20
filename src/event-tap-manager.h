@@ -19,7 +19,8 @@ public:
   static absl::StatusOr<std::unique_ptr<EventTapManager>>
   Create(CGEventTapLocation tap, CGEventTapPlacement place,
          CGEventTapOptions options,
-         std::vector<CGEventType> eventTypesOfInterest, Callback callback);
+         const std::vector<CGEventType> &event_types_of_interest,
+         Callback callback);
 
   CFMachPortRef get() const { return raw_tap_.get(); }
 
@@ -32,7 +33,7 @@ private:
   EventTapManager() = default;
 
   static CGEventRef CallbackShim(CGEventTapProxy proxy, CGEventType type,
-                                 CGEventRef event, void *userInfo);
+                                 CGEventRef event, void *user_info);
 };
 
 } // namespace fasterswiper

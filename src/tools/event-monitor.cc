@@ -1,14 +1,16 @@
 #include "src/cf-util.h"
 
+#include "src/event-tap-manager.h"
+#include "src/macos-private.h"
+#include "src/tools/util/accessibility-check.h"
+
 #include <iostream>
-#include <mach/mach_time.h>
 #include <optional>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <mach/mach_time.h>
 
-#include "src/event-tap-manager.h"
-#include "src/macos-private.h"
 #include <absl/status/status.h>
 #include <absl/strings/str_cat.h>
 
@@ -18,24 +20,9 @@ namespace {
 using fasterswiper::CFUniquePtr;
 using fasterswiper::WrapCFUnique;
 
-absl::Status CheckForAccessibilityPermissions() {
-  const void *keys[] = {kAXTrustedCheckOptionPrompt};
-  const void *values[] = {kCFBooleanTrue};
-  const auto opts = WrapCFUnique(
-      CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
-                         &kCFTypeDictionaryValueCallBacks));
-  const bool ok = AXIsProcessTrustedWithOptions(opts.get());
-  if (!ok) {
-    return absl::PermissionDeniedError(
-        "macOS accessibility permissions not granted.");
-  }
-
-  return absl::OkStatus();
-}
-
 std::optional<std::pair<std::string, std::string>>
 TryParseField(CGEventRef event, int raw_field_id) {
-  auto field = (CGEventField)raw_field_id;
+  auto field = static_cast<CGEventField>(raw_field_id);
 
   switch (raw_field_id) {
   case 123:
@@ -64,9 +51,10 @@ TryParseField(CGEventRef event, int raw_field_id) {
         absl::StrCat(CGEventGetDoubleValueField(event, field)));
   case 135: {
     int64_t val = CGEventGetIntegerValueField(event, field);
-    // val >>= 8;
-    // std::bitset<32> bits(val);
-    float *f = (float *)&val;
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto f = reinterpret_cast<const float *>(&val);
+
     return std::make_pair("kCGEventScrollGestureFlagBits", absl::StrCat(*f));
   }
   case 139:
@@ -81,6 +69,8 @@ TryParseField(CGEventRef event, int raw_field_id) {
     return std::make_pair(
         "(unknown 169)",
         absl::StrCat(CGEventGetIntegerValueField(event, field)));
+  default:
+    break;
   }
 
   double double_value = CGEventGetDoubleValueField(event, field);

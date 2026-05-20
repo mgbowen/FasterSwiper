@@ -15,7 +15,7 @@ EasingFunction MakeEasingFunctionLinear();
 EasingFunction MakeEasingFunctionEaseOutQuadratic();
 EasingFunction MakeEasingFunctionEaseOutQuintic();
 EasingFunction
-MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier bezier);
+MakeEasingFunctionBezier(const third_party::chromium::gfx::CubicBezier &bezier);
 
 absl::StatusOr<EasingFunction>
 FromDaemonOptions(const proto::DaemonOptions &options);

@@ -49,13 +49,12 @@ protected:
                  std::optional<double> velocity = std::nullopt) const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  // Protected to allow for Abseil thread annotations, do not use in derived
-  // classes.
-  mutable absl::Mutex mutex_;
+  [[nodiscard]] const absl::Mutex *mutex() const ABSL_LOCK_RETURNED(mutex_);
 
 private:
   const std::unique_ptr<AxisAdapter> axis_adapter_;
 
+  mutable absl::Mutex mutex_;
   bool is_committed_ ABSL_GUARDED_BY(mutex_) = false;
 };
 
@@ -79,15 +78,15 @@ private:
                                  int64_t origin_position);
 
   [[nodiscard]] int64_t distance_from_origin() const
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+      ABSL_SHARED_LOCKS_REQUIRED(mutex());
   [[nodiscard]] double progress_from_origin() const
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+      ABSL_SHARED_LOCKS_REQUIRED(mutex());
 
   [[nodiscard]] int64_t position_locked() const override
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+      ABSL_SHARED_LOCKS_REQUIRED(mutex());
   void SetPositionLocked(int64_t new_position) override
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  void CommitLocked() override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void CommitLocked() override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 };
 
 class SegmentedSpaceSwitchOperation : public SpaceSwitchOperation {
@@ -131,16 +130,16 @@ private:
   static std::string StateToString(const State &state);
 
   [[nodiscard]] int64_t position_locked() const override
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+      ABSL_SHARED_LOCKS_REQUIRED(mutex());
   void SetPositionLocked(int64_t new_position) override
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  void CommitLocked() override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void CommitLocked() override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 
-  void SetState(State new_state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void SetState(State new_state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
   void EndGesture(const States::GestureActive &gesture_active)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
   int64_t GetNextBoundary(bool is_moving_positive)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 };
 
 } // namespace fasterswiper

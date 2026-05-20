@@ -9,7 +9,7 @@
 #include <absl/cleanup/cleanup.h>
 #include <absl/log/check.h>
 #include <absl/log/log.h>
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
@@ -46,14 +46,17 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
   CHECK(params.easing_function != nullptr);
 
   VLOG(1) << "BEGIN AnimateToPosition(params=" << params << ")";
-  auto cleanup = absl::MakeCleanup(
-      [&] { VLOG(1) << "END   AnimateToPosition(params=" << params << ")"; });
+  absl::Cleanup cleanup = [&] {
+    VLOG(1) << "END   AnimateToPosition(params=" << params << ")";
+  };
 
   if (absl::Status status = CancelAnimationAndEnsureNotCommitted();
       !status.ok()) {
     VLOG(1) << "AnimateToPosition(): animation was already committed";
     return status;
   }
+
+  const int64_t period_ns = 1'000'000'000 / params.ticks_per_second;
 
   auto state = std::make_unique<AnimationState>(AnimationState{
       .start_position = operation_->position(),
@@ -63,12 +66,12 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
   std::promise<AnimatedSpaceSwitchOperationResult> promise;
   pending_future_ = promise.get_future().share();
   timer_ = std::make_unique<PeriodicTimer>(PeriodicTimer::Parameters{
-      .period_ns = 1'000'000'000 / params.ticks_per_second,
+      .period_ns = period_ns,
       .tick_callback =
           [this, state = std::move(state)](
               int64_t time_since_start_ns) -> PeriodicTimerTickResult {
-        const double total_ns = static_cast<double>(
-            absl::ToInt64Nanoseconds(state->params.duration));
+        const double total_ns =
+            absl::ToDoubleNanoseconds(state->params.duration);
         const double elapsed_ns = static_cast<double>(time_since_start_ns);
         const double linear_t =
             total_ns <= 0 ? 1.0 : std::clamp(elapsed_ns / total_ns, 0.0, 1.0);
@@ -93,19 +96,21 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
       .stopped_callback =
           [this, promise = std::move(promise)](
               PeriodicTimerStopReason stop_reason) mutable -> void {
-        AnimatedSpaceSwitchOperationResult result;
         switch (stop_reason) {
           using enum PeriodicTimerStopReason;
         case kFinished:
           operation_->Commit();
-          result = AnimatedSpaceSwitchOperationResult::kCommitted;
+          promise.set_value(AnimatedSpaceSwitchOperationResult::kCommitted);
           break;
         case kCancelled:
-          result = AnimatedSpaceSwitchOperationResult::kCancelled;
+          promise.set_value(AnimatedSpaceSwitchOperationResult::kCancelled);
           break;
+        default:
+          LOG(FATAL)
+              << "Unknown PeriodicTimerStopReason "
+              << static_cast<std::underlying_type_t<PeriodicTimerStopReason>>(
+                     stop_reason);
         }
-
-        promise.set_value(result);
       },
   });
 
@@ -114,7 +119,7 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
 
 AnimatedSpaceSwitchOperationResult SwipeAnimator::CancelAnimation() {
   VLOG(1) << "CancelAnimation(): BEGIN";
-  auto cleanup = absl::MakeCleanup([] { VLOG(1) << "CancelAnimation(): END"; });
+  absl::Cleanup cleanup = [] { VLOG(1) << "CancelAnimation(): END"; };
 
   if (!pending_future_.valid()) {
     VLOG(1) << "CancelAnimation(): pending_future_ NOT valid";

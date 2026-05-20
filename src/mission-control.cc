@@ -9,14 +9,14 @@
 #include <CoreFoundation/CFNumber.h>
 #include <CoreFoundation/CFString.h>
 
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 
 namespace fasterswiper {
 
 absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow() {
   const int cid = SLSMainConnectionID();
   auto spaces_ref =
-      WrapCFUnique(SLSCopySpaces(cid, (CGSSpaceMask)(kCGSCurrentOSSpacesMask)));
+      WrapCFUnique(SLSCopySpaces(cid, CGSSpaceMask::kCGSCurrentOSSpacesMask));
   if (spaces_ref == nullptr) {
     return absl::InternalError("Failed to load space IDs");
   }

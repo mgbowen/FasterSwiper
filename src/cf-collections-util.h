@@ -7,9 +7,9 @@
 
 #include <absl/base/nullability.h>
 #include <absl/status/status.h>
+#include <absl/status/status_macros.h>
 #include <absl/status/statusor.h>
 #include <absl/strings/str_cat.h>
-#include <gutil/status.h>
 
 namespace fasterswiper {
 
@@ -225,7 +225,7 @@ CFArrayOptionalGetAs(absl_nonnull CFArrayRef array, CFIndex idx) {
 
 // Extract an int from a CFNumberRef.
 inline absl::StatusOr<int> CFNumberToInt(absl_nonnull CFNumberRef ref) {
-  int result;
+  int result = 0;
   if (!CFNumberGetValue(ref, kCFNumberIntType, &result)) {
     return absl::InvalidArgumentError("failed to convert CFNumber to int");
   }

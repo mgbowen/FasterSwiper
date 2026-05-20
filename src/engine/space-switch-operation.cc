@@ -13,7 +13,7 @@
 #include <CoreGraphics/CGEvent.h>
 
 #include <absl/log/log.h>
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 
 namespace fasterswiper {
 
@@ -259,7 +259,7 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
 void SegmentedSpaceSwitchOperation::SetState(State new_state) {
   VLOG(1) << "SegmentedSpaceSwitchOperation::SetState(): new_state="
           << StateToString(new_state);
-  state_ = std::move(new_state);
+  state_ = new_state;
 }
 
 void SegmentedSpaceSwitchOperation::EndGesture(

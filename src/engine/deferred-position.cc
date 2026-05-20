@@ -3,6 +3,7 @@
 #include "src/engine/const.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 
 namespace fasterswiper {
@@ -31,7 +32,7 @@ void DeferredPosition::Set(int64_t new_position) {
         (new_position >= 0 ? new_position + kDeferAbsThreshold
                            : new_position - kDeferAbsThreshold) /
         kOneSwipeInNanoswipes * kOneSwipeInNanoswipes;
-    effective_ = threshold - kDeferAbsThreshold * direction;
+    effective_ = threshold - (kDeferAbsThreshold * direction);
     deferred_ = new_position;
   } else {
     effective_ = new_position;

@@ -15,17 +15,21 @@ cc_library(
     deps = [
         ":fasterswiper_cc_proto",
         "//src:CoreFoundation",
+        "//src:cf-util",
         "//src:easing",
         "//src:event-tap-manager",
         "//src:macos-private",
+        "//src:proto-util",
         "//src:version",
         "//src/engine:physical-event-handler",
         "@abseil-cpp//absl/debugging:failure_signal_handler",
         "@abseil-cpp//absl/debugging:symbolize",
         "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:globals",
         "@abseil-cpp//absl/log:initialize",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/synchronization",
     ],
@@ -46,6 +50,7 @@ proto_library(
 
 cc_proto_library(
     name = "fasterswiper_cc_proto",
+    tags = ["no-lint"],
     deps = [":fasterswiper_proto"],
 )
 

@@ -30,11 +30,9 @@ EasingFunction MakeEasingFunctionEaseOutQuintic() {
   return EasingFunctionEaseOutQuintic;
 }
 
-EasingFunction
-MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier bezier) {
-  return [bezier = std::move(bezier)](double t) -> double {
-    return bezier.Solve(t);
-  };
+EasingFunction MakeEasingFunctionBezier(
+    const third_party::chromium::gfx::CubicBezier &bezier) {
+  return [bezier](double t) -> double { return bezier.Solve(t); };
 }
 
 absl::StatusOr<EasingFunction>

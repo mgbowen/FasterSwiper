@@ -17,9 +17,14 @@ public:
   DeferredPosition() = default;
   explicit DeferredPosition(int64_t initial_position);
 
-  int64_t get() const { return effective_; }
-  int64_t deferred() const { return deferred_.value_or(effective_); }
-  bool has_deferred() const { return deferred_.has_value(); }
+  [[nodiscard]] int64_t get() const { return effective_; }
+
+  [[nodiscard]] int64_t deferred() const {
+    return deferred_.value_or(effective_);
+  }
+
+  [[nodiscard]] bool has_deferred() const { return deferred_.has_value(); }
+
   void Set(int64_t new_position);
   void SetAndCommit(int64_t new_position);
   void CommitDeferred();

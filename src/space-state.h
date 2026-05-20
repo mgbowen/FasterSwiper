@@ -18,17 +18,21 @@ public:
              std::vector<int64_t> space_ids, CFIndex index);
 
   SpaceState(const SpaceState &other) noexcept = default;
+  SpaceState(SpaceState &&) = default;
   SpaceState &operator=(const SpaceState &other) noexcept = default;
+  SpaceState &operator=(SpaceState &&) = default;
+
+  ~SpaceState() = default;
 
   absl_nonnull CFSharedPtr<CFStringRef> display_id() const {
     return display_id_;
   }
 
-  CFIndex index() const { return index_; }
+  int64_t index() const { return index_; }
 
   const std::vector<int64_t> space_ids() const { return space_ids_; }
 
-  CFIndex count() const { return space_ids_.size(); }
+  int64_t count() const { return static_cast<int64_t>(space_ids_.size()); }
 
   [[nodiscard]] int64_t ProgressToSwipes(double progress) const;
   [[nodiscard]] double SwipesToProgress(int64_t nanoswipes) const;
@@ -46,8 +50,8 @@ public:
 private:
   CFSharedPtr<CFStringRef> display_id_;
   std::vector<int64_t> space_ids_;
-  CFIndex index_;
-  double unit_factor_;
+  int64_t index_ = 0;
+  double unit_factor_ = 0;
 };
 
 absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay();

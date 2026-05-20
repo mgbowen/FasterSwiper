@@ -3,12 +3,13 @@
 #include <iostream>
 #include <thread>
 
-#include "src/space-state.h"
 #include <absl/flags/parse.h>
+#include <absl/log/check.h>
+#include <absl/log/log.h>
+#include <absl/status/status_macros.h>
 #include <absl/time/time.h>
 
-using namespace fasterswiper;
-
+namespace fasterswiper {
 namespace {
 
 void SendKeyWithControl(CGKeyCode key_code) {
@@ -26,17 +27,13 @@ void SendKeyWithControl(CGKeyCode key_code) {
   CGEventPost(kCGHIDEventTap, up.get());
 }
 
-} // namespace
-
-int main(int argc, char *argv[]) {
-  absl::ParseCommandLine(argc, argv);
-
+absl::Status Run() {
   EventTapManager::Callback callback = [](CGEventTapProxy proxy,
                                           CGEventType event_type,
                                           CGEventRef event) -> CGEventRef {
     if (event_type == kCGEventKeyDown) {
-      CGKeyCode keycode = (CGKeyCode)CGEventGetIntegerValueField(
-          event, kCGKeyboardEventKeycode);
+      auto keycode = static_cast<CGKeyCode>(
+          CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
       if (keycode == 53) { // Escape key
         std::abort();
       }
@@ -45,14 +42,11 @@ int main(int argc, char *argv[]) {
     return event;
   };
 
-  auto maybe_tap_manager = EventTapManager::Create(
-      kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault,
-      {kCGEventKeyDown}, std::move(callback));
-  if (!maybe_tap_manager.ok()) {
-    std::cerr << "Failed to create tap manager\n";
-    return 1;
-  }
-  auto tap_manager = std::move(*maybe_tap_manager);
+  ASSIGN_OR_RETURN(
+      auto tap_manager,
+      EventTapManager::Create(kCGSessionEventTap, kCGHeadInsertEventTap,
+                              kCGEventTapOptionDefault, {kCGEventKeyDown},
+                              std::move(callback)));
 
   CFUniquePtr<CFRunLoopSourceRef> run_loop_source =
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
@@ -76,4 +70,14 @@ int main(int argc, char *argv[]) {
   while (true) {
     CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0, true);
   }
+
+  return absl::OkStatus();
+}
+
+} // namespace
+} // namespace fasterswiper
+
+int main(int argc, char *argv[]) {
+  absl::ParseCommandLine(argc, argv);
+  QCHECK_OK(::fasterswiper::Run());
 }

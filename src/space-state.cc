@@ -25,8 +25,8 @@ SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
 SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
                        std::vector<int64_t> space_ids, CFIndex index)
     : display_id_(std::move(display_id)), space_ids_(std::move(space_ids)),
-      index_(index),
-      unit_factor_(static_cast<double>(count()) / (count() - 1)) {}
+      index_(index), unit_factor_(static_cast<double>(count()) /
+                                  static_cast<double>(count() - 1)) {}
 
 int64_t SpaceState::ProgressToSwipes(double progress) const {
   return RoundNanopositions(progress / unit_factor_ * kOneSwipeInNanoswipes);
@@ -58,8 +58,9 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
 
   int cid = SLSMainConnectionID();
   auto display_info_dict = WrapCFUnique(SLSCopyManagedDisplaySpaces(cid));
-  if (!display_info_dict)
+  if (!display_info_dict) {
     return absl::InternalError("Failed to load managed display spaces.");
+  }
 
   for (CFIndex i = 0; i < CFArrayGetCount(display_info_dict.get()); i++) {
     auto display = static_cast<CFDictionaryRef>(
@@ -123,7 +124,7 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
         continue;
       }
 
-      int64_t space_id;
+      int64_t space_id = 0;
       CFNumberGetValue(space_id_ref, kCFNumberSInt64Type, &space_id);
       space_ids.push_back(space_id);
 

@@ -4,7 +4,7 @@
 #include <absl/flags/parse.h>
 #include <absl/log/check.h>
 #include <absl/status/status.h>
-#include <gutil/status.h>
+#include <absl/status/status_macros.h>
 
 namespace fasterswiper {
 

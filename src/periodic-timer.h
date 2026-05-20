@@ -40,6 +40,12 @@ public:
   };
 
   explicit PeriodicTimer(Parameters parameters);
+
+  PeriodicTimer(const PeriodicTimer &) = delete;
+  PeriodicTimer(PeriodicTimer &&) = delete;
+  PeriodicTimer &operator=(const PeriodicTimer &) = delete;
+  PeriodicTimer &operator=(PeriodicTimer &&) = delete;
+
   ~PeriodicTimer();
 
   // Cancel the timer. This method blocks until the timer is guaranteed to no

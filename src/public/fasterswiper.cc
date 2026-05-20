@@ -24,8 +24,8 @@
 #include <absl/log/initialize.h>
 #include <absl/log/log.h>
 #include <absl/status/status.h>
+#include <absl/status/status_macros.h>
 #include <absl/status/statusor.h>
-#include <gutil/status.h>
 
 namespace {
 
@@ -38,8 +38,6 @@ using ::fasterswiper::ToProtoDuration;
 using ::fasterswiper::WrapCFUnique;
 
 namespace proto = fasterswiper::proto;
-
-std::once_flag init_flag;
 
 proto::DaemonOptions GetDefaultDaemonOptions() {
   proto::DaemonOptions options;
@@ -57,6 +55,7 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
 extern "C" {
 
 void FS_Init(int argc, char **argv) {
+  static std::once_flag init_flag;
   std::call_once(init_flag, [&] {
     std::vector<char *> positional_args;
     std::vector<absl::UnrecognizedFlag> unrecognized_flags;
@@ -161,6 +160,7 @@ bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
       return false;
     }
 
+    // NOLINTNEXTLINE(bugprone-not-null-terminated-result)
     std::memcpy(out_data, binary_proto.data(), binary_proto.size());
   }
 
