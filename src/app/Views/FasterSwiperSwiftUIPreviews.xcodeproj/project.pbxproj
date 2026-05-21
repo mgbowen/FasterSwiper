@@ -11,6 +11,7 @@
 		E50C6B4C2FBA1A8F0069007B /* SettingsViewModelProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50C6B4A2FBA1A8F0069007B /* SettingsViewModelProtocol.swift */; };
 		E50C6B4F2FBA1AB00069007B /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50C6B4D2FBA1AB00069007B /* App.swift */; };
 		E50C6B502FBA1AB00069007B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50C6B4E2FBA1AB00069007B /* SettingsView.swift */; };
+		E5F449792FBE8DEA00BCAB17 /* StoplightIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F449782FBE8DEA00BCAB17 /* StoplightIcon.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +20,7 @@
 		E50C6B4A2FBA1A8F0069007B /* SettingsViewModelProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsViewModelProtocol.swift; path = ../ViewModels/SettingsViewModelProtocol.swift; sourceTree = SOURCE_ROOT; };
 		E50C6B4D2FBA1AB00069007B /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		E50C6B4E2FBA1AB00069007B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E5F449782FBE8DEA00BCAB17 /* StoplightIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoplightIcon.swift; path = ../StoplightIcon.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +37,7 @@
 		E50C6B2E2FBA1A550069007B = {
 			isa = PBXGroup;
 			children = (
+				E5F449782FBE8DEA00BCAB17 /* StoplightIcon.swift */,
 				E50C6B4D2FBA1AB00069007B /* App.swift */,
 				E50C6B4E2FBA1AB00069007B /* SettingsView.swift */,
 				E50C6B492FBA1A8F0069007B /* MockSettingsViewModel.swift */,
@@ -123,6 +126,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E5F449792FBE8DEA00BCAB17 /* StoplightIcon.swift in Sources */,
 				E50C6B4F2FBA1AB00069007B /* App.swift in Sources */,
 				E50C6B502FBA1AB00069007B /* SettingsView.swift in Sources */,
 				E50C6B4B2FBA1A8F0069007B /* MockSettingsViewModel.swift in Sources */,

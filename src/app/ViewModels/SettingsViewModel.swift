@@ -3,6 +3,7 @@ import FasterSwiper_Views
 import Observation
 import ServiceManagement
 import SwiftProtobuf
+import SwiftUI
 
 private func toProtoDuration(fromNanoseconds totalNanos: Int64)
     -> Google_Protobuf_Duration
@@ -36,29 +37,21 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         self.daemonManager = daemonManager
     }
 
-    public func refreshLaunchAtLogin() {
-        self.cachedLaunchAtLogin =
-            switch SMAppService.mainApp.status {
-            case .enabled: true
-            case .requiresApproval: true
-            case .notRegistered: false
-            case .notFound: false
-            @unknown default: false
-            }
-    }
-
     var selectedTab: SettingsViewTab = .settings
+
+    public var statusColor: Color { daemonManager.status.color }
+    public var statusText: String { daemonManager.status.text }
 
     var animationDurationMs: Double {
         get {
             Double(
                 toInt64Milliseconds(
-                    duration: store.options.animationDurationPerSpace
+                    duration: store.daemonOptions.animationDurationPerSpace
                 )
             )
         }
         set {
-            store.options.animationDurationPerSpace =
+            store.daemonOptions.animationDurationPerSpace =
                 toProtoDuration(
                     fromNanoseconds: Int64(newValue * 1_000_000)
                 )
@@ -73,48 +66,48 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     }
 
     var selectedEasingFunctionTag: Int {
-        get { store.options.easingFunction.rawValue }
+        get { store.daemonOptions.easingFunction.rawValue }
         set {
-            store.options.easingFunction =
+            store.daemonOptions.easingFunction =
                 EasingFunction(rawValue: newValue) ?? .linear
             scheduleRestart()
         }
     }
 
     var showCubicBezierField: Bool {
-        store.options.easingFunction == .cubicBezierCurve
+        store.daemonOptions.easingFunction == .cubicBezierCurve
     }
 
     var cubicBezierCurveText: String {
-        get { BezierFormatStyle().format(store.options.cubicBezierCurve) }
+        get { BezierFormatStyle().format(store.daemonOptions.cubicBezierCurve) }
         set {
             if let parsed = try? BezierParseStrategy().parse(newValue) {
-                store.options.cubicBezierCurve = parsed
+                store.daemonOptions.cubicBezierCurve = parsed
                 scheduleRestart()
             }
         }
     }
 
     var framesPerSecond: Int {
-        get { Int(store.options.framesPerSecond) }
+        get { Int(store.daemonOptions.framesPerSecond) }
         set {
-            store.options.framesPerSecond = Int64(newValue)
+            store.daemonOptions.framesPerSecond = Int64(newValue)
             scheduleRestart()
         }
     }
 
     var interceptMissionControlShortcuts: Bool {
-        get { store.options.interceptMissionControlShortcuts }
+        get { store.daemonOptions.interceptMissionControlShortcuts }
         set {
-            store.options.interceptMissionControlShortcuts = newValue
+            store.daemonOptions.interceptMissionControlShortcuts = newValue
             scheduleRestart()
         }
     }
 
     var enableJumpToSpaceShortcuts: Bool {
-        get { store.options.enableJumpToSpaceShortcuts }
+        get { store.daemonOptions.enableJumpToSpaceShortcuts }
         set {
-            store.options.enableJumpToSpaceShortcuts = newValue
+            store.daemonOptions.enableJumpToSpaceShortcuts = newValue
             scheduleRestart()
         }
     }
@@ -133,6 +126,11 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
+    var hideMenuBarIcon: Bool {
+        get { store.hideMenuBarIcon }
+        set { store.hideMenuBarIcon = newValue }
+    }
+
     var versionText: String {
         let versionInfo = daemonManager.version
         let appVersion = "Version " + (versionInfo.version ?? "HEAD")
@@ -142,7 +140,20 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         return "\(appVersion) (\(version))"
     }
 
-    private func scheduleRestart() {
-        daemonManager.scheduleRestart()
+    public func refreshLaunchAtLogin() {
+        self.cachedLaunchAtLogin =
+            switch SMAppService.mainApp.status {
+            case .enabled: true
+            case .requiresApproval: true
+            case .notRegistered: false
+            case .notFound: false
+            @unknown default: false
+            }
     }
+
+    public func toggleDaemon() { daemonManager.toggle() }
+
+    public func quitApplication() { NSApplication.shared.terminate(nil) }
+
+    private func scheduleRestart() { daemonManager.scheduleRestart() }
 }

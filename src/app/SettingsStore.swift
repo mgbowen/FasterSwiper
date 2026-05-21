@@ -7,9 +7,9 @@ import SwiftUI
 public class SettingsStore {
     private let userDefaultsKey = "daemonOptions"
 
-    public var options: DaemonOptions {
+    public var daemonOptions: DaemonOptions {
         get {
-            access(keyPath: \.options)
+            access(keyPath: \.daemonOptions)
             if let data = getOptionsBinaryProto() {
                 return try! DaemonOptions(serializedBytes: data)
             }
@@ -17,8 +17,7 @@ public class SettingsStore {
             return .default
         }
         set {
-            print(newValue.textFormatString())
-            withMutation(keyPath: \.options) {
+            withMutation(keyPath: \.daemonOptions) {
                 do {
                     try UserDefaults.standard.set(
                         newValue.serializedData(),
@@ -31,16 +30,24 @@ public class SettingsStore {
         }
     }
 
+    public var hideMenuBarIcon: Bool {
+        didSet {
+            UserDefaults.standard.set(hideMenuBarIcon, forKey: "hideMenuBarIcon")
+        }
+    }
+
     public init() {
+        hideMenuBarIcon = UserDefaults.standard.bool(forKey: "hideMenuBarIcon")
+
         do {
-            self.options = try hydrateDaemonOptions(
+            self.daemonOptions = try hydrateDaemonOptions(
                 from: getOptionsBinaryProto()
             )
         } catch {
-            self.options = .default
+            self.daemonOptions = .default
         }
     }
-    
+
     private func getOptionsBinaryProto() -> Data? {
         return UserDefaults.standard.data(forKey: userDefaultsKey)
     }

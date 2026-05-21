@@ -1,13 +1,32 @@
+import AppKit
 import FasterSwiper_Daemon
 import Foundation
 import Observation
-import AppKit
+import SwiftUI
 
 public enum DaemonStatus: Sendable {
     case running
     case stopped
     case accessibilityPermissionDenied
     case genericError
+
+    var text: String {
+        switch self {
+        case .running: "Running"
+        case .stopped: "Stopped"
+        case .accessibilityPermissionDenied: "Accessibility permissions denied"
+        case .genericError: "Failed to start"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .running: .green
+        case .stopped: .gray
+        case .accessibilityPermissionDenied: .red
+        case .genericError: .red
+        }
+    }
 }
 
 @MainActor
@@ -27,7 +46,7 @@ public final class DaemonManager {
     }
 
     public func start() {
-        performStart(with: settingsStore.options)
+        performStart(with: settingsStore.daemonOptions)
     }
 
     public func stop() {
@@ -60,7 +79,7 @@ public final class DaemonManager {
             // Debounce for 250ms to avoid rapid restarts while typing/sliding.
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            performStart(with: settingsStore.options)
+            performStart(with: settingsStore.daemonOptions)
         }
     }
 
@@ -76,7 +95,9 @@ public final class DaemonManager {
     }
 
     private func requestAccessibilityPermissions() -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        let options =
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true]
+            as CFDictionary
         return AXIsProcessTrustedWithOptions(options)
     }
 }

@@ -12,7 +12,7 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
         TabView(selection: $viewModel.selectedTab) {
             Tab("Settings", systemImage: "gear", value: .settings) {
                 SettingsTabView(viewModel: viewModel)
-                    .frame(maxWidth: 450)
+                    .frame(maxWidth: 500)
                 Spacer()
             }
             Tab("About", systemImage: "info.circle", value: .about) {
@@ -20,7 +20,7 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
             }
         }
         .scenePadding()
-        .frame(width: 600, height: 375)
+        .frame(width: 700, height: 510)
         .onAppear {
             viewModel.refreshLaunchAtLogin()
         }
@@ -32,10 +32,30 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
 
 struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
     @State var viewModel: VM
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Form {
+            Section {
+                LabeledContent("Status:") {
+                    VStack(alignment: .leading) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(viewModel.statusColor)
+                                .font(.custom("", size: 10, relativeTo: .body))
+                            Text(viewModel.statusText)
+                        }
+                        HStack {
+                            Button("Toggle") { viewModel.toggleDaemon() }
+                            Button("Quit FasterSwiper") {
+                                viewModel.quitApplication()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer().frame(height: 20)
+
             Section {
                 LabeledContent("Animation duration:") {
                     HStack {
@@ -67,24 +87,20 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                         }.labelsHidden()
 
                         if viewModel.showCubicBezierField {
-                            Section(
-                                footer:
-                                    Text(
-                                        "Enter a CSS `cubic-bezier()` value from, e.g. [cubic-bezier.com](https://cubic-bezier.com), or four comma-separated numbers."
-                                    )
-                                    .fixedSize(
-                                        horizontal: false,
-                                        vertical: true
-                                    )
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            ) {
+                            Section {
                                 TextField(
                                     "Curve",
                                     text: $viewModel.cubicBezierCurveText
                                 )
-                                .frame(width: 300)
                                 .labelsHidden()
+                            } footer: {
+                                Text(
+                                    "Enter a CSS `cubic-bezier()` value from, e.g. [cubic-bezier.com](https://cubic-bezier.com), or four comma-separated numbers."
+                                )
+                                .fixedSize(horizontal: false, vertical: true)
+                                .font(.callout)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 5)
                             }
                         }
                     }
@@ -104,7 +120,7 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                 }
             }
 
-            Spacer().frame(height: 15)
+            Spacer().frame(height: 20)
 
             Section {
                 LabeledContent("Keyboard:") {
@@ -117,8 +133,9 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                             "Change these shortcuts in\n[System Settings → Keyboard → Keyboard Shortcuts](x-apple.systempreferences:com.apple.Keyboard?ModifierKeys) → Mission Control"
                         )
                         .fixedSize(horizontal: false, vertical: true)
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
+                        .padding(.bottom, 5)
                     }
                 }
                 Toggle(
@@ -129,20 +146,35 @@ struct SettingsTabView<VM: SettingsViewModelProtocol>: View {
                     "⌃+1 through ⌃+0 to switch directly to spaces 1 through 10, respectively."
                 )
                 .fixedSize(horizontal: false, vertical: true)
-                .font(.caption)
+                .font(.callout)
                 .foregroundColor(.secondary)
             }
 
-            Spacer().frame(height: 15)
+            Spacer().frame(height: 20)
 
             Section {
-                LabeledContent("Startup:") {
+                LabeledContent("General:") {
                     Toggle(
                         "Launch at login",
                         isOn: $viewModel.launchAtLogin
                     )
                 }
+
+                Toggle(
+                    "Hide menu bar icon",
+                    isOn: $viewModel.hideMenuBarIcon
+                )
+                if viewModel.hideMenuBarIcon {
+                    Text(
+                        "Open FasterSwiper.app to get back to this window."
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 5)
+                }
             }
+
         }
     }
 }

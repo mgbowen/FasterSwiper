@@ -1,4 +1,5 @@
 import Observation
+import SwiftUI
 
 @MainActor
 @Observable
@@ -7,9 +8,10 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
         self.selectedTab = selectedTab
     }
 
-    public func refreshLaunchAtLogin() {}
-
     public var selectedTab: SettingsViewTab = .settings
+
+    public var statusColor: Color { .green }
+    public var statusText: String { "Running" }
 
     public var animationDurationMs: Double = 350
 
@@ -28,7 +30,13 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
     public var framesPerSecond: Int = 240
     public var interceptMissionControlShortcuts: Bool = true
     public var enableJumpToSpaceShortcuts: Bool = true
+
     public var launchAtLogin: Bool = true
+    public var hideMenuBarIcon: Bool = true
 
     public var versionText: String = "Version v99.99.99 (1234abc, dirty)"
+
+    public func refreshLaunchAtLogin() {}
+    public func toggleDaemon() {}
+    public func quitApplication() {}
 }

@@ -19,9 +19,10 @@ public enum SettingsViewTab {
 
 @MainActor
 public protocol SettingsViewModelProtocol: AnyObject, Observable {
-    func refreshLaunchAtLogin()
-
     var selectedTab: SettingsViewTab { get set }
+
+    var statusColor: Color { get }
+    var statusText: String { get }
 
     var animationDurationMs: Double { get set }
     var easingFunctionOptions: [PickerOption] { get }
@@ -31,7 +32,13 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var framesPerSecond: Int { get set }
     var interceptMissionControlShortcuts: Bool { get set }
     var enableJumpToSpaceShortcuts: Bool { get set }
+
     var launchAtLogin: Bool { get set }
+    var hideMenuBarIcon: Bool { get set }
 
     var versionText: String { get }
+
+    func refreshLaunchAtLogin()
+    func toggleDaemon()
+    func quitApplication()
 }
