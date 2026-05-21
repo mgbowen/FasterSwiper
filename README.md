@@ -24,8 +24,8 @@ https://github.com/user-attachments/assets/29fc5d4c-aa4b-4233-bc74-f6e3110b75fb
 
 ### Custom cubic Bezier curves
 
-If the included animation options don't exactly meet your needs, you can also set
-a custom cubic Bezier curve to get the exact easing you want. It also lets you use
+If the included animation options don't exactly meet your needs, you can set a
+custom cubic Bezier curve to get the exact easing you want. It also lets you use
 some _interesting_ animations, like so:
 
 https://github.com/user-attachments/assets/d5b5c1ec-cbd2-4908-83b0-29257a692570
