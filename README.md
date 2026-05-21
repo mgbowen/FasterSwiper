@@ -30,6 +30,31 @@ some _interesting_ animations, like so:
 
 https://github.com/user-attachments/assets/d5b5c1ec-cbd2-4908-83b0-29257a692570
 
+## FAQ
+
+### Are any special permissions required to run this?
+
+FasterSwiper requires accessibility permissions to function. You can grant those
+permissions by going to Settings → Privacy & Security → Accessibility and adding
+`FasterSwiper.app`. If you build your own version using `bazel run`, you should
+grant permissions to `Terminal.app`.
+
+### How does this work?
+
+FasterSwiper tracks physical three-finger gestures, used to move between macOS
+spaces. When a gesture completes, it determines which space to move to, then
+injects synthetic gestures over a configurable period of time to animate the
+movement between spaces.
+
+### Why was this made?
+
+When running on a display at 60Hz, the animation to move between spaces completes
+in roughly ½ second, which, while a bit long for my taste, is tolerable. For some
+strange reason, the duration doubles when running at 120Hz to roughly 1 second,
+which moves into being intolerable. FasterSwiper allows me to shorten the animation
+duration and customize the animation easing curve; my personal preference is a
+quadratic ease out over 200ms.
+
 ## Building
 
 FasterSwiper uses Bazel. Install Bazelisk with
@@ -61,13 +86,6 @@ Then, you can build and run the app in Terminal:
 ```bash
 bazel run -c opt //src/app:FasterSwiper_app
 ```
-
-## Permissions
-
-FasterSwiper requires accessibility permissions to function. You can grant those
-permissions by going to Settings → Privacy & Security → Accessibility and adding
-the `.app` file. If you use `bazel run`, you should grant permissions to
-`Terminal.app`.
 
 ## Contributing
 
