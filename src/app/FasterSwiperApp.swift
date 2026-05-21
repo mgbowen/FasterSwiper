@@ -58,7 +58,7 @@ struct FasterSwiperApp: App {
             systemImage: "appwindow.swipe.rectangle",
             isInserted: !$settingsStore.hideMenuBarIcon
         ) {
-            Button("About FasterSwiper") {
+            Button("About FasterSwiper", systemImage: "info.circle") {
                 openAbout()
             }
 
@@ -78,11 +78,11 @@ struct FasterSwiperApp: App {
 
             Divider()
 
-            Button("Settings...") {
+            Button("Settings...", systemImage: "gear") {
                 openSettings()
             }
 
-            Button("Quit") {
+            Button("Quit", systemImage: "xmark.rectangle") {
                 NSApplication.shared.terminate(nil)
             }
         }
