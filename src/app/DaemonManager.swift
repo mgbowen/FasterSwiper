@@ -34,15 +34,15 @@ public enum DaemonStatus: Sendable {
 public final class DaemonManager {
     public private(set) var status: DaemonStatus = .stopped
 
+    @ObservationIgnored @Environment(\.settingsStore) private var settingsStore
+
     private let daemon: DaemonProtocol
-    private let settingsStore: SettingsStore
     private var restartTask: Task<Void, Never>?
 
     public var version: VersionInfo { daemon.version }
 
-    public init(daemon: DaemonProtocol, settingsStore: SettingsStore) {
+    public init(daemon: DaemonProtocol) {
         self.daemon = daemon
-        self.settingsStore = settingsStore
     }
 
     public func start() {

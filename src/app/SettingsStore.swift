@@ -32,7 +32,10 @@ public class SettingsStore {
 
     public var hideMenuBarIcon: Bool {
         didSet {
-            UserDefaults.standard.set(hideMenuBarIcon, forKey: "hideMenuBarIcon")
+            UserDefaults.standard.set(
+                hideMenuBarIcon,
+                forKey: "hideMenuBarIcon"
+            )
         }
     }
 
@@ -50,5 +53,16 @@ public class SettingsStore {
 
     private func getOptionsBinaryProto() -> Data? {
         return UserDefaults.standard.data(forKey: userDefaultsKey)
+    }
+}
+
+private struct SettingsStoreKey: EnvironmentKey {
+    static let defaultValue = SettingsStore()
+}
+
+extension EnvironmentValues {
+    var settingsStore: SettingsStore {
+        get { self[SettingsStoreKey.self] }
+        set { self[SettingsStoreKey.self] = newValue }
     }
 }

@@ -28,12 +28,12 @@ private func toInt64Milliseconds(duration: Google_Protobuf_Duration) -> Int64 {
 @MainActor
 @Observable
 final class SettingsViewModel: SettingsViewModelProtocol {
-    private let store: SettingsStore
+    @ObservationIgnored @Environment(\.settingsStore) private var settingsStore
+
     private let daemonManager: DaemonManager
     private var cachedLaunchAtLogin: Bool = false
 
-    init(store: SettingsStore, daemonManager: DaemonManager) {
-        self.store = store
+    init(daemonManager: DaemonManager) {
         self.daemonManager = daemonManager
     }
 
@@ -46,12 +46,13 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         get {
             Double(
                 toInt64Milliseconds(
-                    duration: store.daemonOptions.animationDurationPerSpace
+                    duration: settingsStore.daemonOptions
+                        .animationDurationPerSpace
                 )
             )
         }
         set {
-            store.daemonOptions.animationDurationPerSpace =
+            settingsStore.daemonOptions.animationDurationPerSpace =
                 toProtoDuration(
                     fromNanoseconds: Int64(newValue * 1_000_000)
                 )
@@ -66,48 +67,53 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     }
 
     var selectedEasingFunctionTag: Int {
-        get { store.daemonOptions.easingFunction.rawValue }
+        get { settingsStore.daemonOptions.easingFunction.rawValue }
         set {
-            store.daemonOptions.easingFunction =
+            settingsStore.daemonOptions.easingFunction =
                 EasingFunction(rawValue: newValue) ?? .linear
             scheduleRestart()
         }
     }
 
     var showCubicBezierField: Bool {
-        store.daemonOptions.easingFunction == .cubicBezierCurve
+        settingsStore.daemonOptions.easingFunction == .cubicBezierCurve
     }
 
     var cubicBezierCurveText: String {
-        get { BezierFormatStyle().format(store.daemonOptions.cubicBezierCurve) }
+        get {
+            BezierFormatStyle().format(
+                settingsStore.daemonOptions.cubicBezierCurve
+            )
+        }
         set {
             if let parsed = try? BezierParseStrategy().parse(newValue) {
-                store.daemonOptions.cubicBezierCurve = parsed
+                settingsStore.daemonOptions.cubicBezierCurve = parsed
                 scheduleRestart()
             }
         }
     }
 
     var framesPerSecond: Int {
-        get { Int(store.daemonOptions.framesPerSecond) }
+        get { Int(settingsStore.daemonOptions.framesPerSecond) }
         set {
-            store.daemonOptions.framesPerSecond = Int64(newValue)
+            settingsStore.daemonOptions.framesPerSecond = Int64(newValue)
             scheduleRestart()
         }
     }
 
     var interceptMissionControlShortcuts: Bool {
-        get { store.daemonOptions.interceptMissionControlShortcuts }
+        get { settingsStore.daemonOptions.interceptMissionControlShortcuts }
         set {
-            store.daemonOptions.interceptMissionControlShortcuts = newValue
+            settingsStore.daemonOptions.interceptMissionControlShortcuts =
+                newValue
             scheduleRestart()
         }
     }
 
     var enableJumpToSpaceShortcuts: Bool {
-        get { store.daemonOptions.enableJumpToSpaceShortcuts }
+        get { settingsStore.daemonOptions.enableJumpToSpaceShortcuts }
         set {
-            store.daemonOptions.enableJumpToSpaceShortcuts = newValue
+            settingsStore.daemonOptions.enableJumpToSpaceShortcuts = newValue
             scheduleRestart()
         }
     }
@@ -127,8 +133,8 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     }
 
     var hideMenuBarIcon: Bool {
-        get { store.hideMenuBarIcon }
-        set { store.hideMenuBarIcon = newValue }
+        get { settingsStore.hideMenuBarIcon }
+        set { settingsStore.hideMenuBarIcon = newValue }
     }
 
     var versionText: String {

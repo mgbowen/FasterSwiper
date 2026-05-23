@@ -12,8 +12,10 @@ prefix func ! (value: Binding<Bool>) -> Binding<Bool> {
 
 // Handles events from macOS when the user attempts to open the app again, which
 // allows someone to open the settings window if they've hidden the menu bar
-// icon.
+// icon. Also opens settings on first launch if the menu bar icon is hidden and
+// the app wasn't started automatically as a login item.
 class AppDelegate: NSObject, NSApplicationDelegate {
+    @Environment(\.settingsStore) private var settingsStore
     @Environment(\.openSettings) private var openSettingsAction
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -23,27 +25,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             forEventClass: AEEventClass(kCoreEventClass),
             andEventID: AEEventID(kAEReopenApplication)
         )
+
+        // Detect if the app was launched as a login item.
+        let wasLaunchedAtLogin: Bool = {
+            guard let event = NSAppleEventManager.shared().currentAppleEvent
+            else {
+                return false
+            }
+            let descriptor = event.paramDescriptor(
+                forKeyword: keyAELaunchedAsLogInItem
+            )
+            return descriptor?.booleanValue ?? false
+        }()
+
+        // If the menu bar icon is hidden and this isn't an automatic login
+        // launch, open settings so the user isn't stranded with no UI.
+        if !wasLaunchedAtLogin && settingsStore.hideMenuBarIcon {
+            openSettingsAction()
+        }
     }
 
-    @objc func handleReopenEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
+    @objc func handleReopenEvent(
+        _ event: NSAppleEventDescriptor,
+        replyEvent: NSAppleEventDescriptor
+    ) {
         openSettingsAction()
     }
 }
 
 @main
 struct FasterSwiperApp: App {
-    @State private var settingsStore: SettingsStore
     @State private var daemonManager: DaemonManager
     @State private var settingsViewModel: SettingsViewModel
+    @Environment(\.settingsStore) private var settingsStore
     @Environment(\.openSettings) private var openSettingsAction
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
-        let store = SettingsStore()
-        let manager = DaemonManager(daemon: Daemon(), settingsStore: store)
-        let viewModel = SettingsViewModel(store: store, daemonManager: manager)
+        let manager = DaemonManager(daemon: Daemon())
+        let viewModel = SettingsViewModel(daemonManager: manager)
 
-        _settingsStore = State(initialValue: store)
         _daemonManager = State(initialValue: manager)
         _settingsViewModel = State(initialValue: viewModel)
 
@@ -53,6 +74,8 @@ struct FasterSwiperApp: App {
     }
 
     var body: some Scene {
+        @Bindable var settingsStore = settingsStore
+
         MenuBarExtra(
             "FasterSwiper",
             systemImage: "appwindow.swipe.rectangle",
