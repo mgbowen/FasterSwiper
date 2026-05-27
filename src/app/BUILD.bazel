@@ -19,6 +19,7 @@ swift_library(
     srcs = [
         "DaemonManager.swift",
         "FasterSwiperApp.swift",
+        "PermissionsMonitor.swift",
         "SettingsStore.swift",
         "ViewModels/SettingsViewModel.swift",
     ],

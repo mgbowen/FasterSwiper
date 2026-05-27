@@ -38,11 +38,16 @@ public final class DaemonManager {
 
     private let daemon: DaemonProtocol
     private var restartTask: Task<Void, Never>?
+    @ObservationIgnored private lazy var permissionsMonitor =
+        PermissionsMonitor { [weak self] in
+            self?.handleAccessibilityPermissionsRevoked()
+        }
 
     public var version: VersionInfo { daemon.version }
 
     public init(daemon: DaemonProtocol) {
         self.daemon = daemon
+        permissionsMonitor.start()
     }
 
     public func start() {
@@ -99,5 +104,14 @@ public final class DaemonManager {
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true]
             as CFDictionary
         return AXIsProcessTrustedWithOptions(options)
+    }
+
+    private func handleAccessibilityPermissionsRevoked() {
+        restartTask?.cancel()
+
+        guard status == .running || status == .genericError else { return }
+
+        daemon.stop()
+        status = .accessibilityPermissionDenied
     }
 }

@@ -97,6 +97,10 @@ struct FasterSwiperApp: App {
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(daemonManager.status.color)
                 }
+
+                if daemonManager.status == .accessibilityPermissionDenied {
+                    Text("Click to retry")
+                }
             }
 
             Divider()

@@ -4,7 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "accessibility-check",
-    srcs = ["accessibility-check.h"],
+    srcs = ["accessibility-check.cc"],
     hdrs = ["accessibility-check.h"],
     deps = [
         "//src:cf-util",
