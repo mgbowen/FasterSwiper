@@ -63,6 +63,7 @@ cc_library(
         ":deferred-position",
         "//src:cf-util",
         "//src:event",
+        "//src:gesture-serialization",
         "//src:macos-private",
         "//src:mission-control",
         "//src:periodic-timer",

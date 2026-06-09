@@ -9,6 +9,7 @@ namespace fasterswiper {
 // rubberbanding downwards in App Expose, which will cause it to close App
 // Expose and go back to the Desktop. A larger, but still small value, fixes it.
 constexpr double kEpsilon = 1e-15;
+constexpr double kFixed1616Epsilon = 0.000016;
 
 constexpr double kInstantSwitchVelocity = 50;
 

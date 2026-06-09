@@ -3,6 +3,7 @@
 #include "src/cf-util.h"
 #include "src/engine/const.h"
 #include "src/event.h"
+#include "src/gesture-serialization.h"
 #include "src/macos-private.h"
 
 #include <cfloat>
@@ -106,6 +107,21 @@ void SpaceSwitchOperation::PostEvent(int phase, double progress,
       velocity);
   VLOG(1) << "PostEvent(): event=" << CFEventToDebugString(event.get());
 
+  // Serialize the event to inject Field 4205, then deserialize it back.
+  std::optional<std::string> serialized = SerializeGestureEvent(event.get());
+  if (serialized.has_value()) {
+    CFUniquePtr<CGEventRef> deserialized_event =
+        DeserializeGestureEvent(*serialized);
+    if (deserialized_event != nullptr) {
+      CGEventPost(kCGSessionEventTap, deserialized_event.get());
+      return;
+    }
+    LOG(ERROR) << "PostEvent(): DeserializeGestureEvent failed";
+  } else {
+    LOG(ERROR) << "PostEvent(): SerializeGestureEvent failed";
+  }
+
+  // Fallback to original event if serialization fails.
   CGEventPost(kCGSessionEventTap, event.get());
 }
 
@@ -173,10 +189,20 @@ void ContinuousSpaceSwitchOperation::CommitLocked() {
     PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
               kInstantSwitchVelocity * latest_direction_);
 
-    for (int i = 0; i < num_spaces - 1; i++) {
+    if (num_spaces >= 2) {
+      for (int i = 0; i < num_spaces - 2; i++) {
+        PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
+        PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
+                  kInstantSwitchVelocity * latest_direction_);
+      }
+
       PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
-      PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
-                kInstantSwitchVelocity * latest_direction_);
+      PostEvent(
+          kGestureEnded,
+          (axis_adapter_locked().NanoswipesToProgress(kOneSwipeInNanoswipes) -
+           kFixed1616Epsilon) *
+              direction_from_origin_to_target,
+          kEpsilon * latest_direction_);
     }
 
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
