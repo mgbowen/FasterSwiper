@@ -81,6 +81,8 @@ constexpr CGEventField kCGEventGestureSwipeVelocityX =
     static_cast<CGEventField>(129);
 constexpr CGEventField kCGEventGestureSwipeVelocityY =
     static_cast<CGEventField>(130);
+constexpr CGEventField kCGEventGestureSwipeMask =
+    static_cast<CGEventField>(115);
 constexpr CGEventField kCGEventGesturePhase = static_cast<CGEventField>(132);
 constexpr CGEventField kCGEventScrollGestureFlagBits =
     static_cast<CGEventField>(135);
@@ -100,5 +102,76 @@ constexpr int kGestureBegan = 1;
 constexpr int kGestureChanged = 2;
 constexpr int kGestureEnded = 4;
 constexpr int kGestureCancelled = 8;
+
+using FixedFP1616 = int32_t;
+
+enum class IOHIDEventType : uint32_t {
+  kIOHIDEventTypeVelocity = 9,
+  kIOHIDEventTypeFluidTouchGesture = 23,
+};
+
+struct __attribute__((packed)) IOHIDSystemQueueElement {
+  uint64_t timestamp;
+  uint64_t sender_id;
+  uint32_t options;
+  uint32_t attribute_length;
+  uint32_t event_count;
+  uint8_t payload[0];
+};
+
+static_assert(sizeof(IOHIDSystemQueueElement) == 28,
+              "Unexpected sizeof(IOHIDSystemQueueElement)");
+
+struct __attribute__((packed)) IOHIDEventBase {
+  uint32_t size;
+  IOHIDEventType type;
+  uint32_t options;
+  uint8_t depth;
+  uint8_t reserved[3];
+};
+
+static_assert(sizeof(IOHIDEventBase) == 16,
+              "Unexpected sizeof(IOHIDEventBase)");
+
+enum class IOHIDSwipeMask : uint32_t {
+  kIOHIDSwipeUp = 1,
+  kIOHIDSwipeDown = 2,
+  kIOHIDSwipeLeft = 4,
+  kIOHIDSwipeRight = 8,
+};
+
+enum class IOHIDGestureMotion : uint16_t {
+  kIOHIDGestureMotionHorizontalX = 1,
+  kIOHIDGestureMotionVerticalY = 2,
+};
+
+enum class IOHIDGestureFlavor : uint16_t {
+  kIOHIDGestureFlavorDockPrimary = 3,
+};
+
+struct __attribute__((packed)) IOHIDFluidTouchGestureData {
+  IOHIDEventBase base;
+  FixedFP1616 position_x;
+  FixedFP1616 position_y;
+  FixedFP1616 position_z;
+  IOHIDSwipeMask swipe_mask;
+  IOHIDGestureMotion gesture_motion;
+  IOHIDGestureFlavor gesture_flavor;
+  FixedFP1616 swipe_progress;
+};
+
+static_assert(sizeof(IOHIDFluidTouchGestureData) == 40,
+              "Unexpected sizeof(IOHIDFluidTouchGestureData)");
+
+// IOHIDVelocityEventData. Size: 28 bytes.
+struct __attribute__((packed)) IOHIDVelocityEventData {
+  IOHIDEventBase base;
+  FixedFP1616 velocity_x;
+  FixedFP1616 velocity_y;
+  FixedFP1616 velocity_z;
+};
+
+static_assert(sizeof(IOHIDVelocityEventData) == 28,
+              "Unexpected sizeof(IOHIDVelocityEventData)");
 
 } // namespace fasterswiper

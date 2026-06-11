@@ -216,7 +216,13 @@ cc_library(
         ":CoreFoundation",
         ":cf-util",
         ":macos-private",
+        ":variant-util",
+        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -225,8 +231,8 @@ cc_test(
     name = "gesture_serialization_test",
     srcs = ["gesture_serialization_test.cc"],
     deps = [
-        ":gesture-serialization",
         ":event",
+        ":gesture-serialization",
         ":macos-private",
         "@abseil-cpp//absl/log",
         "@googletest//:gtest",

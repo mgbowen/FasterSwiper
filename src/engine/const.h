@@ -11,7 +11,7 @@ namespace fasterswiper {
 constexpr double kEpsilon = 1e-15;
 constexpr double kFixed1616Epsilon = 0.000016;
 
-constexpr double kInstantSwitchVelocity = 50;
+constexpr double kInstantSwitchVelocity = 100;
 
 constexpr int64_t kOneSwipeInNanoswipes = 1'000'000;
 

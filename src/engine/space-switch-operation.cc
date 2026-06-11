@@ -107,22 +107,14 @@ void SpaceSwitchOperation::PostEvent(int phase, double progress,
       velocity);
   VLOG(1) << "PostEvent(): event=" << CFEventToDebugString(event.get());
 
-  // Serialize the event to inject Field 4205, then deserialize it back.
-  std::optional<std::string> serialized = SerializeGestureEvent(event.get());
-  if (serialized.has_value()) {
-    CFUniquePtr<CGEventRef> deserialized_event =
-        DeserializeGestureEvent(*serialized);
-    if (deserialized_event != nullptr) {
-      CGEventPost(kCGSessionEventTap, deserialized_event.get());
-      return;
-    }
-    LOG(ERROR) << "PostEvent(): DeserializeGestureEvent failed";
+  absl::StatusOr<CFUniquePtr<CGEventRef>> maybe_augmented_event =
+      AugmentCGEvent(event.get());
+  if (maybe_augmented_event.ok()) {
+    CGEventPost(kCGSessionEventTap, maybe_augmented_event->get());
   } else {
-    LOG(ERROR) << "PostEvent(): SerializeGestureEvent failed";
+    LOG(ERROR) << "Failed to augment CGEvent: "
+               << maybe_augmented_event.status();
   }
-
-  // Fallback to original event if serialization fails.
-  CGEventPost(kCGSessionEventTap, event.get());
 }
 
 absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>>
@@ -186,23 +178,35 @@ void ContinuousSpaceSwitchOperation::CommitLocked() {
     const double direction_from_origin_to_target =
         distance_from_origin() > 0 ? 1 : -1;
 
+    if (latest_direction_ != direction_from_origin_to_target) {
+      // For some reason, if the latest direction doesn't match the overall
+      // gesture direction, Window Server gets confused when we do the instant
+      // space switches as part of the commit. We compensate by moving a little
+      // past our target in the same direction as the latest direction, then
+      // moving back in the same direction as the gesture direction.
+      //
+      // The math below seems off, I need to redo this.
+      PostEvent(kGestureChanged,
+                progress_from_origin() * direction_from_origin_to_target +
+                    kFixed1616Epsilon * latest_direction_);
+      PostEvent(kGestureChanged,
+                progress_from_origin() * direction_from_origin_to_target);
+    }
+
     PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
-              kInstantSwitchVelocity * latest_direction_);
+              kInstantSwitchVelocity * direction_from_origin_to_target);
 
     if (num_spaces >= 2) {
       for (int i = 0; i < num_spaces - 2; i++) {
         PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
         PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
-                  kInstantSwitchVelocity * latest_direction_);
+                  kInstantSwitchVelocity * direction_from_origin_to_target);
       }
 
       PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
-      PostEvent(
-          kGestureEnded,
-          (axis_adapter_locked().NanoswipesToProgress(kOneSwipeInNanoswipes) -
-           kFixed1616Epsilon) *
-              direction_from_origin_to_target,
-          kEpsilon * latest_direction_);
+      PostEvent(kGestureEnded, axis_adapter_locked().NanoswipesToProgress(
+                                   kOneSwipeInNanoswipes) *
+                                   direction_from_origin_to_target);
     }
 
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
