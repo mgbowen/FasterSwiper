@@ -1,0 +1,20 @@
+--- a/third_party/address_sorting/address_sorting.bzl
++++ b/third_party/address_sorting/address_sorting.bzl
+@@ -29,3 +29,5 @@
+ 
++load("@rules_cc//cc:defs.bzl", "cc_library")
++
+ def address_sorting_cc_library(name, srcs, hdrs, copts, includes, linkopts=[]):
+-    native.cc_library(
++    cc_library(
+         name = name,
+         srcs = srcs,
+         hdrs = hdrs,
+         copts = copts,
+--- a/third_party/xxhash/BUILD
++++ b/third_party/xxhash/BUILD
+@@ -1,2 +1,4 @@
++load("@rules_cc//cc:defs.bzl", "cc_library")
++
+ # TODO(donnadionne): describe this package.
+ cc_library(

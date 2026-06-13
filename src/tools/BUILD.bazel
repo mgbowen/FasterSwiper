@@ -1,4 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -26,6 +29,7 @@ cc_binary(
         "//src:macos-private",
         "//src:periodic-timer",
         "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@nlohmann_json//:json",
@@ -43,7 +47,9 @@ cc_binary(
         "//src:periodic-timer",
         "//src/tools/util:accessibility-check",
         "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/strings",
         "@nlohmann_json//:json",
     ],
@@ -58,7 +64,11 @@ cc_binary(
         "//src:macos-private",
         "//src:space-state",
         "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -79,3 +89,119 @@ cc_binary(
         "@abseil-cpp//absl/strings",
     ],
 )
+
+cc_binary(
+    name = "cgevent-dump",
+    srcs = ["cgevent-dump.cc"],
+    deps = [
+        "//src:ApplicationServices",
+        "//src:CoreFoundation",
+        "//src:gesture-serialization",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@nlohmann_json//:json",
+    ],
+)
+
+cc_binary(
+    name = "record-events",
+    srcs = ["record-events.cc"],
+    deps = [
+        "//src:ApplicationServices",
+        "//src:CoreFoundation",
+        "//src:cf-util",
+        "//src:event-tap-manager",
+        "//src:gesture-serialization",
+        "//src:macos-private",
+        "//src:periodic-timer",
+        "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
+        "@abseil-cpp//absl/strings",
+        "@nlohmann_json//:json",
+    ],
+)
+
+cc_binary(
+    name = "playback-events",
+    srcs = ["playback-events.cc"],
+    deps = [
+        "//src:ApplicationServices",
+        "//src:CoreFoundation",
+        "//src:cf-util",
+        "//src:event-tap-manager",
+        "//src:gesture-serialization",
+        "//src:macos-private",
+        "//src:periodic-timer",
+        "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
+        "@abseil-cpp//absl/strings",
+        "@nlohmann_json//:json",
+    ],
+)
+
+proto_library(
+    name = "stream_events_proto",
+    srcs = ["stream-events.proto"],
+)
+
+cc_proto_library(
+    name = "stream_events_cc_proto",
+    deps = [":stream_events_proto"],
+)
+
+cc_grpc_library(
+    name = "stream_events_cc_grpc",
+    srcs = [":stream_events_proto"],
+    grpc_only = True,
+    deps = [":stream_events_cc_proto", "@grpc//:grpc++"],
+)
+
+cc_binary(
+    name = "stream-events-client",
+    srcs = ["stream-events-client.cc"],
+    deps = [
+        ":stream_events_cc_grpc",
+        "//src:ApplicationServices",
+        "//src:CoreFoundation",
+        "//src:cf-util",
+        "//src:event-tap-manager",
+        "//src:macos-private",
+        "//src:channel",
+        "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@grpc//:grpc++",
+    ],
+)
+
+cc_binary(
+    name = "stream-events-server",
+    srcs = ["stream-events-server.cc"],
+    deps = [
+        ":stream_events_cc_grpc",
+        "//src:ApplicationServices",
+        "//src:CoreFoundation",
+        "//src:cf-util",
+        "//src:macos-private",
+        "//src/tools/util:accessibility-check",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@grpc//:grpc++",
+    ],
+)
+
+

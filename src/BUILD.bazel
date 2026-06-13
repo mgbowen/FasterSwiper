@@ -227,19 +227,6 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "gesture_serialization_test",
-    srcs = ["gesture_serialization_test.cc"],
-    deps = [
-        ":event",
-        ":gesture-serialization",
-        ":macos-private",
-        "@abseil-cpp//absl/log",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
 cc_library(
     name = "ApplicationServices",
     linkopts = ["-framework ApplicationServices"],

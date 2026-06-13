@@ -1,0 +1,15 @@
+edition = "2024";
+
+package fasterswiper.proto;
+
+message GestureEventProto {
+  bytes serialized_event = 1;
+}
+
+message StreamResult {
+  string message = 1;
+}
+
+service GestureStreamer {
+  rpc StreamGestures(stream GestureEventProto) returns (StreamResult);
+}

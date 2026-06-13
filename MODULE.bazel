@@ -15,6 +15,7 @@ git_override(
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1")
 bazel_dep(name = "protobuf", version = "34.1")
+bazel_dep(name = "grpc", version = "1.81.0")
 bazel_dep(name = "rules_swift_package_manager", version = "1.17.1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
@@ -75,3 +76,10 @@ git_override(
     commit = "a5e45002a9d301e7e7fb6529bd2c721f8a9ae036",
     remote = "https://github.com/mgbowen/bazel-create-dmg.git",
 )
+
+single_version_override(
+    module_name = "grpc",
+    patches = ["//third_party:grpc.patch"],
+    patch_strip = 1,
+)
+

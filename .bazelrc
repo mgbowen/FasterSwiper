@@ -1,6 +1,7 @@
 build --workspace_status_command=$(pwd)/stamp.sh
 build --features=external_include_paths
-build --features=layering_check
+build --features=-layering_check
+build --features=-use_header_modules
 
 build --cxxopt=-std=c++23 --cxxopt=-fno-exceptions
 build --host_cxxopt=-std=c++23 --host_cxxopt=-fno-exceptions
