@@ -30,6 +30,28 @@ some _interesting_ animations, like so:
 
 https://github.com/user-attachments/assets/d5b5c1ec-cbd2-4908-83b0-29257a692570
 
+## Compatibility
+
+The following assumes the latest publicly released, non-beta version.
+
+### macOS 26 Tahoe
+
+Fully working.
+
+### macOS 27 Golden Gate
+
+Swiping to adjacent spaces fully works. Jumping two or more spaces away works,
+but results in errant bounce animations.
+
+> [!IMPORTANT]
+> Because macOS 27 is still in beta, I won't spend much, if any, time on
+> compatibility beyond basic swiping to adjacent spaces. I'll spend more effort
+> after the first public non-beta release.
+
+### Other versions
+
+Untested.
+
 ## FAQ
 
 ### Are any special permissions required to run this?
