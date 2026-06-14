@@ -27,14 +27,15 @@ bool AxisAdapter::WaitForCommittedPositionChanged(
   while (UptimeInNanoseconds() < deadline_ns) {
     const int64_t new_committed_position = *committed_position();
 
-    VLOG_EVERY_N_SEC(1, 0.1) << "WaitForPendingCommit: waiting for gesture "
-                                "commit, new_committed_position="
-                             << new_committed_position;
+    VLOG_EVERY_N_SEC(1, 0.1)
+        << "WaitForPendingCommit: waiting for gesture "
+           "commit, original_position="
+        << original_position
+        << ", new_committed_position=" << new_committed_position;
 
     if (original_position != new_committed_position) {
       const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
-      VLOG(1) << "Commit(): took "
-              << absl::Nanoseconds(commit_latency_ns);
+      VLOG(1) << "Commit(): took " << absl::Nanoseconds(commit_latency_ns);
       break;
     }
 
