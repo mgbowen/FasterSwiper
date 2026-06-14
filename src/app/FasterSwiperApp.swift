@@ -102,6 +102,7 @@ struct FasterSwiperApp: App {
                     Text("Click to retry")
                 }
             }
+            .labelStyle(.titleAndIcon)
 
             Divider()
 
@@ -109,7 +110,7 @@ struct FasterSwiperApp: App {
                 openSettings()
             }
 
-            Button("Quit", systemImage: "xmark.rectangle") {
+            Button("Quit FasterSwiper", systemImage: "xmark.rectangle") {
                 NSApplication.shared.terminate(nil)
             }
         }
