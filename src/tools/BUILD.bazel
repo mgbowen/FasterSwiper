@@ -1,7 +1,7 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -139,6 +139,8 @@ cc_binary(
         "//src:periodic-timer",
         "//src/tools/util:accessibility-check",
         "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",
@@ -161,7 +163,10 @@ cc_grpc_library(
     name = "stream_events_cc_grpc",
     srcs = [":stream_events_proto"],
     grpc_only = True,
-    deps = [":stream_events_cc_proto", "@grpc//:grpc++"],
+    deps = [
+        ":stream_events_cc_proto",
+        "@grpc//:grpc++",
+    ],
 )
 
 cc_binary(
@@ -172,9 +177,9 @@ cc_binary(
         "//src:ApplicationServices",
         "//src:CoreFoundation",
         "//src:cf-util",
+        "//src:channel",
         "//src:event-tap-manager",
         "//src:macos-private",
-        "//src:channel",
         "//src/tools/util:accessibility-check",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
@@ -203,5 +208,3 @@ cc_binary(
         "@grpc//:grpc++",
     ],
 )
-
-

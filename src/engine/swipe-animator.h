@@ -30,7 +30,7 @@ public:
   bool is_committed() const;
 
   // Cancel any active animation and instantly sets the position.
-  absl::Status SetPosition(int64_t new_position);
+  absl::Status SetPosition(int64_t new_position, CGEventSink *absl_nonnull event_sink);
 
   struct AnimateParameters {
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
@@ -52,7 +52,7 @@ public:
   // If an animation is already running, it is cancelled (the SpaceSwitcher
   // position is left wherever it currently is) and the new animation begins
   // from there.
-  absl::Status AnimateToPosition(AnimateParameters params);
+  absl::Status AnimateToPosition(AnimateParameters params, std::unique_ptr<CGEventSink> event_sink);
 
   [[nodiscard]] AnimatedSpaceSwitchOperationResult CancelAnimation();
 
@@ -66,6 +66,7 @@ private:
   const std::unique_ptr<SpaceSwitchOperation> operation_;
   std::unique_ptr<PeriodicTimer> timer_;
   std::shared_future<AnimatedSpaceSwitchOperationResult> pending_future_;
+  std::unique_ptr<CGEventSink> active_event_sink_;
 
   struct AnimationState {
     int64_t start_position ABSL_REQUIRE_EXPLICIT_INIT;

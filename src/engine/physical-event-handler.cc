@@ -41,36 +41,9 @@ PhysicalEventHandler::Create(proto::DaemonOptions options) {
 
 PhysicalEventHandler::PhysicalEventHandler(proto::DaemonOptions options,
                                            HotkeyConfigurations hotkey_configs)
-    : options_(std::move(options)), hotkey_configs_(hotkey_configs) {
-  event_processor_thread_ = std::thread([this] { EventProcessorThread(); });
-}
+    : options_(std::move(options)), hotkey_configs_(hotkey_configs) {}
 
-PhysicalEventHandler::~PhysicalEventHandler() {
-  channel_.CloseWriter();
-  if (event_processor_thread_.joinable()) {
-    event_processor_thread_.join();
-  }
-}
-
-void PhysicalEventHandler::EventProcessorThread() {
-  while (true) {
-    absl::StatusOr<Command> maybe_command = channel_.Read();
-    if (!maybe_command.ok()) {
-      VLOG(1)
-          << "EventProcessorThread(): channel_.Read() returned non-OK status: "
-          << maybe_command.status();
-      break;
-    }
-
-    absl::Status status =
-        std::visit([&](auto command) { return HandleCommand(command); },
-                   *std::move(maybe_command));
-    if (!status.ok()) {
-      LOG(ERROR) << "EventProcessorThread(): Failed to handle event: "
-                 << status;
-    }
-  }
-}
+PhysicalEventHandler::~PhysicalEventHandler() {}
 
 namespace {
 
@@ -81,9 +54,9 @@ enum class UninterestingEventDecision {
 
 }
 
-CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
-                                             CGEventType event_type,
-                                             CGEventRef event) {
+CGEventRef absl_nullable PhysicalEventHandler::HandleEvent(
+    CGEventTapProxy absl_nonnull proxy, CGEventType event_type,
+    CGEventRef absl_nonnull event) {
   std::optional<Event> parsed_event = ParseEvent(event);
   if (!parsed_event.has_value()) {
     VLOG(2) << "HandleEvent(): Not a recognized event";
@@ -158,9 +131,9 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
                   command);
             }
 
-            absl::Status status = channel_.Write(command);
+            absl::Status status = HandleCommand(command, proxy);
             if (!status.ok()) {
-              LOG(ERROR) << "HandleEvent(): Failed to write to channel: "
+              LOG(ERROR) << "HandleEvent(): Failed to handle command: "
                          << status;
               return event;
             }
@@ -172,7 +145,19 @@ CGEventRef PhysicalEventHandler::HandleEvent(CGEventTapProxy proxy,
 }
 
 absl::Status
-PhysicalEventHandler::HandleCommand(const GestureCommand &command) {
+PhysicalEventHandler::HandleCommand(const Command &command,
+                                    CGEventTapProxy absl_nonnull proxy) {
+  return std::visit(
+      overloaded{
+          [&](const GestureCommand &c) { return HandleCommand(c, proxy); },
+          [&](const RelativeMoveCommand &c) { return HandleCommand(c); },
+          [&](const JumpToSpaceCommand &c) { return HandleCommand(c); }},
+      command);
+}
+
+absl::Status
+PhysicalEventHandler::HandleCommand(const GestureCommand &command,
+                                    CGEventTapProxy absl_nonnull proxy) {
   VLOG(1) << "HandleCommand(): command=" << command;
 
   if (animator_ != nullptr && !animator_->is_committed()) {
@@ -195,11 +180,13 @@ PhysicalEventHandler::HandleCommand(const GestureCommand &command) {
   }
 
   if (command.event.phase == kGestureBegan) {
-    return HandleBeginGesture(command.event);
+    CGEventTapPostEventSink sink(proxy);
+    return HandleBeginGesture(command.event, &sink);
   }
 
   if (command.event.phase == kGestureChanged) {
-    return HandleChangeGesture(command.event);
+    CGEventTapPostEventSink sink(proxy);
+    return HandleChangeGesture(command.event, &sink);
   }
 
   if (command.event.phase == kGestureCancelled) {
@@ -215,7 +202,9 @@ PhysicalEventHandler::HandleCommand(const GestureCommand &command) {
 }
 
 absl::Status
-PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event) {
+PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event,
+                                         CGEventSink *absl_nonnull event_sink) {
+  CHECK(event_sink != nullptr);
   VLOG(1) << "HandleBeginGesture(): BEGIN";
   absl::Cleanup cleanup = [] { VLOG(1) << "HandleBeginGesture(): END"; };
 
@@ -231,12 +220,13 @@ PhysicalEventHandler::HandleBeginGesture(const DockControlEvent &swipe_event) {
   }();
 
   RETURN_IF_ERROR(SetUpForNewGesture(axis));
-  RETURN_IF_ERROR(animator_->SetPosition(initial_position_));
+  RETURN_IF_ERROR(animator_->SetPosition(initial_position_, event_sink));
   return absl::OkStatus();
 }
 
-absl::Status
-PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
+absl::Status PhysicalEventHandler::HandleChangeGesture(
+    const DockControlEvent &swipe_event, CGEventSink *absl_nonnull event_sink) {
+  CHECK(event_sink != nullptr);
   VLOG(1) << "HandleChangeGesture(): BEGIN";
   absl::Cleanup cleanup = [] { VLOG(1) << "HandleChangeGesture(): END"; };
 
@@ -250,7 +240,7 @@ PhysicalEventHandler::HandleChangeGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
 
-  RETURN_IF_ERROR(animator_->SetPosition(new_position));
+  RETURN_IF_ERROR(animator_->SetPosition(new_position, event_sink));
   return absl::OkStatus();
 }
 
@@ -292,12 +282,14 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleEndGesture():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-  RETURN_IF_ERROR(animator_->AnimateToPosition({
-      .target_position = target_position_,
-      .duration = duration,
-      .easing_function = std::move(easing_function),
-      .ticks_per_second = options_.frames_per_second(),
-  }));
+  RETURN_IF_ERROR(animator_->AnimateToPosition(
+      {
+          .target_position = target_position_,
+          .duration = duration,
+          .easing_function = std::move(easing_function),
+          .ticks_per_second = options_.frames_per_second(),
+      },
+      std::make_unique<CGEventPostSink>()));
 
   return absl::OkStatus();
 }
@@ -321,12 +313,14 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-  RETURN_IF_ERROR(animator_->AnimateToPosition({
-      .target_position = initial_position_,
-      .duration = duration,
-      .easing_function = std::move(easing_function),
-      .ticks_per_second = options_.frames_per_second(),
-  }));
+  RETURN_IF_ERROR(animator_->AnimateToPosition(
+      {
+          .target_position = initial_position_,
+          .duration = duration,
+          .easing_function = std::move(easing_function),
+          .ticks_per_second = options_.frames_per_second(),
+      },
+      std::make_unique<CGEventPostSink>()));
 
   return absl::OkStatus();
 }
@@ -369,12 +363,14 @@ PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-  RETURN_IF_ERROR(animator_->AnimateToPosition({
-      .target_position = target_position_,
-      .duration = duration,
-      .easing_function = std::move(easing_function),
-      .ticks_per_second = options_.frames_per_second(),
-  }));
+  RETURN_IF_ERROR(animator_->AnimateToPosition(
+      {
+          .target_position = target_position_,
+          .duration = duration,
+          .easing_function = std::move(easing_function),
+          .ticks_per_second = options_.frames_per_second(),
+      },
+      std::make_unique<CGEventPostSink>()));
 
   return absl::OkStatus();
 }
@@ -407,12 +403,14 @@ PhysicalEventHandler::HandleCommand(const JumpToSpaceCommand &command) {
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
   ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
-  RETURN_IF_ERROR(animator_->AnimateToPosition({
-      .target_position = target_position_,
-      .duration = duration,
-      .easing_function = std::move(easing_function),
-      .ticks_per_second = options_.frames_per_second(),
-  }));
+  RETURN_IF_ERROR(animator_->AnimateToPosition(
+      {
+          .target_position = target_position_,
+          .duration = duration,
+          .easing_function = std::move(easing_function),
+          .ticks_per_second = options_.frames_per_second(),
+      },
+      std::make_unique<CGEventPostSink>()));
 
   return absl::OkStatus();
 }

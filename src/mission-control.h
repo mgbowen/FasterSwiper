@@ -10,8 +10,6 @@ enum class ActiveMultitaskingWindow {
   kAppExpose,
 };
 
-absl::StatusOr<bool> IsMissionControlVisible();
-
 absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow();
 
 } // namespace fasterswiper

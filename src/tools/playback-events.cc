@@ -4,15 +4,22 @@
 #include "src/tools/util/accessibility-check.h"
 
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <thread>
 
+#include <absl/flags/flag.h>
+#include <absl/flags/parse.h>
 #include <absl/log/check.h>
 #include <absl/status/status.h>
 #include <absl/strings/escaping.h>
 #include <absl/strings/str_cat.h>
 #include <nlohmann/json.hpp>
+
+ABSL_FLAG(double, playback_speed, 1.0,
+          "Multiplier on playback speed. e.g., 0.5 is half speed (double duration), "
+          "2.0 is double speed (half duration).");
 
 namespace fasterswiper {
 namespace {
@@ -32,7 +39,7 @@ void PostEvent(const json &j) {
   CGEventPost(kCGSessionEventTap, dock.get());
 }
 
-absl::Status Run(const std::string &input_path) {
+absl::Status Run(const std::string &input_path, double playback_speed) {
   if (absl::Status status = CheckForAccessibilityPermissions(); !status.ok()) {
     return status;
   }
@@ -65,7 +72,7 @@ absl::Status Run(const std::string &input_path) {
 
   for (const auto &j : events) {
     const int64_t delta_ns = j["delta_ns"];
-    cumulative_delta_ns += delta_ns;
+    cumulative_delta_ns += static_cast<int64_t>(std::round(delta_ns / playback_speed));
 
     const int64_t now_ns = UptimeInNanoseconds();
     auto target_ns = playback_start_ns + cumulative_delta_ns;
@@ -87,12 +94,19 @@ absl::Status Run(const std::string &input_path) {
 } // namespace fasterswiper
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <input_json_path>\n";
+  std::vector<char*> positional_args = absl::ParseCommandLine(argc, argv);
+  if (positional_args.size() != 2) {
+    std::cerr << "Usage: " << positional_args[0] << " <input_json_path> [--playback_speed <multiplier>]\n";
     return 1;
   }
 
-  std::string input_path = argv[1];
-  QCHECK_OK(::fasterswiper::Run(input_path));
+  std::string input_path = positional_args[1];
+  double playback_speed = absl::GetFlag(FLAGS_playback_speed);
+  if (playback_speed <= 0.0) {
+    std::cerr << "Error: --playback_speed must be positive.\n";
+    return 1;
+  }
+
+  QCHECK_OK(::fasterswiper::Run(input_path, playback_speed));
   return 0;
 }

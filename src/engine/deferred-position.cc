@@ -10,7 +10,7 @@ namespace fasterswiper {
 
 namespace {
 
-constexpr int64_t kDeferAbsThreshold = 1;
+constexpr int64_t kDeferAbsThreshold = 20;
 
 } // namespace
 

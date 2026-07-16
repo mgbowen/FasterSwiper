@@ -88,7 +88,6 @@ cc_library(
         ":const",
         ":space-switch-operation",
         ":swipe-animator",
-        "//src:channel",
         "//src:enum-util",
         "//src:event",
         "//src:hotkeys",

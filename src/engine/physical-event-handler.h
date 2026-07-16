@@ -1,14 +1,13 @@
 #pragma once
 
-#include "src/channel.h"
 #include "src/engine/swipe-animator.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
 #include "src/public/fasterswiper.pb.h"
 
 #include <memory>
-#include <thread>
 
+#include <absl/base/nullability.h>
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
@@ -26,8 +25,8 @@ public:
   PhysicalEventHandler(PhysicalEventHandler &&) = delete;
   PhysicalEventHandler &operator=(PhysicalEventHandler &&) = delete;
 
-  CGEventRef HandleEvent(CGEventTapProxy proxy, CGEventType event_type,
-                         CGEventRef event);
+  CGEventRef absl_nullable HandleEvent(CGEventTapProxy absl_nonnull proxy, CGEventType event_type,
+                         CGEventRef absl_nonnull event);
 
 private:
   struct GestureCommand {
@@ -74,8 +73,6 @@ private:
   const proto::DaemonOptions options_;
   const HotkeyConfigurations hotkey_configs_;
 
-  std::thread event_processor_thread_;
-  Channel<Command> channel_{1024};
   std::unique_ptr<SwipeAnimator> animator_;
   int64_t initial_position_ = 0;
   int64_t target_position_ = 0;
@@ -83,11 +80,10 @@ private:
   PhysicalEventHandler(proto::DaemonOptions options,
                        HotkeyConfigurations hotkey_configs);
 
-  void EventProcessorThread();
-
-  absl::Status HandleCommand(const GestureCommand &command);
-  absl::Status HandleBeginGesture(const DockControlEvent &swipe_event);
-  absl::Status HandleChangeGesture(const DockControlEvent &swipe_event);
+  absl::Status HandleCommand(const Command &command, CGEventTapProxy absl_nonnull proxy);
+  absl::Status HandleCommand(const GestureCommand &command, CGEventTapProxy absl_nonnull proxy);
+  absl::Status HandleBeginGesture(const DockControlEvent &swipe_event, CGEventSink *absl_nonnull event_sink);
+  absl::Status HandleChangeGesture(const DockControlEvent &swipe_event, CGEventSink *absl_nonnull event_sink);
   absl::Status HandleEndGesture(const DockControlEvent &swipe_event);
   absl::Status HandleCancelGesture(const DockControlEvent &swipe_event);
 

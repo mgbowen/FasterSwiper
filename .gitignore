@@ -3,3 +3,7 @@
 /xcodeproj.xcodeproj/
 
 .DS_Store
+
+/*.zip
+/*.dmg
+/*.app/

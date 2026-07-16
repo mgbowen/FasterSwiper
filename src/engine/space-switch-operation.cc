@@ -13,6 +13,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreGraphics/CGEvent.h>
 
+#include <absl/log/check.h>
 #include <absl/log/log.h>
 #include <absl/status/status_macros.h>
 
@@ -39,6 +40,14 @@ int Sign(auto spaceship_operator_result) {
 }
 
 } // namespace
+
+void CGEventPostSink::Post(CGEventRef absl_nonnull event) {
+  CGEventPost(kCGSessionEventTap, event);
+}
+
+void CGEventTapPostEventSink::Post(CGEventRef absl_nonnull event) {
+  CGEventTapPostEvent(proxy_, event);
+}
 
 SpaceSwitchOperation::SpaceSwitchOperation(
     std::unique_ptr<AxisAdapter> axis_adapter)
@@ -76,32 +85,39 @@ SpaceSwitchOperation::position_soft_limits_locked() const {
   return axis_adapter_->position_soft_limits();
 }
 
-void SpaceSwitchOperation::SetPosition(int64_t new_position) {
+void SpaceSwitchOperation::SetPosition(int64_t new_position,
+                                       CGEventSink *absl_nonnull event_sink) {
+  CHECK(event_sink != nullptr);
+
   absl::MutexLock lock(mutex_);
 
   VLOG(1) << "BEGIN SetPosition(new_position=" << new_position
           << "): current_position=" << position_locked();
-  SetPositionLocked(new_position);
+  SetPositionLocked(new_position, event_sink);
   VLOG(1) << "END SetPosition(" << new_position
           << "): current_position_=" << position_locked();
 }
 
-void SpaceSwitchOperation::Commit() {
+void SpaceSwitchOperation::Commit(CGEventSink *absl_nonnull event_sink) {
+  CHECK(event_sink != nullptr);
+
   absl::MutexLock lock(mutex_);
   VLOG(1) << "BEGIN Commit()";
 
   if (is_committed_) {
     VLOG(1) << "Already committed";
   } else {
-    CommitLocked();
+    CommitLocked(event_sink);
     is_committed_ = true;
   }
 
   VLOG(1) << "END Commit()";
 }
 
-void SpaceSwitchOperation::PostEvent(int phase, double progress,
+void SpaceSwitchOperation::PostEvent(CGEventSink *absl_nonnull event_sink,
+                                     int phase, double progress,
                                      std::optional<double> velocity) const {
+  CHECK(event_sink != nullptr);
   CFUniquePtr<CGEventRef> event = CreateDockControlGestureEvent(
       phase, static_cast<int>(axis_adapter_->movement_direction()), progress,
       velocity);
@@ -110,7 +126,7 @@ void SpaceSwitchOperation::PostEvent(int phase, double progress,
   absl::StatusOr<CFUniquePtr<CGEventRef>> maybe_augmented_event =
       AugmentCGEvent(event.get());
   if (maybe_augmented_event.ok()) {
-    CGEventPost(kCGSessionEventTap, maybe_augmented_event->get());
+    event_sink->Post(maybe_augmented_event->get());
   } else {
     LOG(ERROR) << "Failed to augment CGEvent: "
                << maybe_augmented_event.status();
@@ -143,7 +159,8 @@ int64_t ContinuousSpaceSwitchOperation::position_locked() const {
   return *current_position_;
 }
 
-void ContinuousSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
+void ContinuousSpaceSwitchOperation::SetPositionLocked(
+    int64_t new_position, CGEventSink *absl_nonnull event_sink) {
   if (new_position == current_position_) {
     return;
   }
@@ -151,15 +168,16 @@ void ContinuousSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
   latest_direction_ = (new_position - *current_position_) > 0 ? 1 : -1;
 
   if (!gesture_started_) {
-    PostEvent(kGestureBegan, kEpsilon * latest_direction_);
+    PostEvent(event_sink, kGestureBegan, kEpsilon * latest_direction_);
     gesture_started_ = true;
   }
 
   current_position_.Set(new_position);
-  PostEvent(kGestureChanged, progress_from_origin());
+  PostEvent(event_sink, kGestureChanged, progress_from_origin());
 }
 
-void ContinuousSpaceSwitchOperation::CommitLocked() {
+void ContinuousSpaceSwitchOperation::CommitLocked(
+    CGEventSink *absl_nonnull event_sink) {
   VLOG(1) << "Commit(): origin_position_=" << origin_position_
           << ", current_position_=" << current_position_
           << ", latest_direction_=" << latest_direction_
@@ -172,18 +190,21 @@ void ContinuousSpaceSwitchOperation::CommitLocked() {
       std::abs(distance_from_origin() / kOneSwipeInNanoswipes);
 
   if (distance_from_origin() == 0) {
-    PostEvent(kGestureCancelled, kEpsilon * latest_direction_ * -1,
+    PostEvent(event_sink, kGestureCancelled, kEpsilon * latest_direction_ * -1,
               kEpsilon * latest_direction_);
   } else {
     const double direction_from_origin_to_target =
         distance_from_origin() > 0 ? 1 : -1;
 
-    PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
+    PostEvent(event_sink, kGestureEnded,
+              kEpsilon * direction_from_origin_to_target,
               kInstantSwitchVelocity * latest_direction_);
 
     for (int i = 0; i < num_spaces - 1; i++) {
-      PostEvent(kGestureBegan, kEpsilon * direction_from_origin_to_target);
-      PostEvent(kGestureEnded, kEpsilon * direction_from_origin_to_target,
+      PostEvent(event_sink, kGestureBegan,
+                kEpsilon * direction_from_origin_to_target);
+      PostEvent(event_sink, kGestureEnded,
+                kEpsilon * direction_from_origin_to_target,
                 kInstantSwitchVelocity * latest_direction_);
     }
 
@@ -220,7 +241,8 @@ int64_t SegmentedSpaceSwitchOperation::position_locked() const {
   return *current_position_;
 }
 
-void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
+void SegmentedSpaceSwitchOperation::SetPositionLocked(
+    int64_t new_position, CGEventSink *absl_nonnull event_sink) {
   if (new_position == *current_position_) {
     return;
   }
@@ -235,7 +257,8 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
           .origin_position = current_position_.deferred(),
       });
 
-      PostEvent(kGestureBegan, is_moving_positive ? kEpsilon : -kEpsilon);
+      PostEvent(event_sink, kGestureBegan,
+                is_moving_positive ? kEpsilon : -kEpsilon);
     }
 
     auto &gesture_active = std::get<States::GestureActive>(state_);
@@ -255,11 +278,11 @@ void SegmentedSpaceSwitchOperation::SetPositionLocked(int64_t new_position) {
     VLOG(1) << "is_boundary_reached=" << is_boundary_reached;
 
     if (is_boundary_reached) {
-      EndGesture(gesture_active);
+      EndGesture(gesture_active, event_sink);
     } else {
       const double progress = axis_adapter_locked().NanoswipesToProgress(
           *current_position_ - gesture_active.origin_position);
-      PostEvent(kGestureChanged, progress);
+      PostEvent(event_sink, kGestureChanged, progress);
     }
   }
 }
@@ -271,7 +294,8 @@ void SegmentedSpaceSwitchOperation::SetState(State new_state) {
 }
 
 void SegmentedSpaceSwitchOperation::EndGesture(
-    const States::GestureActive &gesture_active) {
+    const States::GestureActive &gesture_active,
+    CGEventSink *absl_nonnull event_sink) {
   if (!current_position_.has_deferred()) {
     LOG(ERROR) << "current_position_ is not deferred!";
   }
@@ -307,21 +331,23 @@ void SegmentedSpaceSwitchOperation::EndGesture(
                                        ? -current_to_new_position_sign
                                        : current_to_new_position_sign;
     const double signed_epsilon = kEpsilon * effective_sign;
-    PostEvent(kGestureChanged, signed_epsilon);
-    PostEvent(kGestureCancelled, signed_epsilon, signed_epsilon);
+    PostEvent(event_sink, kGestureChanged, signed_epsilon);
+    PostEvent(event_sink, kGestureCancelled, signed_epsilon, signed_epsilon);
   } else {
     // Moving away from the gesture origin.
     const double progress = axis_adapter_locked().NanoswipesToProgress(
         current_position_.deferred() - gesture_active.origin_position);
-    PostEvent(kGestureChanged, progress);
-    PostEvent(kGestureEnded, progress, kEpsilon * current_to_new_position_sign);
+    PostEvent(event_sink, kGestureChanged, progress);
+    PostEvent(event_sink, kGestureEnded, progress,
+              kEpsilon * current_to_new_position_sign);
   }
 
   current_position_.CommitDeferred();
   SetState(States::Idle{});
 }
 
-void SegmentedSpaceSwitchOperation::CommitLocked() {
+void SegmentedSpaceSwitchOperation::CommitLocked(
+    CGEventSink *absl_nonnull event_sink) {
   if (const auto *gesture_active =
           std::get_if<States::GestureActive>(&state_)) {
     if (current_position_.deferred() % kOneSwipeInNanoswipes != 0) {
@@ -330,7 +356,7 @@ void SegmentedSpaceSwitchOperation::CommitLocked() {
           kOneSwipeInNanoswipes);
     }
 
-    EndGesture(*gesture_active);
+    EndGesture(*gesture_active, event_sink);
   }
 
   if (operation_origin_position_ != current_position_.deferred()) {

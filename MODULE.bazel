@@ -70,10 +70,10 @@ git_override(
     remote = "https://github.com/claymaks/bazel-compile-commands-extractor.git",
 )
 
-bazel_dep(name = "mgbowen_create_dmg")
+bazel_dep(name = "mgbowen_bazel_create_dmg")
 git_override(
-    module_name = "mgbowen_create_dmg",
-    commit = "a5e45002a9d301e7e7fb6529bd2c721f8a9ae036",
+    module_name = "mgbowen_bazel_create_dmg",
+    commit = "352250f742a82a5c6f4d02d05c7bf187a56c5ca9",
     remote = "https://github.com/mgbowen/bazel-create-dmg.git",
 )
 
@@ -82,4 +82,3 @@ single_version_override(
     patches = ["//third_party:grpc.patch"],
     patch_strip = 1,
 )
-

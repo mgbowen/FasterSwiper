@@ -178,7 +178,6 @@ CreateDockControlGestureEvent(int phase, int direction, double progress,
   CGEventSetIntegerValueField(event.get(), kCGEventGestureHIDType,
                               kIOHIDEventTypeDockSwipe);
   CGEventSetIntegerValueField(event.get(), kCGEventGesturePhase, phase);
-  CGEventSetIntegerValueField(event.get(), (CGEventField)134, phase);
   CGEventSetIntegerValueField(event.get(), kCGEventGestureSwipeMotion,
                               direction);
   CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeProgress,
@@ -188,12 +187,6 @@ CreateDockControlGestureEvent(int phase, int direction, double progress,
     CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeVelocityX,
                                *velocity);
   }
-
-  CGEventSetDoubleValueField(event.get(), (CGEventField)138, 3);
-  CGEventSetDoubleValueField(event.get(), (CGEventField)169,
-                             mach_absolute_time());
-
-  CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipePositionX, 0.1);
 
   return event;
 }

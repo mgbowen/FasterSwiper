@@ -1,5 +1,5 @@
 {
-  "lockFileVersion": 26,
+  "lockFileVersion": 28,
   "registryFileHashes": {
     "https://bcr.bazel.build/bazel_registry.json": "8a28e4aff06ee60aed2a8c281907fb8bcbf3b753c91fb5a5c57da3215d5b3497",
     "https://bcr.bazel.build/modules/abseil-py/2.1.0/MODULE.bazel": "5ebe5bf853769c65707e5c28f216798f7a4b1042015e6a36e6d03094d94bec8a",
@@ -576,73 +576,6 @@
         }
       }
     },
-    "@@hedron_compile_commands+//:workspace_setup.bzl%hedron_compile_commands_extension": {
-      "general": {
-        "bzlTransitiveDigest": "xfHREXIOWIcGVzoG9cUsecfHYTs1FeQNomBubjpqjW0=",
-        "usagesDigest": "CbJ2MjubH36j9xaONhhASfhodhpi5fzvuyg/IW2f7Ds=",
-        "recordedInputs": [
-          "REPO_MAPPING:hedron_compile_commands+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {}
-      }
-    },
-    "@@hedron_compile_commands+//:workspace_setup_transitive.bzl%hedron_compile_commands_extension": {
-      "general": {
-        "bzlTransitiveDigest": "IfDf0vEa2jjQ11RNpUM0u4xftPXIs+pyM8IMVkRqVMk=",
-        "usagesDigest": "yxZQbFglJyjpn7JZ9mhIc3EhLzZivlbs6wiHWOKJ/UA=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {}
-      }
-    },
-    "@@hedron_compile_commands+//:workspace_setup_transitive_transitive.bzl%hedron_compile_commands_extension": {
-      "general": {
-        "bzlTransitiveDigest": "1p58k3o2Jgjt/pBE7cb8WmmkplrSguIKma/h32x7X10=",
-        "usagesDigest": "GkOuy/k8wz0dbKMeEJFKEJB3CWkMZt3DYcPgj4lALkI=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {}
-      }
-    },
-    "@@hedron_compile_commands+//:workspace_setup_transitive_transitive_transitive.bzl%hedron_compile_commands_extension": {
-      "general": {
-        "bzlTransitiveDigest": "arNWX4EleUjJxqkM5nCRTj+ce05Zz1gSdGH1DCKOoLs=",
-        "usagesDigest": "WZExKK/BI4lqpUZfPpv4YARDE1Y7igQB+wYGKvNoCKs=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {}
-      }
-    },
-    "@@protobuf+//python/dist:system_python.bzl%system_python_extension": {
-      "general": {
-        "bzlTransitiveDigest": "qh0n9IrXU/xS94wxKQrG1J63zrLkA1Wy2Y3BQxptPcI=",
-        "usagesDigest": "AF5a9lHFrJtHw1GTt3jJOs7ZYl1+N2bkn1LbPFLoguA=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "system_python": {
-            "repoRuleId": "@@protobuf+//python/dist:system_python.bzl%system_python",
-            "attributes": {
-              "minimum_python_version": "3.9"
-            }
-          }
-        }
-      }
-    },
-    "@@rules_android+//bzlmod_extensions:apksig.bzl%apksig_extension": {
-      "general": {
-        "bzlTransitiveDigest": "IiT2UgJGnHaKiyP2A1yh3U/QWN4W9g/Byolrm78hC/s=",
-        "usagesDigest": "0FXD4PX+vQ/jVne2oV4v3Cw5Mc9DZQ4yTcoRkAjj/X4=",
-        "recordedInputs": [
-          "REPO_MAPPING:rules_android+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {
-          "apksig": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-            "attributes": {
-              "url": "https://android.googlesource.com/platform/tools/apksig/+archive/24e3075e68ebe17c0b529bb24bfda819db5e2f3b.tar.gz",
-              "build_file": "@@rules_android+//bzlmod_extensions:apksig.BUILD"
-            }
-          }
-        }
-      }
-    },
     "@@rules_android+//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension": {
       "general": {
         "bzlTransitiveDigest": "qHbR00gVzVzkxX+PRtv4UGcUFMtBz7TK9CNYUWH8nIE=",
@@ -677,7 +610,7 @@
     "@@rules_nodejs+//nodejs:extensions.bzl%node": {
       "general": {
         "bzlTransitiveDigest": "oZFClfRhTTwsYzpxVPkOpOt/r0+OzEfEV37au0jFZ0s=",
-        "usagesDigest": "6DfA7zyhYIef0XDlcMhTn6Y2j76s7Pxcg7DrVVVOmL4=",
+        "usagesDigest": "91FeVBnqbTVGiaR2OjY9EmPbbhtzLJ1Dl3oz2dIS3pk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "nodejs_linux_amd64": {
@@ -689,7 +622,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "linux_amd64"
             }
@@ -703,7 +636,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "linux_arm64"
             }
@@ -717,7 +650,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "linux_s390x"
             }
@@ -731,7 +664,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "linux_ppc64le"
             }
@@ -745,7 +678,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "darwin_amd64"
             }
@@ -759,7 +692,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "darwin_arm64"
             }
@@ -773,7 +706,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "windows_amd64"
             }
@@ -787,7 +720,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "22.22.2",
-              "node_version_from_nvmrc": "@@mgbowen_create_dmg+//:.nvmrc",
+              "node_version_from_nvmrc": "@@mgbowen_bazel_create_dmg+//:.nvmrc",
               "include_headers": false,
               "platform": "windows_arm64"
             }
@@ -969,9 +902,6 @@
     }
   },
   "facts": {
-    "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
-      "10.33.2": "sha512-qQ+vb+6rca1sblf5Tg/hoS9dzCLNdU20CulZPraj4LaxLjVAIYuzeuCDQEsfLObbKkEh6XmCm0r/lLmfSdoc+A=="
-    },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {
         "aix_ppc64": [
@@ -2116,5 +2046,6 @@
         ]
       }
     }
-  }
+  },
+  "factsVersions": {}
 }

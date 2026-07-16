@@ -19,7 +19,12 @@ SwipeAnimator::SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation)
 
 SwipeAnimator::~SwipeAnimator() {
   (void)CancelAnimation();
-  operation_->Commit();
+
+  if (active_event_sink_ == nullptr) {
+    active_event_sink_ = std::make_unique<CGEventPostSink>();
+  }
+
+  operation_->Commit(active_event_sink_.get());
 }
 
 bool SwipeAnimator::is_committed() const {
@@ -36,14 +41,19 @@ bool SwipeAnimator::is_committed() const {
          AnimatedSpaceSwitchOperationResult::kCommitted;
 }
 
-absl::Status SwipeAnimator::SetPosition(int64_t new_position) {
+absl::Status SwipeAnimator::SetPosition(int64_t new_position,
+                                        CGEventSink *absl_nonnull event_sink) {
+  CHECK(event_sink != nullptr);
   RETURN_IF_ERROR(CancelAnimationAndEnsureNotCommitted());
-  operation_->SetPosition(new_position);
+  operation_->SetPosition(new_position, event_sink);
   return absl::OkStatus();
 }
 
-absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
+absl::Status
+SwipeAnimator::AnimateToPosition(AnimateParameters params,
+                                 std::unique_ptr<CGEventSink> event_sink) {
   CHECK(params.easing_function != nullptr);
+  CHECK(event_sink != nullptr);
 
   VLOG(1) << "BEGIN AnimateToPosition(params=" << params << ")";
   absl::Cleanup cleanup = [&] {
@@ -62,6 +72,8 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
       .start_position = operation_->position(),
       .params = std::move(params),
   });
+
+  active_event_sink_ = std::move(event_sink);
 
   std::promise<AnimatedSpaceSwitchOperationResult> promise;
   pending_future_ = promise.get_future().share();
@@ -87,8 +99,10 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
             linear_t >= 1.0 ||
             interpolated_position == state->params.target_position;
 
+        CHECK(active_event_sink_ != nullptr);
         operation_->SetPosition(finished ? state->params.target_position
-                                         : interpolated_position);
+                                         : interpolated_position,
+                                active_event_sink_.get());
 
         return finished ? PeriodicTimerTickResult::kFinishTimer
                         : PeriodicTimerTickResult::kContinueTimer;
@@ -99,7 +113,8 @@ absl::Status SwipeAnimator::AnimateToPosition(AnimateParameters params) {
         switch (stop_reason) {
           using enum PeriodicTimerStopReason;
         case kFinished:
-          operation_->Commit();
+          CHECK(active_event_sink_ != nullptr);
+          operation_->Commit(active_event_sink_.get());
           promise.set_value(AnimatedSpaceSwitchOperationResult::kCommitted);
           break;
         case kCancelled:
