@@ -2,8 +2,8 @@ name: Build .app
 
 on:
   push:
-    branches:
-      - '**'
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -27,12 +27,12 @@ jobs:
           build_opts='--compilation_mode=opt //src/app:FasterSwiper_app'
           bazel build $build_opts
           ZIP_PATH=$(bazel cquery --output=files $build_opts)
-          echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
-          echo "artifact_name=FasterSwiper_app.zip" >> $GITHUB_OUTPUT
+          mkdir -p out
+          unzip "$ZIP_PATH" -d out
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.build.outputs.artifact_name }}
-          path: ${{ env.ZIP_PATH }}
-          retention-days: 1
+          name: FasterSwiper_app.zip
+          path: out/
+          retention-days: 90
