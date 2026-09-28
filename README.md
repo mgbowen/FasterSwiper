@@ -40,13 +40,8 @@ Fully working.
 
 ### macOS 27 Golden Gate
 
-Swiping to adjacent spaces fully works. Jumping two or more spaces away works,
-but results in errant bounce animations.
-
-> [!IMPORTANT]
-> Because macOS 27 is still in beta, I won't spend much, if any, time on
-> compatibility beyond basic swiping to adjacent spaces. I'll spend more effort
-> after the first public non-beta release.
+Fully working. Jumping two or more spaces away _usually_ works, but will
+occasionally result in errant bounce animations.
 
 ### Other versions
 
