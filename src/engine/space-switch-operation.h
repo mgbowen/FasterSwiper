@@ -22,7 +22,8 @@ public:
 
 class CGEventTapPostEventSink : public CGEventSink {
 public:
-  explicit CGEventTapPostEventSink(CGEventTapProxy absl_nonnull proxy) : proxy_(proxy) {}
+  explicit CGEventTapPostEventSink(CGEventTapProxy absl_nonnull proxy)
+      : proxy_(proxy) {}
   void Post(CGEventRef absl_nonnull event) override;
 
 private:
@@ -31,7 +32,23 @@ private:
 
 class SpaceSwitchOperation {
 public:
-  explicit SpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter);
+  struct Options {
+    std::optional<bool> natural_scrolling_enabled;
+
+    template <typename Sink>
+    friend void AbslStringify(Sink &sink, const Options &options) {
+      absl::Format(
+          &sink, "SpaceSwitchOperation::Options{natural_scrolling_enabled=%v}",
+          OptionalToString(options.natural_scrolling_enabled));
+    }
+  };
+
+  explicit SpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter)
+      : SpaceSwitchOperation(std::move(axis_adapter), Options{}) {}
+
+  explicit SpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
+                                Options options);
+
   virtual ~SpaceSwitchOperation();
 
   // Non-copyable, non-movable.
@@ -42,6 +59,8 @@ public:
 
   [[nodiscard]] virtual constexpr absl::string_view debug_name() const = 0;
 
+  [[nodiscard]] const Options &options() const { return options_; }
+
   [[nodiscard]] const AxisAdapter &axis_adapter() const
       ABSL_LOCKS_EXCLUDED(mutex_);
 
@@ -50,7 +69,8 @@ public:
   [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits() const
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  void SetPosition(int64_t new_position, CGEventSink *absl_nonnull event_sink) ABSL_LOCKS_EXCLUDED(mutex_);
+  void SetPosition(int64_t new_position, CGEventSink *absl_nonnull event_sink)
+      ABSL_LOCKS_EXCLUDED(mutex_);
 
   void Commit(CGEventSink *absl_nonnull event_sink) ABSL_LOCKS_EXCLUDED(mutex_);
 
@@ -60,21 +80,26 @@ protected:
 
   [[nodiscard]] virtual int64_t position_locked() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_) = 0;
-  virtual void SetPositionLocked(int64_t new_position, CGEventSink *absl_nonnull event_sink)
+  virtual void SetPositionLocked(int64_t new_position,
+                                 CGEventSink *absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) = 0;
-  virtual void CommitLocked(CGEventSink *absl_nonnull event_sink) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) = 0;
+  virtual void CommitLocked(CGEventSink *absl_nonnull event_sink)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) = 0;
 
   [[nodiscard]] const AxisAdapter &axis_adapter_locked() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  void PostEvent(CGEventSink *absl_nonnull event_sink, int phase, double progress,
+  void PostEvent(CGEventSink *absl_nonnull event_sink, int phase,
+                 double progress,
                  std::optional<double> velocity = std::nullopt) const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
-  [[nodiscard]] const absl::Mutex *absl_nonnull mutex() const ABSL_LOCK_RETURNED(mutex_);
+  [[nodiscard]] const absl::Mutex *absl_nonnull mutex() const
+      ABSL_LOCK_RETURNED(mutex_);
 
 private:
   const std::unique_ptr<AxisAdapter> axis_adapter_;
+  const Options options_;
 
   mutable absl::Mutex mutex_;
   bool is_committed_ ABSL_GUARDED_BY(mutex_) = false;
@@ -83,7 +108,8 @@ private:
 class ContinuousSpaceSwitchOperation : public SpaceSwitchOperation {
 public:
   static absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>>
-  Create(std::unique_ptr<AxisAdapter> axis_adapter);
+  Create(std::unique_ptr<AxisAdapter> axis_adapter,
+         Options options = Options{});
 
   constexpr absl::string_view debug_name() const override {
     return "ContinuousSpaceSwitchOperation";
@@ -97,7 +123,8 @@ private:
   int64_t latest_direction_ = 0;
 
   ContinuousSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
-                                 int64_t origin_position);
+                                 int64_t origin_position,
+                                 Options options = Options{});
 
   [[nodiscard]] int64_t distance_from_origin() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex());
@@ -106,15 +133,18 @@ private:
 
   [[nodiscard]] int64_t position_locked() const override
       ABSL_SHARED_LOCKS_REQUIRED(mutex());
-  void SetPositionLocked(int64_t new_position, CGEventSink *absl_nonnull event_sink) override
+  void SetPositionLocked(int64_t new_position,
+                         CGEventSink *absl_nonnull event_sink) override
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
-  void CommitLocked(CGEventSink *absl_nonnull event_sink) override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void CommitLocked(CGEventSink *absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 };
 
 class SegmentedSpaceSwitchOperation : public SpaceSwitchOperation {
 public:
   static absl::StatusOr<std::unique_ptr<SegmentedSpaceSwitchOperation>>
-  Create(std::unique_ptr<AxisAdapter> axis_adapter);
+  Create(std::unique_ptr<AxisAdapter> axis_adapter,
+         Options options = Options{});
 
   constexpr absl::string_view debug_name() const override {
     return "SegmentedSpaceSwitchOperation";
@@ -147,18 +177,22 @@ private:
   State state_ = States::Idle{};
 
   SegmentedSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
-                                int64_t operation_origin_position);
+                                int64_t operation_origin_position,
+                                Options options = Options{});
 
   static std::string StateToString(const State &state);
 
   [[nodiscard]] int64_t position_locked() const override
       ABSL_SHARED_LOCKS_REQUIRED(mutex());
-  void SetPositionLocked(int64_t new_position, CGEventSink *absl_nonnull event_sink) override
+  void SetPositionLocked(int64_t new_position,
+                         CGEventSink *absl_nonnull event_sink) override
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
-  void CommitLocked(CGEventSink *absl_nonnull event_sink) override ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void CommitLocked(CGEventSink *absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 
   void SetState(State new_state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
-  void EndGesture(const States::GestureActive &gesture_active, CGEventSink *absl_nonnull event_sink)
+  void EndGesture(const States::GestureActive &gesture_active,
+                  CGEventSink *absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
   int64_t GetNextBoundary(bool is_moving_positive)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());

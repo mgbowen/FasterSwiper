@@ -6,7 +6,6 @@
 #include "src/gesture-serialization.h"
 #include "src/macos-private.h"
 
-#include <cfloat>
 #include <optional>
 #include <variant>
 
@@ -20,6 +19,14 @@
 namespace fasterswiper {
 
 namespace {
+
+SpaceSwitchOperation::Options Resolve(SpaceSwitchOperation::Options options) {
+  if (!options.natural_scrolling_enabled.has_value()) {
+    options.natural_scrolling_enabled = IsNaturalScrollingEnabled();
+  }
+
+  return options;
+}
 
 // Integer division that rounds toward negative infinity, unlike C++ integer
 // division which truncates toward zero. b must be positive.
@@ -50,8 +57,11 @@ void CGEventTapPostEventSink::Post(CGEventRef absl_nonnull event) {
 }
 
 SpaceSwitchOperation::SpaceSwitchOperation(
-    std::unique_ptr<AxisAdapter> axis_adapter)
-    : axis_adapter_(std::move(axis_adapter)) {}
+    std::unique_ptr<AxisAdapter> axis_adapter, Options options)
+    : axis_adapter_(std::move(axis_adapter)), options_(Resolve(options)) {
+  VLOG(1) << absl::StrCat("SpaceSwitchOperation(\"",
+                          axis_adapter_->debug_name(), "\", ", options_, ")");
+}
 
 SpaceSwitchOperation::~SpaceSwitchOperation() {
   absl::MutexLock lock(mutex_);
@@ -120,7 +130,7 @@ void SpaceSwitchOperation::PostEvent(CGEventSink *absl_nonnull event_sink,
   CHECK(event_sink != nullptr);
   CFUniquePtr<CGEventRef> event = CreateDockControlGestureEvent(
       phase, static_cast<int>(axis_adapter_->movement_direction()), progress,
-      velocity);
+      velocity, *options_.natural_scrolling_enabled);
   VLOG(1) << "PostEvent(): event=" << CFEventToDebugString(event.get());
 
   absl::StatusOr<CFUniquePtr<CGEventRef>> maybe_augmented_event =
@@ -135,16 +145,17 @@ void SpaceSwitchOperation::PostEvent(CGEventSink *absl_nonnull event_sink,
 
 absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>>
 ContinuousSpaceSwitchOperation::Create(
-    std::unique_ptr<AxisAdapter> axis_adapter) {
+    std::unique_ptr<AxisAdapter> axis_adapter, Options options) {
   ASSIGN_OR_RETURN(const int64_t origin_position,
                    axis_adapter->committed_position());
   return absl::WrapUnique(new ContinuousSpaceSwitchOperation(
-      std::move(axis_adapter), origin_position));
+      std::move(axis_adapter), origin_position, options));
 }
 
 ContinuousSpaceSwitchOperation::ContinuousSpaceSwitchOperation(
-    std::unique_ptr<AxisAdapter> axis_adapter, int64_t origin_position)
-    : SpaceSwitchOperation(std::move(axis_adapter)),
+    std::unique_ptr<AxisAdapter> axis_adapter, int64_t origin_position,
+    Options options)
+    : SpaceSwitchOperation(std::move(axis_adapter), options),
       origin_position_(origin_position), current_position_(origin_position_) {}
 
 int64_t ContinuousSpaceSwitchOperation::distance_from_origin() const {
@@ -214,18 +225,18 @@ void ContinuousSpaceSwitchOperation::CommitLocked(
 }
 
 absl::StatusOr<std::unique_ptr<SegmentedSpaceSwitchOperation>>
-SegmentedSpaceSwitchOperation::Create(
-    std::unique_ptr<AxisAdapter> axis_adapter) {
+SegmentedSpaceSwitchOperation::Create(std::unique_ptr<AxisAdapter> axis_adapter,
+                                      Options options) {
   ASSIGN_OR_RETURN(const int64_t operation_origin_position,
                    axis_adapter->committed_position());
   return absl::WrapUnique(new SegmentedSpaceSwitchOperation(
-      std::move(axis_adapter), operation_origin_position));
+      std::move(axis_adapter), operation_origin_position, options));
 }
 
 SegmentedSpaceSwitchOperation::SegmentedSpaceSwitchOperation(
     std::unique_ptr<AxisAdapter> axis_adapter,
-    int64_t operation_origin_position)
-    : SpaceSwitchOperation(std::move(axis_adapter)),
+    int64_t operation_origin_position, Options options)
+    : SpaceSwitchOperation(std::move(axis_adapter), options),
       operation_origin_position_(operation_origin_position),
       current_position_(operation_origin_position_) {
   VLOG(1) << "SegmentedSpaceSwitchOperation(): operation_origin_position_="

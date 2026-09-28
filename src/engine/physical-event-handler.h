@@ -91,7 +91,8 @@ private:
   absl::Status HandleCommand(const JumpToSpaceCommand &command);
 
   absl::Status CheckGestureActive();
-  absl::Status SetUpForNewGesture(Axis axis);
+  absl::Status
+  SetUpForNewGesture(Axis axis, SpaceSwitchOperation::Options options = {});
 
   std::optional<RelativeMoveCommand>
   TryGetRelativeMoveCommandFromKeyEvent(const KeyEvent &event) const;

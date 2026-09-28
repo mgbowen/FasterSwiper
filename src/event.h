@@ -102,6 +102,7 @@ std::string CFEventToDebugString(CGEventRef event);
 
 CFUniquePtr<CGEventRef>
 CreateDockControlGestureEvent(int phase, int direction, double progress,
-                              std::optional<double> velocity = std::nullopt);
+                              std::optional<double> velocity,
+                              bool natural_scrolling_enabled);
 
 } // namespace fasterswiper

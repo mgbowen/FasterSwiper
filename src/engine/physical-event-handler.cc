@@ -345,7 +345,14 @@ PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
     AbortOnUnknownEnum(command.arrow_key_direction);
   }();
 
-  RETURN_IF_ERROR(SetUpForNewGesture(axis));
+  SpaceSwitchOperation::Options operation_options;
+  if (axis == Axis::kVertical) {
+    // Stock macOS always has the up and down keyboard shortcuts act the same
+    // regardless of what natural scrolling is set to.
+    operation_options.natural_scrolling_enabled = false;
+  }
+
+  RETURN_IF_ERROR(SetUpForNewGesture(axis, operation_options));
 
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
   target_position_ =
@@ -423,7 +430,8 @@ absl::Status PhysicalEventHandler::CheckGestureActive() {
   return absl::OkStatus();
 }
 
-absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
+absl::Status PhysicalEventHandler::SetUpForNewGesture(
+    Axis axis, SpaceSwitchOperation::Options options) {
   bool need_new_animator = true;
   if (animator_ != nullptr) {
     const AnimatedSpaceSwitchOperationResult cancel_result =
@@ -463,15 +471,16 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
               ? static_cast<
                     absl::StatusOr<std::unique_ptr<SpaceSwitchOperation>>>(
                     ContinuousSpaceSwitchOperation::Create(
-                        std::move(axis_adapter)))
-              : SegmentedSpaceSwitchOperation::Create(std::move(axis_adapter)));
+                        std::move(axis_adapter), options))
+              : SegmentedSpaceSwitchOperation::Create(std::move(axis_adapter),
+                                                      options));
       break;
     }
     case kVertical: {
       std::unique_ptr<AxisAdapter> axis_adapter =
           std::make_unique<VerticalAxisAdapter>();
       ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
-                                      std::move(axis_adapter)));
+                                      std::move(axis_adapter), options));
       break;
     }
     }

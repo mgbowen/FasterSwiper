@@ -31,4 +31,15 @@ StringFromCFStringRef(CFStringRef absl_nonnull cf_string) {
   return result;
 }
 
+bool IsNaturalScrollingEnabled() {
+  Boolean key_exists = false;
+  const Boolean is_natural = CFPreferencesGetAppBooleanValue(
+      CFSTR("com.apple.swipescrolldirection"), kCFPreferencesAnyApplication,
+      &key_exists);
+
+  // Natural scrolling defaults to turned on, in the event the key doesn't
+  // exist, just use that default.
+  return key_exists ? is_natural : true;
+}
+
 } // namespace fasterswiper

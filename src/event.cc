@@ -1,5 +1,6 @@
 #include "src/event.h"
 
+#include "src/cf-util.h"
 #include "src/macos-private.h"
 
 #include <CoreGraphics/CGEventTypes.h>
@@ -167,7 +168,17 @@ std::string CFEventToDebugString(CGEventRef event) {
 
 CFUniquePtr<CGEventRef>
 CreateDockControlGestureEvent(int phase, int direction, double progress,
-                              std::optional<double> velocity) {
+                              std::optional<double> velocity,
+                              bool natural_scrolling_enabled) {
+  if (__builtin_available(macOS 27.0, *)) {
+    if (natural_scrolling_enabled) {
+      progress = -progress;
+      if (velocity.has_value()) {
+        *velocity = -*velocity;
+      }
+    }
+  }
+
   auto event = WrapCFUnique(CGEventCreate(NULL));
   if (!event) {
     LOG(FATAL) << "CGEventCreate() return nullptr";

@@ -34,4 +34,6 @@ template <typename RefT> CFSharedPtr<RefT> WrapCFShared(RefT ptr) {
 absl::StatusOr<std::string>
 StringFromCFStringRef(CFStringRef absl_nonnull cf_string);
 
+bool IsNaturalScrollingEnabled();
+
 } // namespace fasterswiper
