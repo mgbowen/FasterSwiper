@@ -40,8 +40,13 @@ Fully working.
 
 ### macOS 27 Golden Gate
 
-Fully working. Jumping two or more spaces away _usually_ works, but will
-occasionally result in errant bounce animations.
+Fully working, save the following:
+
+* Vertical swipe gestures don't behave as well as they do in macOS 26, see
+  [#5](https://github.com/mgbowen/FasterSwiper/issues/5).
+* Jumping two or more spaces away _usually_ works, but will occasionally result in
+  errant bounce animations, see
+  [#6](https://github.com/mgbowen/FasterSwiper/issues/6).
 
 ### Other versions
 
