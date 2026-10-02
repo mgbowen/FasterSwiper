@@ -4,6 +4,7 @@
 #include "src/space-state.h"
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 
 #include <absl/status/statusor.h>
@@ -35,7 +36,7 @@ public:
 
   [[nodiscard]] virtual int64_t ProgressToNanoswipes(double progress) const = 0;
 
-  [[nodiscard]] bool
+  [[nodiscard]] virtual bool
   WaitForCommittedPositionChanged(int64_t original_position,
                                   absl::Duration deadline) const;
 
@@ -105,5 +106,84 @@ public:
   [[nodiscard]] std::pair<int64_t, int64_t>
   position_soft_limits() const override;
 };
+
+class AppExposeHorizontalAxisAdapter_MacOS26 : public AxisAdapter {
+public:
+  explicit AppExposeHorizontalAxisAdapter_MacOS26(SpaceState space_state);
+
+  AppExposeHorizontalAxisAdapter_MacOS26(
+      const AppExposeHorizontalAxisAdapter_MacOS26 &) = default;
+  AppExposeHorizontalAxisAdapter_MacOS26(
+      AppExposeHorizontalAxisAdapter_MacOS26 &&) = default;
+  AppExposeHorizontalAxisAdapter_MacOS26 &
+  operator=(const AppExposeHorizontalAxisAdapter_MacOS26 &) = default;
+  AppExposeHorizontalAxisAdapter_MacOS26 &
+  operator=(AppExposeHorizontalAxisAdapter_MacOS26 &&) = default;
+
+  ~AppExposeHorizontalAxisAdapter_MacOS26() override = default;
+
+  constexpr absl::string_view debug_name() const override {
+    return "AppExposeHorizontalAxisAdapter_MacOS26";
+  }
+
+  [[nodiscard]] Axis movement_direction() const override {
+    return Axis::kHorizontal;
+  }
+
+  [[nodiscard]] double NanoswipesToProgress(int64_t nanoswipes) const override;
+
+  [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
+
+  [[nodiscard]] bool
+  WaitForCommittedPositionChanged(int64_t original_position,
+                                  absl::Duration deadline) const override;
+
+  [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
+
+  [[nodiscard]] std::pair<int64_t, int64_t>
+  position_soft_limits() const override;
+
+private:
+  SpaceState space_state_;
+};
+
+class AppExposeHorizontalAxisAdapter : public AxisAdapter {
+public:
+  AppExposeHorizontalAxisAdapter() = default;
+
+  AppExposeHorizontalAxisAdapter(const AppExposeHorizontalAxisAdapter &) =
+      default;
+  AppExposeHorizontalAxisAdapter(AppExposeHorizontalAxisAdapter &&) = default;
+  AppExposeHorizontalAxisAdapter &
+  operator=(const AppExposeHorizontalAxisAdapter &) = default;
+  AppExposeHorizontalAxisAdapter &
+  operator=(AppExposeHorizontalAxisAdapter &&) = default;
+
+  ~AppExposeHorizontalAxisAdapter() override = default;
+
+  constexpr absl::string_view debug_name() const override {
+    return "AppExposeHorizontalAxisAdapter";
+  }
+
+  [[nodiscard]] Axis movement_direction() const override {
+    return Axis::kHorizontal;
+  }
+
+  [[nodiscard]] double NanoswipesToProgress(int64_t nanoswipes) const override;
+
+  [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
+
+  [[nodiscard]] bool
+  WaitForCommittedPositionChanged(int64_t original_position,
+                                  absl::Duration deadline) const override;
+
+  [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
+
+  [[nodiscard]] std::pair<int64_t, int64_t>
+  position_soft_limits() const override;
+};
+
+absl::StatusOr<std::unique_ptr<AxisAdapter>>
+CreateAppExposeHorizontalAxisAdapter();
 
 } // namespace fasterswiper

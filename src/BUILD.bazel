@@ -56,6 +56,26 @@ cc_test(
 )
 
 cc_library(
+    name = "compatibility",
+    srcs = ["compatibility.cc"],
+    hdrs = ["compatibility.h"],
+    deps = [
+        "@abseil-cpp//absl/flags:flag",
+    ],
+)
+
+cc_test(
+    name = "compatibility_test",
+    srcs = ["compatibility_test.cc"],
+    deps = [
+        ":compatibility",
+        "@abseil-cpp//absl/flags:flag",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "easing",
     srcs = ["easing.cc"],
     hdrs = ["easing.h"],
@@ -81,6 +101,7 @@ cc_library(
     deps = [
         ":CoreFoundation",
         ":cf-util",
+        ":compatibility",
         ":hotkeys",
         ":macos-private",
         ":string-util",
@@ -199,6 +220,7 @@ cc_library(
         ":ApplicationServices",
         ":cf-collections-util",
         ":cf-util",
+        ":compatibility",
         ":macos-private",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",

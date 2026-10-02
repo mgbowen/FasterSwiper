@@ -455,16 +455,23 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
     switch (axis) {
       using enum Axis;
     case kHorizontal: {
-      ASSIGN_OR_RETURN(SpaceState space_state,
-                       LoadSpaceStateForActiveDisplay());
       ASSIGN_OR_RETURN(const ActiveMultitaskingWindow active_window,
                        GetActiveMultitaskingWindow());
 
-      VLOG(1) << "SetUpForNewGesture(): space_state=" << space_state
-              << ", active_window=" << magic_enum::enum_name(active_window);
+      std::unique_ptr<AxisAdapter> axis_adapter;
+      if (active_window == ActiveMultitaskingWindow::kAppExpose) {
+        ASSIGN_OR_RETURN(axis_adapter, CreateAppExposeHorizontalAxisAdapter());
+        VLOG(1) << "SetUpForNewGesture(): active_window=kAppExpose, using "
+                << axis_adapter->debug_name();
+      } else {
+        ASSIGN_OR_RETURN(SpaceState space_state,
+                         LoadSpaceStateForActiveDisplay());
+        VLOG(1) << "SetUpForNewGesture(): space_state=" << space_state
+                << ", active_window=" << magic_enum::enum_name(active_window);
+        axis_adapter =
+            std::make_unique<HorizontalAxisAdapter>(std::move(space_state));
+      }
 
-      std::unique_ptr<AxisAdapter> axis_adapter =
-          std::make_unique<HorizontalAxisAdapter>(space_state);
       ASSIGN_OR_RETURN(
           operation,
           active_window == ActiveMultitaskingWindow::kDesktop

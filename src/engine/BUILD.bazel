@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,6 +37,7 @@ cc_library(
     deps = [
         ":const",
         "//src:cf-util",
+        "//src:compatibility",
         "//src:event",
         "//src:macos-private",
         "//src:mission-control",
@@ -124,5 +125,21 @@ cc_library(
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@magic_enum",
+    ],
+)
+
+cc_test(
+    name = "axis-adapter_test",
+    srcs = ["axis-adapter_test.cc"],
+    deps = [
+        ":axis-adapter",
+        ":const",
+        "//src:cf-util",
+        "//src:space-state",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

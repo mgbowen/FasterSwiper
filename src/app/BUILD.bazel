@@ -45,4 +45,5 @@ macos_application(
 macos_dmg(
     name = "FasterSwiper_dmg",
     src = ":FasterSwiper_app",
+    tags = ["manual"],
 )

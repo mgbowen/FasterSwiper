@@ -2,6 +2,7 @@
 
 #include "src/cf-collections-util.h"
 #include "src/cf-util.h"
+#include "src/compatibility.h"
 #include "src/macos-private.h"
 
 #include <CoreFoundation/CFArray.h>
@@ -195,19 +196,15 @@ absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow_MacOS26() {
   return ActiveMultitaskingWindow::kDesktop;
 }
 
-absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow_MacOS27() {
-  ASSIGN_OR_RETURN(const auto markers, ScanOverviewWindows());
-  return markers.active_multitasking_window();
-}
-
 } // namespace
 
 absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow() {
-  if (!__builtin_available(macOS 27.0, *)) {
+  if (!IsMacOS27()) {
     return GetActiveMultitaskingWindow_MacOS26();
   }
 
-  return GetActiveMultitaskingWindow_MacOS27();
+  ASSIGN_OR_RETURN(const auto markers, ScanOverviewWindows());
+  return markers.active_multitasking_window();
 }
 
 } // namespace fasterswiper
