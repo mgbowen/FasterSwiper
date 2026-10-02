@@ -196,6 +196,7 @@ cc_library(
     srcs = ["mission-control.cc"],
     hdrs = ["mission-control.h"],
     deps = [
+        ":ApplicationServices",
         ":cf-collections-util",
         ":cf-util",
         ":macos-private",
