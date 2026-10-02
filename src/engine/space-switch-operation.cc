@@ -20,6 +20,8 @@ namespace fasterswiper {
 
 namespace {
 
+constexpr absl::Duration kCommitDeadline = absl::Milliseconds(50);
+
 SpaceSwitchOperation::Options Resolve(SpaceSwitchOperation::Options options) {
   if (!options.natural_scrolling_enabled.has_value()) {
     options.natural_scrolling_enabled = IsNaturalScrollingEnabled();
@@ -220,7 +222,7 @@ void ContinuousSpaceSwitchOperation::CommitLocked(
     }
 
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        origin_position_, absl::Milliseconds(200));
+        origin_position_, kCommitDeadline);
   }
 }
 
@@ -372,7 +374,7 @@ void SegmentedSpaceSwitchOperation::CommitLocked(
 
   if (operation_origin_position_ != current_position_.deferred()) {
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        operation_origin_position_, absl::Milliseconds(200));
+        operation_origin_position_, kCommitDeadline);
   }
 }
 
