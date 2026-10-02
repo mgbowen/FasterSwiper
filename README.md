@@ -40,13 +40,8 @@ Fully working.
 
 ### macOS 27 Golden Gate
 
-Fully working, save the following:
-
-* Vertical swipe gestures don't behave as well as they do in macOS 26, see
-  [#5](https://github.com/mgbowen/FasterSwiper/issues/5).
-* Jumping two or more spaces away _usually_ works, but will occasionally result in
-  errant bounce animations, see
-  [#6](https://github.com/mgbowen/FasterSwiper/issues/6).
+Basic functionality is fully working, but there are some bugs [specific to
+macOS 27](https://github.com/mgbowen/FasterSwiper/issues?q=is%3Aissue+state%3Aopen+label%3Abug-macos27).
 
 ### Other versions
 
