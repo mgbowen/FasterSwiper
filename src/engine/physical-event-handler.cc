@@ -484,8 +484,10 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
       break;
     }
     case kVertical: {
+      ASSIGN_OR_RETURN(SpaceState space_state,
+                       LoadSpaceStateForActiveDisplay());
       std::unique_ptr<AxisAdapter> axis_adapter =
-          std::make_unique<VerticalAxisAdapter>();
+          std::make_unique<VerticalAxisAdapter>(std::move(space_state));
       ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
                                       std::move(axis_adapter), options));
       break;

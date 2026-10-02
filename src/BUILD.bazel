@@ -183,6 +183,7 @@ cc_library(
     hdrs = ["space-state.h"],
     deps = [
         ":CoreFoundation",
+        ":cf-collections-util",
         ":cf-util",
         ":macos-private",
         ":string-util",
@@ -190,6 +191,7 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",

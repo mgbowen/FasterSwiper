@@ -23,7 +23,8 @@ constexpr int64_t kAppExposePosition = -1 * kOneSwipeInNanoswipes;
 const absl::NoDestructor<SpaceState> kAppExposeDummySpaceState([] {
   return SpaceState(WrapCFUnique(CFStringCreateWithCString(
                         nullptr, "dummy", kCFStringEncodingUTF8)),
-                    /*space_ids=*/{0, 1}, /*index=*/0);
+                    /*spaces=*/{Space{.id = 0}, Space{.id = 1}},
+                    /*index=*/0);
 }());
 
 absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState &space_state) {
@@ -95,6 +96,9 @@ HorizontalAxisAdapter::position_soft_limits() const {
                  kOneSwipeInNanoswipes};
 }
 
+VerticalAxisAdapter::VerticalAxisAdapter(SpaceState space_state)
+    : space_state_(std::move(space_state)) {}
+
 double VerticalAxisAdapter::NanoswipesToProgress(int64_t position) const {
   return static_cast<double>(position) / kOneSwipeInNanoswipes;
 }
@@ -122,7 +126,9 @@ absl::StatusOr<int64_t> VerticalAxisAdapter::committed_position() const {
 }
 
 std::pair<int64_t, int64_t> VerticalAxisAdapter::position_soft_limits() const {
-  return {kAppExposePosition, kMissionControlPosition};
+  const int64_t lower_limit =
+      space_state_.current_space().is_desktop ? kAppExposePosition : 0;
+  return {lower_limit, kMissionControlPosition};
 }
 
 AppExposeHorizontalAxisAdapter_MacOS26::AppExposeHorizontalAxisAdapter_MacOS26(
@@ -156,13 +162,13 @@ AppExposeHorizontalAxisAdapter_MacOS26::position_soft_limits() const {
   return {current_space_position, current_space_position};
 }
 
-double AppExposeHorizontalAxisAdapter::NanoswipesToProgress(
-    int64_t nanoswipes) const {
+double
+AppExposeHorizontalAxisAdapter::NanoswipesToProgress(int64_t nanoswipes) const {
   return kAppExposeDummySpaceState->SwipesToProgress(nanoswipes);
 }
 
-int64_t AppExposeHorizontalAxisAdapter::ProgressToNanoswipes(
-    double progress) const {
+int64_t
+AppExposeHorizontalAxisAdapter::ProgressToNanoswipes(double progress) const {
   return kAppExposeDummySpaceState->ProgressToSwipes(progress);
 }
 

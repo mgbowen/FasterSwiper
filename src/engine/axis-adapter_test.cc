@@ -13,7 +13,9 @@ namespace {
 TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS26) {
   auto display_id = WrapCFUnique(
       CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(std::move(display_id), {101, 102, 103}, /*index=*/1);
+  SpaceState space_state(
+      std::move(display_id),
+      {Space{.id = 101}, Space{.id = 102}, Space{.id = 103}}, /*index=*/1);
 
   AppExposeHorizontalAxisAdapter_MacOS26 adapter(space_state);
 
@@ -62,6 +64,46 @@ TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS27) {
   const int64_t neg_one_swipe = -1 * kOneSwipeInNanoswipes;
   const double progress_neg_swipe = adapter.NanoswipesToProgress(neg_one_swipe);
   EXPECT_EQ(adapter.ProgressToNanoswipes(progress_neg_swipe), neg_one_swipe);
+}
+
+TEST(AxisAdapterTest, VerticalAxisAdapter_DesktopSpace) {
+  auto display_id = WrapCFUnique(
+      CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
+  SpaceState space_state(
+      std::move(display_id),
+      {Space{.id = 101, .is_desktop = true}},
+      /*index=*/0);
+
+  VerticalAxisAdapter adapter(space_state);
+
+  EXPECT_EQ(adapter.debug_name(), "VerticalAxisAdapter");
+  EXPECT_EQ(adapter.movement_direction(), Axis::kVertical);
+
+  auto committed = adapter.committed_position();
+  ASSERT_TRUE(committed.ok());
+  EXPECT_EQ(*committed, 0);
+
+  const auto [soft_min, soft_max] = adapter.position_soft_limits();
+  EXPECT_EQ(soft_min, -1 * kOneSwipeInNanoswipes);
+  EXPECT_EQ(soft_max, 1 * kOneSwipeInNanoswipes);
+
+  EXPECT_DOUBLE_EQ(adapter.NanoswipesToProgress(kOneSwipeInNanoswipes), 1.0);
+  EXPECT_EQ(adapter.ProgressToNanoswipes(1.0), kOneSwipeInNanoswipes);
+}
+
+TEST(AxisAdapterTest, VerticalAxisAdapter_NonDesktopSpace) {
+  auto display_id = WrapCFUnique(
+      CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
+  SpaceState space_state(
+      std::move(display_id),
+      {Space{.id = 101, .is_desktop = false}},
+      /*index=*/0);
+
+  VerticalAxisAdapter adapter(space_state);
+
+  const auto [soft_min, soft_max] = adapter.position_soft_limits();
+  EXPECT_EQ(soft_min, 0);
+  EXPECT_EQ(soft_max, 1 * kOneSwipeInNanoswipes);
 }
 
 } // namespace

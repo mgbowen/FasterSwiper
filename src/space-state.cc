@@ -1,5 +1,6 @@
 #include "src/space-state.h"
 
+#include "src/cf-collections-util.h"
 #include "src/cf-util.h"
 #include "src/engine/const.h"
 #include "src/macos-private.h"
@@ -18,15 +19,25 @@ int64_t RoundNanopositions(double val) {
 } // namespace
 
 SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
-                       std::vector<int64_t> space_ids, CFIndex index)
+                       std::vector<Space> spaces, CFIndex index)
     : SpaceState(static_cast<CFSharedPtr<CFStringRef>>(std::move(display_id)),
-                 std::move(space_ids), index) {}
+                 std::move(spaces), index) {}
 
 SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
-                       std::vector<int64_t> space_ids, CFIndex index)
-    : display_id_(std::move(display_id)), space_ids_(std::move(space_ids)),
+                       std::vector<Space> spaces, CFIndex index)
+    : display_id_(std::move(display_id)), spaces_(std::move(spaces)),
       index_(index), unit_factor_(static_cast<double>(count()) /
                                   static_cast<double>(count() - 1)) {}
+
+std::vector<int64_t> SpaceState::space_ids() const {
+  std::vector<int64_t> ids;
+  ids.reserve(spaces_.size());
+  for (const auto &space : spaces_) {
+    ids.push_back(space.id);
+  }
+
+  return ids;
+}
 
 int64_t SpaceState::ProgressToSwipes(double progress) const {
   return RoundNanopositions(progress / unit_factor_ * kOneSwipeInNanoswipes);
@@ -105,30 +116,30 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
     const uint64_t active_space_id =
         SLSManagedDisplayGetCurrentSpace(cid, raw_display_id);
 
-    auto spaces =
+    auto spaces_array =
         static_cast<CFArrayRef>(CFDictionaryGetValue(display, CFSTR("Spaces")));
-    if (!spaces) {
+    if (!spaces_array) {
       continue;
     }
 
-    std::vector<int64_t> space_ids;
+    std::vector<Space> spaces;
     std::optional<int64_t> index;
 
-    CFIndex count = CFArrayGetCount(spaces);
+    CFIndex count = CFArrayGetCount(spaces_array);
     for (CFIndex j = 0; j < count; j++) {
-      auto space =
-          static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(spaces, j));
-      auto space_id_ref = static_cast<CFNumberRef>(
-          CFDictionaryGetValue(space, CFSTR("ManagedSpaceID")));
-      if (!space_id_ref) {
-        continue;
-      }
+      auto space_dict =
+          static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(spaces_array, j));
 
-      int64_t space_id = 0;
-      CFNumberGetValue(space_id_ref, kCFNumberSInt64Type, &space_id);
-      space_ids.push_back(space_id);
+      Space space{};
+      ASSIGN_OR_RETURN(
+          space.id, CFDictGetAs<int64_t>(space_dict, CFSTR("ManagedSpaceID")));
+      ASSIGN_OR_RETURN(const int64_t space_type,
+                       CFDictGetAs<int64_t>(space_dict, CFSTR("type")));
+      space.is_desktop = space_type == kCGSSpaceUser;
 
-      if (static_cast<uint64_t>(space_id) == active_space_id) {
+      spaces.push_back(space);
+
+      if (static_cast<uint64_t>(space.id) == active_space_id) {
         // Found the active space, retain the display ID so it isn't released
         // when we return.
         CFRetain(raw_display_id);
@@ -137,7 +148,7 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
     }
 
     if (index.has_value()) {
-      return SpaceState(WrapCFUnique(raw_display_id), std::move(space_ids),
+      return SpaceState(WrapCFUnique(raw_display_id), std::move(spaces),
                         /*index=*/*index);
     }
   }

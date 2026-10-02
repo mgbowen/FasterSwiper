@@ -9,16 +9,16 @@
 namespace fasterswiper {
 
 absl::Status Run() {
+  ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
   {
-    ASSIGN_OR_RETURN(SpaceState space_state, LoadSpaceStateForActiveDisplay());
-    HorizontalAxisAdapter reporter(std::move(space_state));
+    HorizontalAxisAdapter reporter(space_state);
     const auto [min, max] = reporter.position_soft_limits();
     std::cout << "Horizontal position: committed_position="
               << reporter.committed_position() << ", position_soft_limits={"
               << min << ", " << max << "}\n";
   }
   {
-    VerticalAxisAdapter reporter;
+    VerticalAxisAdapter reporter(std::move(space_state));
     const auto [vertical_min, vertical_max] = reporter.position_soft_limits();
     std::cout << "Vertical position: committed_position="
               << reporter.committed_position() << ", position_soft_limits={"

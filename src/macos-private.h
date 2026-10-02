@@ -103,6 +103,9 @@ constexpr int kGestureChanged = 2;
 constexpr int kGestureEnded = 4;
 constexpr int kGestureCancelled = 8;
 
+// Space type for desktops
+constexpr int kCGSSpaceUser = 0;
+
 using FixedFP1616 = int32_t;
 
 enum class IOHIDEventType : uint32_t {

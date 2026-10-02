@@ -80,7 +80,7 @@ private:
 
 class VerticalAxisAdapter : public AxisAdapter {
 public:
-  VerticalAxisAdapter() = default;
+  explicit VerticalAxisAdapter(SpaceState space_state);
 
   VerticalAxisAdapter(const VerticalAxisAdapter &) = default;
   VerticalAxisAdapter(VerticalAxisAdapter &&) = default;
@@ -105,6 +105,9 @@ public:
 
   [[nodiscard]] std::pair<int64_t, int64_t>
   position_soft_limits() const override;
+
+private:
+  SpaceState space_state_;
 };
 
 class AppExposeHorizontalAxisAdapter_MacOS26 : public AxisAdapter {
