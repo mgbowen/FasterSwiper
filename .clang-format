@@ -6,3 +6,13 @@ IndentWidth: 2
 AccessModifierOffset: -2
 IncludeBlocks: Regroup
 SortIncludes: CaseSensitive
+IncludeCategories:
+  # In-repo
+  - Regex: '^"'
+    Priority: 1
+  # Standard library
+  - Regex: '^<[^/]+>'
+    Priority: 2
+  # 3P / system
+  - Regex: '.*'
+    Priority: 3
