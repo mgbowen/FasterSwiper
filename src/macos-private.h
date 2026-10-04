@@ -50,13 +50,13 @@ enum class CGSSpaceMask : uint32_t {
 
   kCGSCurrentSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesCurrent,
   kCGSOtherSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers,
-  kCGSAllSpacesMask =
-      CGSSpaceIncludesUser | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+  kCGSAllSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers |
+      CGSSpaceIncludesCurrent,
 
   kCGSCurrentOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesCurrent,
   kCGSOtherOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers,
-  kCGSAllOSSpacesMask =
-      CGSSpaceIncludesOS | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+  kCGSAllOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers |
+      CGSSpaceIncludesCurrent,
 
   kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask,  // ?
 };
