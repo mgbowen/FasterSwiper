@@ -1,6 +1,7 @@
 #include "src/public/fasterswiper.h"
 
 #include "src/cf-util.h"
+#include "src/compatibility.h"
 #include "src/easing.h"
 #include "src/engine/physical-event-handler.h"
 #include "src/event-tap-manager.h"
@@ -41,9 +42,17 @@ namespace proto = fasterswiper::proto;
 
 proto::DaemonOptions GetDefaultDaemonOptions() {
   proto::DaemonOptions options;
-  *options.mutable_animation_duration_per_space() =
-      ToProtoDuration(absl::Milliseconds(200));
-  options.set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+
+  auto *horizontal = options.mutable_horizontal_settings();
+  horizontal->set_enabled(true);
+  *horizontal->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
+  horizontal->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+
+  auto *vertical = options.mutable_vertical_settings();
+  vertical->set_enabled(!fasterswiper::IsMacOS27());
+  *vertical->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
+  vertical->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+
   options.set_frames_per_second(240);
   options.set_intercept_mission_control_shortcuts(true);
   options.set_enable_jump_to_space_shortcuts(true);
@@ -102,14 +111,80 @@ bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options) {
 bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
   proto::DaemonOptions default_options = GetDefaultDaemonOptions();
 
-  if (!daemon_options->options.has_animation_duration_per_space()) {
-    *daemon_options->options.mutable_animation_duration_per_space() =
-        std::move(*default_options.mutable_animation_duration_per_space());
+  // 1. Migrate legacy fields if present.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  const bool has_legacy_duration =
+      daemon_options->options.has_animation_duration_per_space();
+  const bool has_legacy_easing =
+      daemon_options->options.has_easing_function();
+  const bool has_legacy_bezier =
+      daemon_options->options.has_cubic_bezier_curve();
+
+  if (has_legacy_duration || has_legacy_easing || has_legacy_bezier) {
+    const google::protobuf::Duration legacy_default_duration =
+        ToProtoDuration(absl::Milliseconds(200));
+
+    auto *horizontal = daemon_options->options.mutable_horizontal_settings();
+    auto *vertical = daemon_options->options.mutable_vertical_settings();
+
+    if (has_legacy_duration) {
+      const auto &legacy_duration =
+          daemon_options->options.animation_duration_per_space();
+      if (legacy_duration.seconds() != legacy_default_duration.seconds() ||
+          legacy_duration.nanos() != legacy_default_duration.nanos()) {
+        *horizontal->mutable_duration() = legacy_duration;
+        *vertical->mutable_duration() = legacy_duration;
+      }
+      daemon_options->options.clear_animation_duration_per_space();
+    }
+
+    if (has_legacy_easing) {
+      auto legacy_easing = daemon_options->options.easing_function();
+      if (legacy_easing != proto::EASING_FUNCTION_QUADRATIC_EASE_OUT) {
+        horizontal->set_easing_function(legacy_easing);
+        vertical->set_easing_function(legacy_easing);
+      }
+      daemon_options->options.clear_easing_function();
+    }
+
+    if (has_legacy_bezier) {
+      *horizontal->mutable_cubic_bezier_curve() =
+          daemon_options->options.cubic_bezier_curve();
+      *vertical->mutable_cubic_bezier_curve() =
+          daemon_options->options.cubic_bezier_curve();
+      daemon_options->options.clear_cubic_bezier_curve();
+    }
+  }
+#pragma clang diagnostic pop
+
+  // Clear legacy fields from unknown fields if present.
+  daemon_options->options.mutable_unknown_fields()->DeleteByNumber(1);
+  daemon_options->options.mutable_unknown_fields()->DeleteByNumber(2);
+  daemon_options->options.mutable_unknown_fields()->DeleteByNumber(3);
+
+  // 2. Hydrate missing fields on horizontal_settings.
+  auto *horizontal = daemon_options->options.mutable_horizontal_settings();
+  if (!horizontal->has_enabled()) {
+    horizontal->set_enabled(true);
+  }
+  if (!horizontal->has_duration()) {
+    *horizontal->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
+  }
+  if (!horizontal->has_easing_function()) {
+    horizontal->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
   }
 
-  if (!daemon_options->options.has_easing_function()) {
-    daemon_options->options.set_easing_function(
-        default_options.easing_function());
+  // 3. Hydrate missing fields on vertical_settings.
+  auto *vertical = daemon_options->options.mutable_vertical_settings();
+  if (!vertical->has_enabled()) {
+    vertical->set_enabled(!fasterswiper::IsMacOS27());
+  }
+  if (!vertical->has_duration()) {
+    *vertical->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
+  }
+  if (!vertical->has_easing_function()) {
+    vertical->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
   }
 
   if (!daemon_options->options.has_frames_per_second()) {
@@ -191,8 +266,15 @@ FS_Daemon *FS_Create(FS_DaemonOptions *options) {
   std::vector<CGEventType> event_types;
   event_types.push_back(kCGSEventDockControl);
 
+  const bool horizontal_enabled =
+      options->options.has_horizontal_settings()
+          ? options->options.horizontal_settings().enabled()
+          : true;
+  const bool jump_to_space_enabled =
+      options->options.enable_jump_to_space_shortcuts() && horizontal_enabled;
+
   if (options->options.intercept_mission_control_shortcuts() ||
-      options->options.enable_jump_to_space_shortcuts()) {
+      jump_to_space_enabled) {
     event_types.push_back(kCGEventKeyDown);
   }
 

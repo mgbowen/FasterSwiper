@@ -16,6 +16,17 @@ enum class Axis {
   kVertical = kCGGestureMotionVertical,
 };
 
+inline constexpr std::optional<Axis> TryEventDirectionToAxis(int direction) {
+  switch (direction) {
+  case kCGGestureMotionVertical:
+    return Axis::kVertical;
+  case kCGGestureMotionHorizontal:
+    return Axis::kHorizontal;
+  default:
+    return std::nullopt;
+  }
+}
+
 class AxisAdapter {
 public:
   AxisAdapter() = default;

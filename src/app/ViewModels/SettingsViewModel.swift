@@ -42,17 +42,27 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     public var statusColor: Color { daemonManager.status.color }
     public var statusText: String { daemonManager.status.text }
 
-    var animationDurationMs: Double {
+    // MARK: - Horizontal animation settings
+
+    var horizontalEnabled: Bool {
+        get { settingsStore.daemonOptions.horizontalSettings.enabled }
+        set {
+            settingsStore.daemonOptions.horizontalSettings.enabled = newValue
+            scheduleRestart()
+        }
+    }
+
+    var horizontalAnimationDurationMs: Double {
         get {
             Double(
                 toInt64Milliseconds(
                     duration: settingsStore.daemonOptions
-                        .animationDurationPerSpace
+                        .horizontalSettings.duration
                 )
             )
         }
         set {
-            settingsStore.daemonOptions.animationDurationPerSpace =
+            settingsStore.daemonOptions.horizontalSettings.duration =
                 toProtoDuration(
                     fromNanoseconds: Int64(newValue * 1_000_000)
                 )
@@ -60,36 +70,91 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
-    var easingFunctionOptions: [PickerOption] {
-        EasingFunction.allCases.map {
-            PickerOption(label: $0.description, tag: $0.rawValue)
-        }
-    }
-
-    var selectedEasingFunctionTag: Int {
-        get { settingsStore.daemonOptions.easingFunction.rawValue }
+    var horizontalSelectedEasingFunctionTag: Int {
+        get { settingsStore.daemonOptions.horizontalSettings.easingFunction.rawValue }
         set {
-            settingsStore.daemonOptions.easingFunction =
+            settingsStore.daemonOptions.horizontalSettings.easingFunction =
                 EasingFunction(rawValue: newValue) ?? .linear
             scheduleRestart()
         }
     }
 
-    var showCubicBezierField: Bool {
-        settingsStore.daemonOptions.easingFunction == .cubicBezierCurve
+    var horizontalShowCubicBezierField: Bool {
+        settingsStore.daemonOptions.horizontalSettings.easingFunction == .cubicBezierCurve
     }
 
-    var cubicBezierCurveText: String {
+    var horizontalCubicBezierCurveText: String {
         get {
             BezierFormatStyle().format(
-                settingsStore.daemonOptions.cubicBezierCurve
+                settingsStore.daemonOptions.horizontalSettings.cubicBezierCurve
             )
         }
         set {
             if let parsed = try? BezierParseStrategy().parse(newValue) {
-                settingsStore.daemonOptions.cubicBezierCurve = parsed
+                settingsStore.daemonOptions.horizontalSettings.cubicBezierCurve = parsed
                 scheduleRestart()
             }
+        }
+    }
+
+    // MARK: - Vertical animation settings
+
+    var verticalEnabled: Bool {
+        get { settingsStore.daemonOptions.verticalSettings.enabled }
+        set {
+            settingsStore.daemonOptions.verticalSettings.enabled = newValue
+            scheduleRestart()
+        }
+    }
+
+    var verticalAnimationDurationMs: Double {
+        get {
+            Double(
+                toInt64Milliseconds(
+                    duration: settingsStore.daemonOptions
+                        .verticalSettings.duration
+                )
+            )
+        }
+        set {
+            settingsStore.daemonOptions.verticalSettings.duration =
+                toProtoDuration(
+                    fromNanoseconds: Int64(newValue * 1_000_000)
+                )
+            scheduleRestart()
+        }
+    }
+
+    var verticalSelectedEasingFunctionTag: Int {
+        get { settingsStore.daemonOptions.verticalSettings.easingFunction.rawValue }
+        set {
+            settingsStore.daemonOptions.verticalSettings.easingFunction =
+                EasingFunction(rawValue: newValue) ?? .linear
+            scheduleRestart()
+        }
+    }
+
+    var verticalShowCubicBezierField: Bool {
+        settingsStore.daemonOptions.verticalSettings.easingFunction == .cubicBezierCurve
+    }
+
+    var verticalCubicBezierCurveText: String {
+        get {
+            BezierFormatStyle().format(
+                settingsStore.daemonOptions.verticalSettings.cubicBezierCurve
+            )
+        }
+        set {
+            if let parsed = try? BezierParseStrategy().parse(newValue) {
+                settingsStore.daemonOptions.verticalSettings.cubicBezierCurve = parsed
+                scheduleRestart()
+            }
+        }
+    }
+
+    var easingFunctionOptions: [PickerOption] {
+        EasingFunction.allCases.map {
+            PickerOption(label: $0.description, tag: $0.rawValue)
         }
     }
 

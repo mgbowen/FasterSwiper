@@ -1,6 +1,6 @@
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_swift//proto:proto.bzl", "swift_proto_compiler", "swift_proto_library")
 load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
 
@@ -16,6 +16,7 @@ cc_library(
         ":fasterswiper_cc_proto",
         "//src:CoreFoundation",
         "//src:cf-util",
+        "//src:compatibility",
         "//src:easing",
         "//src:event-tap-manager",
         "//src:macos-private",
@@ -81,5 +82,19 @@ swift_proto_library(
     protos = [":fasterswiper_proto"],
     deps = [
         "@protobuf//:duration_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "fasterswiper_test",
+    srcs = ["fasterswiper_test.cc"],
+    deps = [
+        ":fasterswiper_cc_proto",
+        ":public",
+        "//src:compatibility",
+        "//src:proto-util",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

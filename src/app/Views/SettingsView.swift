@@ -21,6 +21,7 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
                     .tag(tab)
             }
             .listStyle(.sidebar)
+            .scrollDisabled(true)
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
             .toolbar(removing: .sidebarToggle)
         } detail: {
@@ -37,7 +38,7 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
                 }
             }
         }
-        .frame(minWidth: 600, maxWidth: 600, minHeight: 300, idealHeight: 460)
+        .frame(minWidth: 600, maxWidth: 600, minHeight: 500)
         .onAppear {
             viewModel.refreshLaunchAtLogin()
         }
@@ -97,53 +98,128 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
 
     var body: some View {
         Form {
-            Section {
-                LabeledContent("Duration") {
-                    HStack(spacing: 8) {
-                        Slider(
-                            value: $viewModel.animationDurationMs,
-                            in: 0...1000,
-                            step: 50
-                        )
-                        .labelsHidden()
-                        .frame(width: 140)
-                        TextField(
-                            "",
-                            value: $viewModel.animationDurationMs,
-                            format: .number
-                        )
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 55)
-                        Text("ms")
+            Section("Horizontal Gesture Interception") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Enabled", isOn: $viewModel.horizontalEnabled)
+                    Text(
+                        viewModel.horizontalEnabled
+                            ? "Gestures will be handled by FasterSwiper."
+                            : "Gestures will be handled by macOS."
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 48)
+                }
+
+                Group {
+                    LabeledContent("Duration") {
+                        HStack(spacing: 8) {
+                            Slider(
+                                value: $viewModel.horizontalAnimationDurationMs,
+                                in: 0...1000,
+                                step: 50
+                            )
+                            .labelsHidden()
+                            .frame(width: 140)
+                            TextField(
+                                "",
+                                value: $viewModel.horizontalAnimationDurationMs,
+                                format: .number
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 55)
+                            Text("ms")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Picker("Easing function", selection: $viewModel.horizontalSelectedEasingFunctionTag) {
+                        ForEach(viewModel.easingFunctionOptions) { option in
+                            Text(option.label).tag(option.tag)
+                        }
+                    }
+
+                    if viewModel.horizontalShowCubicBezierField {
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField(
+                                "Curve",
+                                text: $viewModel.horizontalCubicBezierCurveText
+                            )
+                            .textFieldStyle(.roundedBorder)
+
+                            Text(
+                                "Enter a CSS `cubic-bezier()` value from, e.g. [cubic-bezier.com](https://cubic-bezier.com), or four comma-separated numbers."
+                            )
+                            .font(.callout)
                             .foregroundStyle(.secondary)
+                        }
                     }
                 }
+                .disabled(!viewModel.horizontalEnabled)
+            }
 
-                Picker("Easing function", selection: $viewModel.selectedEasingFunctionTag) {
-                    ForEach(viewModel.easingFunctionOptions) { option in
-                        Text(option.label).tag(option.tag)
-                    }
+            Section("Vertical Gesture Interception") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Enabled", isOn: $viewModel.verticalEnabled)
+                    Text(
+                        viewModel.verticalEnabled
+                            ? "Gestures will be handled by FasterSwiper."
+                            : "Gestures will be handled by macOS."
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 48)
                 }
 
-                if viewModel.showCubicBezierField {
-                    VStack(alignment: .leading, spacing: 4) {
-                        TextField(
-                            "Curve",
-                            text: $viewModel.cubicBezierCurveText
-                        )
-                        .textFieldStyle(.roundedBorder)
+                Group {
+                    LabeledContent("Duration") {
+                        HStack(spacing: 8) {
+                            Slider(
+                                value: $viewModel.verticalAnimationDurationMs,
+                                in: 0...1000,
+                                step: 50
+                            )
+                            .labelsHidden()
+                            .frame(width: 140)
+                            TextField(
+                                "",
+                                value: $viewModel.verticalAnimationDurationMs,
+                                format: .number
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 55)
+                            Text("ms")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
 
-                        Text(
-                            "Enter a CSS `cubic-bezier()` value from, e.g. [cubic-bezier.com](https://cubic-bezier.com), or four comma-separated numbers."
-                        )
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    Picker("Easing function", selection: $viewModel.verticalSelectedEasingFunctionTag) {
+                        ForEach(viewModel.easingFunctionOptions) { option in
+                            Text(option.label).tag(option.tag)
+                        }
+                    }
+
+                    if viewModel.verticalShowCubicBezierField {
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField(
+                                "Curve",
+                                text: $viewModel.verticalCubicBezierCurveText
+                            )
+                            .textFieldStyle(.roundedBorder)
+
+                            Text(
+                                "Enter a CSS `cubic-bezier()` value from, e.g. [cubic-bezier.com](https://cubic-bezier.com), or four comma-separated numbers."
+                            )
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        }
                     }
                 }
-            } header: {
-                Text("Horizontal Animations")
+                .disabled(!viewModel.verticalEnabled)
             }
 
             Section("Display & Performance") {
@@ -193,10 +269,15 @@ struct KeyboardSettingsView<VM: SettingsViewModelProtocol>: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle(
                         "Enable jump-to-space shortcuts",
-                        isOn: $viewModel.enableJumpToSpaceShortcuts
+                        isOn: Binding(
+                            get: { viewModel.horizontalEnabled && viewModel.enableJumpToSpaceShortcuts },
+                            set: { viewModel.enableJumpToSpaceShortcuts = $0 }
+                        )
                     )
+                    .disabled(!viewModel.horizontalEnabled)
+
                     Text(
-                        "Press ⌃+1 through ⌃+0 to switch directly to spaces 1 through 10, respectively."
+                        "Press ⌃+1 through ⌃+0 to switch directly to spaces 1 through 10, respectively. Horizontal animations must be enabled to use jump-to-space shortcuts."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)

@@ -77,6 +77,15 @@ CGEventRef absl_nullable PhysicalEventHandler::HandleEvent(
   EventDecision decision =
       std::visit(overloaded{
                      [&](DockControlEvent event) -> EventDecision {
+                       const std::optional<Axis> maybe_gesture_axis =
+                           TryEventDirectionToAxis(event.direction);
+                       if (!maybe_gesture_axis.has_value() ||
+                           !IsAxisEnabled(*maybe_gesture_axis)) {
+                         // Axis is disabled or unknown, allow the OS to handle
+                         // the event.
+                         return UninterestingEventDecision::kPassthrough;
+                       }
+
                        return GestureCommand{
                            .event = event,
                        };
@@ -90,14 +99,24 @@ CGEventRef absl_nullable PhysicalEventHandler::HandleEvent(
                          if (std::optional<RelativeMoveCommand> maybe_command =
                                  TryGetRelativeMoveCommandFromKeyEvent(event);
                              maybe_command.has_value()) {
-                           return *std::move(maybe_command);
+                           const Axis axis =
+                               (maybe_command->arrow_key_direction ==
+                                    ArrowKeyDirection::kUp ||
+                                maybe_command->arrow_key_direction ==
+                                    ArrowKeyDirection::kDown)
+                                   ? Axis::kVertical
+                                   : Axis::kHorizontal;
+                           if (IsAxisEnabled(axis)) {
+                             return *std::move(maybe_command);
+                           }
                          }
                        }
 
-                       if (options_.enable_jump_to_space_shortcuts()) {
-                         if (std::optional<JumpToSpaceCommand> maybe_command =
-                                 TryGetJumpToSpaceCommand(event);
-                             maybe_command.has_value()) {
+                       if (options_.enable_jump_to_space_shortcuts() &&
+                           IsAxisEnabled(Axis::kHorizontal)) {
+                         const std::optional<JumpToSpaceCommand> maybe_command =
+                             TryGetJumpToSpaceCommand(event);
+                         if (maybe_command.has_value()) {
                            return *std::move(maybe_command);
                          }
                        }
@@ -177,6 +196,22 @@ PhysicalEventHandler::HandleCommand(const GestureCommand &command,
               << ")";
       return absl::OkStatus();
     }
+  }
+
+  const std::optional<Axis> maybe_gesture_axis =
+      TryEventDirectionToAxis(command.event.direction);
+  if (!maybe_gesture_axis.has_value()) {
+    LOG(WARNING)
+        << "HandleCommand(): Ignoring GestureCommand because direction "
+        << command.event.direction << " is unknown";
+    return absl::OkStatus();
+  }
+
+  if (!IsAxisEnabled(*maybe_gesture_axis)) {
+    LOG(WARNING) << "HandleCommand(): Ignoring GestureCommand because "
+                 << magic_enum::enum_name(*maybe_gesture_axis)
+                 << " gestures are disabled";
+    return absl::OkStatus();
   }
 
   if (command.event.phase == kGestureBegan) {
@@ -272,16 +307,17 @@ PhysicalEventHandler::HandleEndGesture(const DockControlEvent &swipe_event) {
                                     kOneSwipeInNanoswipes,
                                 soft_min, soft_max);
 
-  const absl::Duration duration = CalculateAnimationDuration(
-      animator_->position(), target_position_,
-      FromProtoDuration(options_.animation_duration_per_space()));
+  const absl::Duration duration =
+      CalculateAnimationDuration(animator_->position(), target_position_,
+                                 GetDurationForAxis(current_axis_));
 
   VLOG(1) << "HandleEndGesture():  initial_position=" << initial_position_;
   VLOG(1) << "HandleEndGesture():  current_position=" << animator_->position();
   VLOG(1) << "HandleEndGesture():  target_position=" << target_position_;
   VLOG(1) << "HandleEndGesture():  duration=" << duration;
 
-  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+  ASSIGN_OR_RETURN(EasingFunction easing_function,
+                   GetEasingFunctionForAxis(current_axis_));
   RETURN_IF_ERROR(animator_->AnimateToPosition(
       {
           .target_position = target_position_,
@@ -301,9 +337,9 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
 
   RETURN_IF_ERROR(CheckGestureActive());
 
-  const absl::Duration duration = CalculateAnimationDuration(
-      animator_->position(), target_position_,
-      FromProtoDuration(options_.animation_duration_per_space()));
+  const absl::Duration duration =
+      CalculateAnimationDuration(animator_->position(), target_position_,
+                                 GetDurationForAxis(current_axis_));
 
   VLOG(1) << "HandleCancelGesture():  progress=" << swipe_event.progress;
   VLOG(1) << "HandleCancelGesture():  initial_position_=" << initial_position_;
@@ -312,7 +348,8 @@ PhysicalEventHandler::HandleCancelGesture(const DockControlEvent &swipe_event) {
   VLOG(1) << "HandleCancelGesture():  target_position_=" << target_position_;
   VLOG(1) << "HandleCancelGesture():  duration=" << duration;
 
-  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+  ASSIGN_OR_RETURN(EasingFunction easing_function,
+                   GetEasingFunctionForAxis(current_axis_));
   RETURN_IF_ERROR(animator_->AnimateToPosition(
       {
           .target_position = initial_position_,
@@ -345,6 +382,12 @@ PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
     AbortOnUnknownEnum(command.arrow_key_direction);
   }();
 
+  if (!IsAxisEnabled(axis)) {
+    VLOG(1) << "HandleCommand(): Ignoring RelativeMoveCommand because "
+            << magic_enum::enum_name(axis) << " gestures are disabled";
+    return absl::OkStatus();
+  }
+
   SpaceSwitchOperation::Options operation_options;
   if (axis == Axis::kVertical) {
     // Stock macOS always has the up and down keyboard shortcuts act the same
@@ -361,15 +404,15 @@ PhysicalEventHandler::HandleCommand(const RelativeMoveCommand &command) {
                  soft_min, soft_max);
 
   const absl::Duration duration = CalculateAnimationDuration(
-      animator_->position(), target_position_,
-      FromProtoDuration(options_.animation_duration_per_space()));
+      animator_->position(), target_position_, GetDurationForAxis(axis));
 
   VLOG(1) << "HandleKeyEvent():  initial_position=" << initial_position_;
   VLOG(1) << "HandleKeyEvent():  current_position=" << animator_->position();
   VLOG(1) << "HandleKeyEvent():  target_position=" << target_position_;
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
-  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+  ASSIGN_OR_RETURN(EasingFunction easing_function,
+                   GetEasingFunctionForAxis(axis));
   RETURN_IF_ERROR(animator_->AnimateToPosition(
       {
           .target_position = target_position_,
@@ -386,6 +429,12 @@ absl::Status
 PhysicalEventHandler::HandleCommand(const JumpToSpaceCommand &command) {
   VLOG(1) << "HandleCommand(): command=" << command;
 
+  if (!IsAxisEnabled(Axis::kHorizontal)) {
+    VLOG(1) << "HandleCommand(): ignoring JumpToSpaceCommand because "
+               "horizontal gestures are disabled";
+    return absl::OkStatus();
+  }
+
   ASSIGN_OR_RETURN(const SpaceState space_state,
                    LoadSpaceStateForActiveDisplay());
   if (command.space_index >= space_state.count()) {
@@ -400,16 +449,17 @@ PhysicalEventHandler::HandleCommand(const JumpToSpaceCommand &command) {
   RETURN_IF_ERROR(SetUpForNewGesture(Axis::kHorizontal));
   target_position_ = command.space_index * kOneSwipeInNanoswipes;
 
-  const absl::Duration duration = CalculateAnimationDuration(
-      animator_->position(), target_position_,
-      FromProtoDuration(options_.animation_duration_per_space()));
+  const absl::Duration duration =
+      CalculateAnimationDuration(animator_->position(), target_position_,
+                                 GetDurationForAxis(Axis::kHorizontal));
 
   VLOG(1) << "HandleKeyEvent():  initial_position=" << initial_position_;
   VLOG(1) << "HandleKeyEvent():  current_position=" << animator_->position();
   VLOG(1) << "HandleKeyEvent():  target_position=" << target_position_;
   VLOG(1) << "HandleKeyEvent():  duration=" << duration;
 
-  ASSIGN_OR_RETURN(EasingFunction easing_function, FromDaemonOptions(options_));
+  ASSIGN_OR_RETURN(EasingFunction easing_function,
+                   GetEasingFunctionForAxis(Axis::kHorizontal));
   RETURN_IF_ERROR(animator_->AnimateToPosition(
       {
           .target_position = target_position_,
@@ -432,6 +482,7 @@ absl::Status PhysicalEventHandler::CheckGestureActive() {
 
 absl::Status PhysicalEventHandler::SetUpForNewGesture(
     Axis axis, SpaceSwitchOperation::Options options) {
+  current_axis_ = axis;
   bool need_new_animator = true;
   if (animator_ != nullptr) {
     const AnimatedSpaceSwitchOperationResult cancel_result =
@@ -512,6 +563,61 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
           << ", target_position_=" << target_position_;
 
   return absl::OkStatus();
+}
+
+bool PhysicalEventHandler::IsAxisEnabled(Axis axis) const {
+  switch (axis) {
+  case Axis::kHorizontal:
+    return options_.has_horizontal_settings()
+               ? options_.horizontal_settings().enabled()
+               : true;
+  case Axis::kVertical:
+    return options_.has_vertical_settings()
+               ? options_.vertical_settings().enabled()
+               : true;
+  }
+}
+
+absl::Duration PhysicalEventHandler::GetDurationForAxis(Axis axis) const {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  switch (axis) {
+  case Axis::kHorizontal:
+    if (options_.has_horizontal_settings() &&
+        options_.horizontal_settings().has_duration()) {
+      return FromProtoDuration(options_.horizontal_settings().duration());
+    }
+    if (options_.has_animation_duration_per_space()) {
+      return FromProtoDuration(options_.animation_duration_per_space());
+    }
+    return absl::Milliseconds(200);
+  case Axis::kVertical:
+    if (options_.has_vertical_settings() &&
+        options_.vertical_settings().has_duration()) {
+      return FromProtoDuration(options_.vertical_settings().duration());
+    }
+    if (options_.has_animation_duration_per_space()) {
+      return FromProtoDuration(options_.animation_duration_per_space());
+    }
+    return absl::Milliseconds(200);
+  }
+#pragma clang diagnostic pop
+}
+
+absl::StatusOr<EasingFunction>
+PhysicalEventHandler::GetEasingFunctionForAxis(Axis axis) const {
+  switch (axis) {
+  case Axis::kHorizontal:
+    if (options_.has_horizontal_settings()) {
+      return FromGestureSettings(options_.horizontal_settings());
+    }
+    return FromDaemonOptions(options_);
+  case Axis::kVertical:
+    if (options_.has_vertical_settings()) {
+      return FromGestureSettings(options_.vertical_settings());
+    }
+    return FromDaemonOptions(options_);
+  }
 }
 
 std::optional<PhysicalEventHandler::RelativeMoveCommand>

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "src/easing.h"
 #include "src/engine/swipe-animator.h"
 #include "src/event.h"
 #include "src/hotkeys.h"
@@ -93,6 +94,12 @@ private:
   absl::Status CheckGestureActive();
   absl::Status
   SetUpForNewGesture(Axis axis, SpaceSwitchOperation::Options options = {});
+
+  bool IsAxisEnabled(Axis axis) const;
+  absl::Duration GetDurationForAxis(Axis axis) const;
+  absl::StatusOr<EasingFunction> GetEasingFunctionForAxis(Axis axis) const;
+
+  Axis current_axis_ = Axis::kHorizontal;
 
   std::optional<RelativeMoveCommand>
   TryGetRelativeMoveCommandFromKeyEvent(const KeyEvent &event) const;

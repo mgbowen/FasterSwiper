@@ -20,11 +20,20 @@ message CubicBezierCurve {
     double p2y = 4;
 }
 
+message GestureSettings {
+    bool enabled = 1;
+    google.protobuf.Duration duration = 2;
+    EasingFunction easing_function = 3;
+    CubicBezierCurve cubic_bezier_curve = 4;
+}
+
 message DaemonOptions {
-    google.protobuf.Duration animation_duration_per_space = 1;
-    EasingFunction easing_function = 2;
-    CubicBezierCurve cubic_bezier_curve = 3;
+    google.protobuf.Duration animation_duration_per_space = 1 [deprecated = true];
+    EasingFunction easing_function = 2 [deprecated = true];
+    CubicBezierCurve cubic_bezier_curve = 3 [deprecated = true];
     int64 frames_per_second = 4;
     bool intercept_mission_control_shortcuts = 5;
     bool enable_jump_to_space_shortcuts = 6;
+    GestureSettings horizontal_settings = 7;
+    GestureSettings vertical_settings = 8;
 }

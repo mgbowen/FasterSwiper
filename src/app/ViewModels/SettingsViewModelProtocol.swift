@@ -48,11 +48,21 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var statusColor: Color { get }
     var statusText: String { get }
 
-    var animationDurationMs: Double { get set }
+    // Horizontal animation settings
+    var horizontalEnabled: Bool { get set }
+    var horizontalAnimationDurationMs: Double { get set }
+    var horizontalSelectedEasingFunctionTag: Int { get set }
+    var horizontalShowCubicBezierField: Bool { get }
+    var horizontalCubicBezierCurveText: String { get set }
+
+    // Vertical animation settings
+    var verticalEnabled: Bool { get set }
+    var verticalAnimationDurationMs: Double { get set }
+    var verticalSelectedEasingFunctionTag: Int { get set }
+    var verticalShowCubicBezierField: Bool { get }
+    var verticalCubicBezierCurveText: String { get set }
+
     var easingFunctionOptions: [PickerOption] { get }
-    var selectedEasingFunctionTag: Int { get set }
-    var showCubicBezierField: Bool { get }
-    var cubicBezierCurveText: String { get set }
     var framesPerSecond: Int { get set }
     var interceptMissionControlShortcuts: Bool { get set }
     var enableJumpToSpaceShortcuts: Bool { get set }
