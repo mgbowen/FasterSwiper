@@ -3,8 +3,8 @@ build --features=external_include_paths
 build --features=-layering_check
 build --features=-use_header_modules
 
-build --cxxopt=-std=c++23 --cxxopt=-fno-exceptions
-build --host_cxxopt=-std=c++23 --host_cxxopt=-fno-exceptions
+build --cxxopt=-std=c++23 --cxxopt=-fno-exceptions --cxxopt=-DABSL_DEFINE_UNQUALIFIED_STATUS_MACROS
+build --host_cxxopt=-std=c++23 --host_cxxopt=-fno-exceptions --host_cxxopt=-DABSL_DEFINE_UNQUALIFIED_STATUS_MACROS
 
 build --per_file_copt=//.*@-Wall --per_file_copt=external/.*@-w
 build --host_per_file_copt=//.*@-Wall --host_per_file_copt=external/.*@-w

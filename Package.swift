@@ -5,6 +5,6 @@ import PackageDescription
 let package = Package(
     name: "FasterSwiper",
     dependencies: [
-        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.37.0"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.38.1"),
     ]
 )

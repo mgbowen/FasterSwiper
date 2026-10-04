@@ -1,36 +1,28 @@
 module(name = "faster-swiper")
 
-bazel_dep(name = "apple_support", version = "2.5.3")
-bazel_dep(name = "rules_cc", version = "0.2.18")
-bazel_dep(name = "rules_apple", version = "4.5.3")
-bazel_dep(name = "rules_swift", version = "3.6.1")
-bazel_dep(name = "rules_xcodeproj", version = "4.0.1")
-bazel_dep(name = "abseil-cpp", version = "20260107.1")
-git_override(
-    module_name = "abseil-cpp",
-    commit = "1ea7b9254fd6f29d72069473856d58837d19cbfc",
-    remote = "https://github.com/abseil/abseil-cpp.git",
-)
-
-bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
-bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1")
-bazel_dep(name = "protobuf", version = "34.1")
-bazel_dep(name = "grpc", version = "1.81.0")
-bazel_dep(name = "rules_swift_package_manager", version = "1.17.1")
+bazel_dep(name = "apple_support", version = "2.9.1")
+bazel_dep(name = "rules_cc", version = "0.2.25")
+bazel_dep(name = "rules_apple", version = "5.2.0")
+bazel_dep(name = "rules_swift", version = "4.1.2")
+bazel_dep(name = "rules_xcodeproj", version = "4.1.0")
+bazel_dep(name = "abseil-cpp", version = "20260817.0")
+bazel_dep(name = "magic_enum", version = "0.9.8")
+bazel_dep(name = "googletest", version = "1.18.0.bcr.1")
+bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.2")
+bazel_dep(name = "protobuf", version = "36.2")
+bazel_dep(name = "grpc", version = "1.84.0")
+bazel_dep(name = "rules_swift_package_manager", version = "1.25.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
-bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
-bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "toolchains_llvm", version = "1.7.0")
-
-# Fixes some issue with transitive rules_android dependency
-bazel_dep(name = "rules_android", version = "0.7.2")
+bazel_dep(name = "aspect_rules_lint", version = "2.9.1")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "toolchains_llvm", version = "1.11.0")
 
 # LLVM toolchain for clang-format, clang-tidy, etc.
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     cxx_standard = {"": "c++23"},
     llvm_versions = {
-        "": "21.1.8",
+        "": "23.1.2",
     },
     stdlib = {"": "builtin-libc++"},
 )
@@ -52,18 +44,10 @@ use_repo(
     "swiftpkg_swift_protobuf",
 )
 
-# Override needed because the latest BCR release isn't compatible with Bazel 9
-bazel_dep(name = "magic_enum")
-git_override(
-    module_name = "magic_enum",
-    commit = "7d87efb4a3dddbbe8caa9ca14eff05ede1102ab8",
-    remote = "https://github.com/Neargye/magic_enum.git",
-)
-
 # Fork for Hedron's Compile Commands Extractor for Bazel.
 # Fork: https://github.com/claymaks/bazel-compile-commands-extractor
 # Original: https://github.com/hedronvision/bazel-compile-commands-extractor
-bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+bazel_dep(name = "hedron_compile_commands")
 git_override(
     module_name = "hedron_compile_commands",
     commit = "818899d71ed956ed41a7c4775e97846df03e8338",
@@ -75,10 +59,4 @@ git_override(
     module_name = "mgbowen_bazel_create_dmg",
     commit = "352250f742a82a5c6f4d02d05c7bf187a56c5ca9",
     remote = "https://github.com/mgbowen/bazel-create-dmg.git",
-)
-
-single_version_override(
-    module_name = "grpc",
-    patches = ["//third_party:grpc.patch"],
-    patch_strip = 1,
 )
