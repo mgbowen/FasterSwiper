@@ -1,6 +1,5 @@
 #include "src/public/fasterswiper.h"
 
-#include "src/compatibility.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 
@@ -54,11 +53,11 @@ TEST(FasterSwiperTest, DefaultDaemonOptions) {
   EXPECT_EQ(result.horizontal_settings().easing_function(),
             proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
 
-  EXPECT_EQ(result.vertical_settings().enabled(), !IsMacOS27());
+  EXPECT_TRUE(result.vertical_settings().enabled());
   EXPECT_EQ(FromProtoDuration(result.vertical_settings().duration()),
             absl::Milliseconds(200));
   EXPECT_EQ(result.vertical_settings().easing_function(),
-            proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+            proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
 
   EXPECT_EQ(result.frames_per_second(), 240);
   EXPECT_TRUE(result.intercept_mission_control_shortcuts());
@@ -89,11 +88,11 @@ TEST(FasterSwiperTest, MigrateLegacyDefaultsNotCopied) {
   EXPECT_EQ(output.horizontal_settings().easing_function(),
             proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
 
-  EXPECT_EQ(output.vertical_settings().enabled(), !IsMacOS27());
+  EXPECT_TRUE(output.vertical_settings().enabled());
   EXPECT_EQ(FromProtoDuration(output.vertical_settings().duration()),
             absl::Milliseconds(200));
   EXPECT_EQ(output.vertical_settings().easing_function(),
-            proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+            proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
 }
 
 TEST(FasterSwiperTest, MigrateLegacyCustomValuesCopied) {
@@ -128,7 +127,7 @@ TEST(FasterSwiperTest, MigrateLegacyCustomValuesCopied) {
   EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2x(), 0.3);
   EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2y(), 0.4);
 
-  EXPECT_EQ(output.vertical_settings().enabled(), !IsMacOS27());
+  EXPECT_TRUE(output.vertical_settings().enabled());
   EXPECT_EQ(FromProtoDuration(output.vertical_settings().duration()),
             absl::Milliseconds(450));
   EXPECT_EQ(output.vertical_settings().easing_function(),
@@ -153,11 +152,11 @@ TEST(FasterSwiperTest, PreserveExistingSettings) {
   EXPECT_EQ(output.horizontal_settings().easing_function(),
             proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
 
-  EXPECT_EQ(output.vertical_settings().enabled(), !IsMacOS27());
+  EXPECT_TRUE(output.vertical_settings().enabled());
   EXPECT_EQ(FromProtoDuration(output.vertical_settings().duration()),
             absl::Milliseconds(200));
   EXPECT_EQ(output.vertical_settings().easing_function(),
-            proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+            proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
 }
 
 } // namespace

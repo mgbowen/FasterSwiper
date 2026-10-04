@@ -49,9 +49,9 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
   horizontal->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
 
   auto *vertical = options.mutable_vertical_settings();
-  vertical->set_enabled(!fasterswiper::IsMacOS27());
+  vertical->set_enabled(true);
   *vertical->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
-  vertical->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+  vertical->set_easing_function(proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
 
   options.set_frames_per_second(240);
   options.set_intercept_mission_control_shortcuts(true);
@@ -178,13 +178,13 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
   // 3. Hydrate missing fields on vertical_settings.
   auto *vertical = daemon_options->options.mutable_vertical_settings();
   if (!vertical->has_enabled()) {
-    vertical->set_enabled(!fasterswiper::IsMacOS27());
+    vertical->set_enabled(true);
   }
   if (!vertical->has_duration()) {
     *vertical->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
   }
   if (!vertical->has_easing_function()) {
-    vertical->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
+    vertical->set_easing_function(proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
   }
 
   if (!daemon_options->options.has_frames_per_second()) {
