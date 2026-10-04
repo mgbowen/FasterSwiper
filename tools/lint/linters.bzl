@@ -5,6 +5,7 @@ clang_tidy = lint_clang_tidy_aspect(
     binary = Label("//tools/lint:clang-tidy"),
     configs = [
         Label("//:.clang-tidy"),
+        Label("//:.clang-format"),
     ],
     lint_target_headers = True,
 )

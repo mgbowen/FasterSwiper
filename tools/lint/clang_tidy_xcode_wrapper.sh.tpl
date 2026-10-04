@@ -17,6 +17,24 @@ set -euo pipefail
 readonly DEVELOPER_DIR_PLACEHOLDER="{DEVELOPER_DIR_PLACEHOLDER}"
 readonly SDKROOT_PLACEHOLDER="{SDKROOT_PLACEHOLDER}"
 readonly CLANG_TIDY_RUNFILES_PATH="{CLANG_TIDY_RUNFILES_PATH}"
+readonly XCODE_ENV_RUNFILES_PATH="{XCODE_ENV_RUNFILES_PATH}"
+
+# Sources DEVELOPER_DIR and SDKROOT, which ensures placeholder rewriting works
+# even in environments that do not retain the Apple-specific environment
+# variables.
+resolve_xcode_env() {
+  local xcode_env
+  xcode_env="$(rlocation "$XCODE_ENV_RUNFILES_PATH")"
+  if [[ -z "$xcode_env" || ! -f "$xcode_env" ]]; then
+    echo "Unable to locate Xcode environment file at $XCODE_ENV_RUNFILES_PATH" >&2
+    exit 1
+  fi
+  echo "$xcode_env"
+}
+
+# shellcheck disable=SC1090
+source "$(resolve_xcode_env)"
+
 
 resolve_clang_tidy() {
   local clang_tidy
@@ -83,4 +101,4 @@ for arg in "$@"; do
   esac
 done
 
-exec "$clang_tidy" "${args[@]}"
+"$clang_tidy" "${args[@]}"
