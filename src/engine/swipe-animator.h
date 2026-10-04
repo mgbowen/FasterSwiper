@@ -20,17 +20,18 @@ public:
   ~SwipeAnimator();
 
   // Non-copyable, non-movable.
-  SwipeAnimator(const SwipeAnimator &) = delete;
-  SwipeAnimator &operator=(const SwipeAnimator &) = delete;
-  SwipeAnimator(SwipeAnimator &&) = delete;
-  SwipeAnimator &operator=(SwipeAnimator &&) = delete;
+  SwipeAnimator(const SwipeAnimator&) = delete;
+  SwipeAnimator& operator=(const SwipeAnimator&) = delete;
+  SwipeAnimator(SwipeAnimator&&) = delete;
+  SwipeAnimator& operator=(SwipeAnimator&&) = delete;
 
-  const SpaceSwitchOperation &operation() const { return *operation_; }
+  const SpaceSwitchOperation& operation() const { return *operation_; }
 
   bool is_committed() const;
 
   // Cancel any active animation and instantly sets the position.
-  absl::Status SetPosition(int64_t new_position, CGEventSink *absl_nonnull event_sink);
+  absl::Status SetPosition(int64_t new_position,
+                           CGEventSink* absl_nonnull event_sink);
 
   struct AnimateParameters {
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
@@ -39,7 +40,7 @@ public:
     int64_t ticks_per_second ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
-    friend void AbslStringify(Sink &sink, const AnimateParameters &params) {
+    friend void AbslStringify(Sink& sink, const AnimateParameters& params) {
       absl::Format(&sink,
                    "AnimateParameters{target_position=%d, duration=%s, "
                    "ticks_per_second=%d}",
@@ -52,7 +53,8 @@ public:
   // If an animation is already running, it is cancelled (the SpaceSwitcher
   // position is left wherever it currently is) and the new animation begins
   // from there.
-  absl::Status AnimateToPosition(AnimateParameters params, std::unique_ptr<CGEventSink> event_sink);
+  absl::Status AnimateToPosition(AnimateParameters params,
+                                 std::unique_ptr<CGEventSink> event_sink);
 
   [[nodiscard]] AnimatedSpaceSwitchOperationResult CancelAnimation();
 
@@ -76,4 +78,4 @@ private:
   absl::Status CancelAnimationAndEnsureNotCommitted();
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

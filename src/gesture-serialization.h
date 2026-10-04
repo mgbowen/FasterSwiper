@@ -6,7 +6,6 @@
 #include <string>
 
 #include <ApplicationServices/ApplicationServices.h>
-
 #include <absl/container/btree_map.h>
 #include <absl/status/status.h>
 #include <absl/strings/string_view.h>
@@ -23,10 +22,10 @@ struct CGEventData {
 
 absl::StatusOr<CGEventData> DeserializeCGEventData(absl::string_view data);
 
-absl::StatusOr<CGEventData>
-DeserializeCGEventData(const CGEventRef absl_nonnull event);
+absl::StatusOr<CGEventData> DeserializeCGEventData(const CGEventRef
+                                                   absl_nonnull event);
 
-absl::StatusOr<std::string> SerializeCGEventData(const CGEventData &event_data);
+absl::StatusOr<std::string> SerializeCGEventData(const CGEventData& event_data);
 
 using IOHIDEventData =
     std::variant<IOHIDFluidTouchGestureData, IOHIDVelocityEventData>;
@@ -40,17 +39,17 @@ absl::StatusOr<IOHIDSystemQueueElementData>
 DeserializeIOHIDSystemQueueElementData(absl::string_view data);
 
 std::string SerializeIOHIDSystemQueueElementData(
-    const IOHIDSystemQueueElementData &element);
+    const IOHIDSystemQueueElementData& element);
 
 absl::StatusOr<IOHIDSystemQueueElementData>
-GenerateIOHIDSystemQueueElementDataFromCGEvent(
+GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
+                                               absl_nonnull event);
+
+absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>> AugmentCGEvent(
+    const CGEventRef absl_nonnull event,
+    const IOHIDSystemQueueElementData& element);
+
+absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>> AugmentCGEvent(
     const CGEventRef absl_nonnull event);
 
-absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>>
-AugmentCGEvent(const CGEventRef absl_nonnull event,
-               const IOHIDSystemQueueElementData &element);
-
-absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>>
-AugmentCGEvent(const CGEventRef absl_nonnull event);
-
-} // namespace fasterswiper
+}  // namespace fasterswiper

@@ -7,10 +7,11 @@
 #include "src/mission-control.h"
 #include "src/periodic-timer.h"
 
+#include <thread>
+
 #include <absl/base/no_destructor.h>
 #include <absl/log/log.h>
 #include <absl/status/status_macros.h>
-#include <thread>
 
 namespace fasterswiper {
 
@@ -27,7 +28,7 @@ const absl::NoDestructor<SpaceState> kAppExposeDummySpaceState([] {
                     /*index=*/0);
 }());
 
-absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState &space_state) {
+absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState& space_state) {
   const int64_t current_space_id = SLSManagedDisplayGetCurrentSpace(
       SLSMainConnectionID(), space_state.display_id().get());
   for (int i = 0; i < space_state.space_ids().size(); i++) {
@@ -42,7 +43,7 @@ absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState &space_state) {
                    absl::StrJoin(space_state.space_ids(), ", "), "]"));
 }
 
-} // namespace
+}  // namespace
 
 bool AxisAdapter::WaitForCommittedPositionChanged(
     int64_t original_position, absl::Duration deadline) const {
@@ -90,8 +91,8 @@ absl::StatusOr<int64_t> HorizontalAxisAdapter::committed_position() const {
   return GetCommittedPosition(space_state_);
 }
 
-std::pair<int64_t, int64_t>
-HorizontalAxisAdapter::position_soft_limits() const {
+std::pair<int64_t, int64_t> HorizontalAxisAdapter::position_soft_limits()
+    const {
   return {0, static_cast<int64_t>(space_state_.count() - 1) *
                  kOneSwipeInNanoswipes};
 }
@@ -112,12 +113,12 @@ absl::StatusOr<int64_t> VerticalAxisAdapter::committed_position() const {
                    GetActiveMultitaskingWindow());
   switch (active_window) {
     using enum ActiveMultitaskingWindow;
-  case kMissionControl:
-    return kMissionControlPosition;
-  case kDesktop:
-    return kDesktopPosition;
-  case kAppExpose:
-    return kAppExposePosition;
+    case kMissionControl:
+      return kMissionControlPosition;
+    case kDesktop:
+      return kDesktopPosition;
+    case kAppExpose:
+      return kAppExposePosition;
   }
 
   return absl::InternalError(
@@ -162,13 +163,13 @@ AppExposeHorizontalAxisAdapter_MacOS26::position_soft_limits() const {
   return {current_space_position, current_space_position};
 }
 
-double
-AppExposeHorizontalAxisAdapter::NanoswipesToProgress(int64_t nanoswipes) const {
+double AppExposeHorizontalAxisAdapter::NanoswipesToProgress(
+    int64_t nanoswipes) const {
   return kAppExposeDummySpaceState->SwipesToProgress(nanoswipes);
 }
 
-int64_t
-AppExposeHorizontalAxisAdapter::ProgressToNanoswipes(double progress) const {
+int64_t AppExposeHorizontalAxisAdapter::ProgressToNanoswipes(
+    double progress) const {
   return kAppExposeDummySpaceState->ProgressToSwipes(progress);
 }
 
@@ -177,8 +178,8 @@ bool AppExposeHorizontalAxisAdapter::WaitForCommittedPositionChanged(
   return true;
 }
 
-absl::StatusOr<int64_t>
-AppExposeHorizontalAxisAdapter::committed_position() const {
+absl::StatusOr<int64_t> AppExposeHorizontalAxisAdapter::committed_position()
+    const {
   return 0;
 }
 
@@ -198,4 +199,4 @@ CreateAppExposeHorizontalAxisAdapter() {
   return std::make_unique<AppExposeHorizontalAxisAdapter>();
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

@@ -4,10 +4,9 @@
 
 #include <memory>
 
-#include <absl/status/statusor.h>
-
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <absl/status/statusor.h>
 
 namespace fasterswiper {
 
@@ -16,11 +15,11 @@ public:
   using Callback =
       absl::AnyInvocable<CGEventRef(CGEventTapProxy, CGEventType, CGEventRef)>;
 
-  static absl::StatusOr<std::unique_ptr<EventTapManager>>
-  Create(CGEventTapLocation tap, CGEventTapPlacement place,
-         CGEventTapOptions options,
-         const std::vector<CGEventType> &event_types_of_interest,
-         Callback callback);
+  static absl::StatusOr<std::unique_ptr<EventTapManager>> Create(
+      CGEventTapLocation tap, CGEventTapPlacement place,
+      CGEventTapOptions options,
+      const std::vector<CGEventType>& event_types_of_interest,
+      Callback callback);
 
   CFMachPortRef get() const { return raw_tap_.get(); }
 
@@ -33,7 +32,7 @@ private:
   EventTapManager() = default;
 
   static CGEventRef CallbackShim(CGEventTapProxy proxy, CGEventType type,
-                                 CGEventRef event, void *user_info);
+                                 CGEventRef event, void* user_info);
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

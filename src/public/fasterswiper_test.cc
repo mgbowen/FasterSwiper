@@ -11,11 +11,11 @@ namespace {
 
 using ::testing::Eq;
 
-proto::DaemonOptions HydrateAndExtract(const proto::DaemonOptions &input) {
+proto::DaemonOptions HydrateAndExtract(const proto::DaemonOptions& input) {
   std::string serialized = input.SerializeAsString();
-  FS_DaemonOptions *options = nullptr;
-  EXPECT_TRUE(FS_LoadDaemonOptionsFromBinaryProto(
-      serialized.data(), serialized.size(), &options));
+  FS_DaemonOptions* options = nullptr;
+  EXPECT_TRUE(FS_LoadDaemonOptionsFromBinaryProto(serialized.data(),
+                                                  serialized.size(), &options));
   EXPECT_NE(options, nullptr);
 
   EXPECT_TRUE(FS_HydrateDaemonOptions(options));
@@ -23,8 +23,8 @@ proto::DaemonOptions HydrateAndExtract(const proto::DaemonOptions &input) {
   size_t out_len = 0;
   EXPECT_TRUE(FS_SaveDaemonOptionsToBinaryProto(options, nullptr, &out_len));
   std::string output_data(out_len, '\0');
-  EXPECT_TRUE(FS_SaveDaemonOptionsToBinaryProto(options, output_data.data(),
-                                               &out_len));
+  EXPECT_TRUE(
+      FS_SaveDaemonOptionsToBinaryProto(options, output_data.data(), &out_len));
   EXPECT_TRUE(FS_DestroyDaemonOptions(options));
 
   proto::DaemonOptions result;
@@ -33,15 +33,15 @@ proto::DaemonOptions HydrateAndExtract(const proto::DaemonOptions &input) {
 }
 
 TEST(FasterSwiperTest, DefaultDaemonOptions) {
-  FS_DaemonOptions *options = nullptr;
+  FS_DaemonOptions* options = nullptr;
   ASSERT_TRUE(FS_LoadDefaultDaemonOptions(&options));
   ASSERT_NE(options, nullptr);
 
   size_t out_len = 0;
   ASSERT_TRUE(FS_SaveDaemonOptionsToBinaryProto(options, nullptr, &out_len));
   std::string output_data(out_len, '\0');
-  ASSERT_TRUE(FS_SaveDaemonOptionsToBinaryProto(options, output_data.data(),
-                                               &out_len));
+  ASSERT_TRUE(
+      FS_SaveDaemonOptionsToBinaryProto(options, output_data.data(), &out_len));
   ASSERT_TRUE(FS_DestroyDaemonOptions(options));
 
   proto::DaemonOptions result;
@@ -122,10 +122,14 @@ TEST(FasterSwiperTest, MigrateLegacyCustomValuesCopied) {
             absl::Milliseconds(450));
   EXPECT_EQ(output.horizontal_settings().easing_function(),
             proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
-  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p1x(), 0.1);
-  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p1y(), 0.2);
-  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2x(), 0.3);
-  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2y(), 0.4);
+  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p1x(),
+                   0.1);
+  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p1y(),
+                   0.2);
+  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2x(),
+                   0.3);
+  EXPECT_DOUBLE_EQ(output.horizontal_settings().cubic_bezier_curve().p2y(),
+                   0.4);
 
   EXPECT_TRUE(output.vertical_settings().enabled());
   EXPECT_EQ(FromProtoDuration(output.vertical_settings().duration()),
@@ -159,5 +163,5 @@ TEST(FasterSwiperTest, PreserveExistingSettings) {
             proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper

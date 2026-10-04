@@ -5,6 +5,9 @@
 #include "src/compatibility.h"
 #include "src/macos-private.h"
 
+#include <optional>
+#include <vector>
+
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFDictionary.h>
 #include <CoreFoundation/CFNumber.h>
@@ -12,10 +15,6 @@
 #include <CoreGraphics/CGDirectDisplay.h>
 #include <CoreGraphics/CGGeometry.h>
 #include <CoreGraphics/CGWindow.h>
-
-#include <optional>
-#include <vector>
-
 #include <absl/base/nullability.h>
 #include <absl/status/status.h>
 #include <absl/status/status_macros.h>
@@ -73,8 +72,8 @@ absl::StatusOr<std::vector<CGRect>> GetActiveDisplayBounds() {
 // Returns true when `rect` matches the size of any display in
 // `multi_display_bounds`.
 bool IsDisplaySized(CGRect rect,
-                    const std::vector<CGRect> &multi_display_bounds) {
-  for (const auto &display_bounds : multi_display_bounds) {
+                    const std::vector<CGRect>& multi_display_bounds) {
+  for (const auto& display_bounds : multi_display_bounds) {
     // Some minor fudge factor.
     if ((rect.size.width + 1) >= display_bounds.size.width &&
         (rect.size.height + 1) >= display_bounds.size.height) {
@@ -196,7 +195,7 @@ absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow_MacOS26() {
   return ActiveMultitaskingWindow::kDesktop;
 }
 
-} // namespace
+}  // namespace
 
 absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow() {
   if (!IsMacOS27()) {
@@ -207,4 +206,4 @@ absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow() {
   return markers.active_multitasking_window();
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

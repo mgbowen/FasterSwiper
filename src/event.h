@@ -1,14 +1,14 @@
 #pragma once
 
+#include "src/cf-util.h"
+#include "src/hotkeys.h"
+#include "src/variant-util.h"
+
 #include <optional>
 #include <string>
 #include <variant>
 
 #include <ApplicationServices/ApplicationServices.h>
-
-#include "src/cf-util.h"
-#include "src/hotkeys.h"
-#include "src/variant-util.h"
 #include <absl/strings/str_format.h>
 
 namespace fasterswiper {
@@ -21,10 +21,10 @@ enum class EventSource {
 inline constexpr absl::string_view EventSourceToString(EventSource source) {
   switch (source) {
     using enum EventSource;
-  case kPhysical:
-    return "kPhysical";
-  case kSynthetic:
-    return "kSynthetic";
+    case kPhysical:
+      return "kPhysical";
+    case kSynthetic:
+      return "kSynthetic";
   }
 
   return "(unknown)";
@@ -36,7 +36,7 @@ struct DockControlEvent {
   double progress;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink, const DockControlEvent &event) {
+  friend void AbslStringify(Sink& sink, const DockControlEvent& event) {
     absl::Format(&sink, "DockControlEvent{phase=%d, direction=%d, progress=%f}",
                  event.phase, event.direction, event.progress);
   }
@@ -50,10 +50,10 @@ enum class KeyState {
 inline constexpr absl::string_view KeyStateToString(KeyState key_state) {
   switch (key_state) {
     using enum KeyState;
-  case kUp:
-    return "kUp";
-  case kDown:
-    return "kDown";
+    case kUp:
+      return "kUp";
+    case kDown:
+      return "kDown";
   }
 
   return "(unknown)";
@@ -64,11 +64,11 @@ struct KeyEvent {
   CGEventFlags modifiers = 0;
   KeyState key_state = KeyState::kUp;
 
-  bool ConcernsHotkey(const Hotkey &hotkey) const;
-  bool ConcernsAnyHotkey(const HotkeyConfigurations &hotkey_configs) const;
+  bool ConcernsHotkey(const Hotkey& hotkey) const;
+  bool ConcernsAnyHotkey(const HotkeyConfigurations& hotkey_configs) const;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink, const KeyEvent &event) {
+  friend void AbslStringify(Sink& sink, const KeyEvent& event) {
     absl::Format(&sink, "KeyEvent{key_code=%d, modifiers=%d, key_state=%s}",
                  event.key_code, event.modifiers,
                  KeyStateToString(event.key_state));
@@ -78,8 +78,8 @@ struct KeyEvent {
 using EventData = std::variant<DockControlEvent, KeyEvent>;
 
 template <typename Sink>
-void AbslStringify(Sink &sink, const EventData &event_data) {
-  std::visit(overloaded{[&](auto &data) { AbslStringify(sink, data); }},
+void AbslStringify(Sink& sink, const EventData& event_data) {
+  std::visit(overloaded{[&](auto& data) { AbslStringify(sink, data); }},
              event_data);
 }
 
@@ -88,7 +88,7 @@ struct Event {
   EventSource source;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink, const Event &event) {
+  friend void AbslStringify(Sink& sink, const Event& event) {
     absl::Format(&sink, "Event{data=%s, source=%s}", absl::StrCat(event.data),
                  EventSourceToString(event.source));
   }
@@ -100,9 +100,8 @@ std::string EventGesturePhaseToString(int phase);
 
 std::string CFEventToDebugString(CGEventRef event);
 
-CFUniquePtr<CGEventRef>
-CreateDockControlGestureEvent(int phase, int direction, double progress,
-                              std::optional<double> velocity,
-                              bool natural_scrolling_enabled);
+CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
+    int phase, int direction, double progress, std::optional<double> velocity,
+    bool natural_scrolling_enabled);
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

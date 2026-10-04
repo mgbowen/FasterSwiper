@@ -34,7 +34,7 @@ absl::Status Run() {
     if (event_type == kCGEventKeyDown) {
       auto keycode = static_cast<CGKeyCode>(
           CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
-      if (keycode == 53) { // Escape key
+      if (keycode == 53) {  // Escape key
         std::abort();
       }
     }
@@ -58,9 +58,9 @@ absl::Status Run() {
     constexpr auto sleep_duration = absl::Milliseconds(1200);
 
     while (true) {
-      SendKeyWithControl(25); // Control+9
+      SendKeyWithControl(25);  // Control+9
       absl::SleepFor(sleep_duration);
-      SendKeyWithControl(18); // Control+1
+      SendKeyWithControl(18);  // Control+1
       absl::SleepFor(sleep_duration);
     }
   });
@@ -74,10 +74,10 @@ absl::Status Run() {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   QCHECK_OK(::fasterswiper::Run());
 }

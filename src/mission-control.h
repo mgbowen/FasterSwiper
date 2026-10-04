@@ -12,4 +12,4 @@ enum class ActiveMultitaskingWindow {
 
 absl::StatusOr<ActiveMultitaskingWindow> GetActiveMultitaskingWindow();
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

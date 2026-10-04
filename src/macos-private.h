@@ -29,36 +29,36 @@ enum class CGSEventType {
   kCGSWorkspacesWindowDidOrderOutOnNonCurrentManagedSpaces = 1416,
 };
 
-using CGSNotifyProcPtr = void (*)(CGSEventType type, void *data,
-                                  unsigned int dataLength, void *userData);
+using CGSNotifyProcPtr = void (*)(CGSEventType type, void* data,
+                                  unsigned int dataLength, void* userData);
 
 CGError CGSRegisterNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
-                              void *userData);
+                              void* userData);
 CGError CGSRemoveNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
-                            void *userData);
+                            void* userData);
 
 CFStringRef SLSSpaceCopyName(int cid, SLSSpaceId sid);
 
 enum class CGSSpaceMask {
-  CGSSpaceIncludesCurrent = 1 << 0, // Dock, Notification Center, etc.
-  CGSSpaceIncludesOthers = 1 << 1,  // Expose
+  CGSSpaceIncludesCurrent = 1 << 0,  // Dock, Notification Center, etc.
+  CGSSpaceIncludesOthers = 1 << 1,   // Expose
 
-  CGSSpaceIncludesUser = 1 << 2, // User controlled spaces
-  CGSSpaceIncludesOS = 1 << 3,   // OS X controlled spaces
+  CGSSpaceIncludesUser = 1 << 2,  // User controlled spaces
+  CGSSpaceIncludesOS = 1 << 3,    // OS X controlled spaces
 
-  CGSSpaceVisible = 1 << 16, // ?
+  CGSSpaceVisible = 1 << 16,  // ?
 
   kCGSCurrentSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesCurrent,
   kCGSOtherSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers,
-  kCGSAllSpacesMask =
-      CGSSpaceIncludesUser | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+  kCGSAllSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers |
+      CGSSpaceIncludesCurrent,
 
   kCGSCurrentOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesCurrent,
   kCGSOtherOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers,
-  kCGSAllOSSpacesMask =
-      CGSSpaceIncludesOS | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+  kCGSAllOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers |
+      CGSSpaceIncludesCurrent,
 
-  kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask, // ?
+  kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask,  // ?
 };
 
 CFArrayRef SLSCopySpaces(int cid, CGSSpaceMask type);
@@ -177,4 +177,4 @@ struct __attribute__((packed)) IOHIDVelocityEventData {
 static_assert(sizeof(IOHIDVelocityEventData) == 28,
               "Unexpected sizeof(IOHIDVelocityEventData)");
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

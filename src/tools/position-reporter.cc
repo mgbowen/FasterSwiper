@@ -28,9 +28,9 @@ absl::Status Run() {
   return absl::OkStatus();
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
   QCHECK_OK(::fasterswiper::Run());
   return 0;

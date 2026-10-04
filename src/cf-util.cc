@@ -4,11 +4,11 @@
 
 namespace fasterswiper {
 
-absl::StatusOr<std::string>
-StringFromCFStringRef(CFStringRef absl_nonnull cf_string) {
+absl::StatusOr<std::string> StringFromCFStringRef(CFStringRef
+                                                  absl_nonnull cf_string) {
   CHECK(cf_string != nullptr);
 
-  const char *maybe_c_string =
+  const char* maybe_c_string =
       CFStringGetCStringPtr(cf_string, kCFStringEncodingUTF8);
   if (maybe_c_string != nullptr) {
     return std::string(maybe_c_string);
@@ -42,4 +42,4 @@ bool IsNaturalScrollingEnabled() {
   return key_exists ? is_natural : true;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

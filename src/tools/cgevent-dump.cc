@@ -1,3 +1,5 @@
+#include "src/gesture-serialization.h"
+
 #include <bit>
 #include <cctype>
 #include <fstream>
@@ -6,7 +8,6 @@
 #include <variant>
 #include <vector>
 
-#include "src/gesture-serialization.h"
 #include <absl/flags/flag.h>
 #include <absl/flags/parse.h>
 #include <absl/strings/escaping.h>
@@ -22,78 +23,80 @@ ABSL_FLAG(std::string, input_binary, "",
 namespace {
 
 // Helper to handle std::visit overloaded lambdas
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts>
+struct overloaded : Ts... {
   using Ts::operator()...;
 };
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 std::string GetFieldName(uint16_t field_id) {
   switch (field_id) {
-  case 55:
-    return "kCGSEventTypeField";
-  case 110:
-    return "kCGEventGestureHIDType";
-  case 115:
-    return "kCGEventGestureSwipeMask";
-  case 119:
-    return "kCGEventGestureScrollY";
-  case 123:
-    return "kCGEventGestureSwipeMotion";
-  case 124:
-    return "kCGEventGestureSwipeProgress";
-  case 125:
-    return "kCGEventGestureSwipePositionX";
-  case 126:
-    return "kCGEventGestureSwipePositionY";
-  case 129:
-    return "kCGEventGestureSwipeVelocityX";
-  case 130:
-    return "kCGEventGestureSwipeVelocityY";
-  case 132:
-    return "kCGEventGesturePhase";
-  case 135:
-    return "kCGEventScrollGestureFlagBits";
-  case 139:
-    return "kCGEventGestureZoomDeltaX";
-  case 140:
-    return "kCGEventGestureZoomDeltaY";
-  case 4205:
-    return "kCGEventGesturePayload (4205)";
-  case 4502:
-    return "kCGEventGesturePayload (4502)";
-  default:
-    return "(unknown)";
+    case 55:
+      return "kCGSEventTypeField";
+    case 110:
+      return "kCGEventGestureHIDType";
+    case 115:
+      return "kCGEventGestureSwipeMask";
+    case 119:
+      return "kCGEventGestureScrollY";
+    case 123:
+      return "kCGEventGestureSwipeMotion";
+    case 124:
+      return "kCGEventGestureSwipeProgress";
+    case 125:
+      return "kCGEventGestureSwipePositionX";
+    case 126:
+      return "kCGEventGestureSwipePositionY";
+    case 129:
+      return "kCGEventGestureSwipeVelocityX";
+    case 130:
+      return "kCGEventGestureSwipeVelocityY";
+    case 132:
+      return "kCGEventGesturePhase";
+    case 135:
+      return "kCGEventScrollGestureFlagBits";
+    case 139:
+      return "kCGEventGestureZoomDeltaX";
+    case 140:
+      return "kCGEventGestureZoomDeltaY";
+    case 4205:
+      return "kCGEventGesturePayload (4205)";
+    case 4502:
+      return "kCGEventGesturePayload (4502)";
+    default:
+      return "(unknown)";
   }
 }
 
 std::string GetPhaseName(int64_t phase) {
   switch (phase) {
-  case 1:
-    return "Began";
-  case 2:
-    return "Changed";
-  case 4:
-    return "Ended";
-  case 8:
-    return "Cancelled";
-  default:
-    return "Unknown";
+    case 1:
+      return "Began";
+    case 2:
+      return "Changed";
+    case 4:
+      return "Ended";
+    case 8:
+      return "Cancelled";
+    default:
+      return "Unknown";
   }
 }
 
 std::string GetMotionName(int64_t motion) {
   switch (motion) {
-  case 1:
-    return "Horizontal";
-  case 2:
-    return "Vertical";
-  default:
-    return "Unknown";
+    case 1:
+      return "Horizontal";
+    case 2:
+      return "Vertical";
+    default:
+      return "Unknown";
   }
 }
 
 std::string FormatIOHIDSystemQueueElement(
-    const fasterswiper::IOHIDSystemQueueElementData &element) {
+    const fasterswiper::IOHIDSystemQueueElementData& element) {
   std::string s;
   absl::StrAppendFormat(&s, "timestamp: %u\n", element.header.timestamp);
   absl::StrAppendFormat(&s, "sender_id: 0x%x\n", element.header.sender_id);
@@ -106,7 +109,7 @@ std::string FormatIOHIDSystemQueueElement(
     absl::StrAppend(&s, "\n");
     std::visit(
         overloaded{
-            [&](const fasterswiper::IOHIDFluidTouchGestureData &ev) {
+            [&](const fasterswiper::IOHIDFluidTouchGestureData& ev) {
               absl::StrAppendFormat(&s, "event[%u]: FluidTouchGesture\n", i);
               absl::StrAppendFormat(
                   &s, "  size: %u, type: %u, options/phase: 0x%x (%s)\n",
@@ -126,11 +129,11 @@ std::string FormatIOHIDSystemQueueElement(
                   GetMotionName(static_cast<int64_t>(ev.gesture_motion)));
               absl::StrAppendFormat(&s, "  gesture_flavor: %u\n",
                                     static_cast<uint32_t>(ev.gesture_flavor));
-              absl::StrAppendFormat(&s, "  swipe_progress: %f",
-                                    static_cast<double>(ev.swipe_progress) /
-                                        65536.0);
+              absl::StrAppendFormat(
+                  &s, "  swipe_progress: %f",
+                  static_cast<double>(ev.swipe_progress) / 65536.0);
             },
-            [&](const fasterswiper::IOHIDVelocityEventData &ev) {
+            [&](const fasterswiper::IOHIDVelocityEventData& ev) {
               absl::StrAppendFormat(&s, "event[%u]: Velocity\n", i);
               absl::StrAppendFormat(
                   &s, "  size: %u, type: %u, options: 0x%x\n", ev.base.size,
@@ -148,7 +151,7 @@ std::string FormatIOHIDSystemQueueElement(
 
 void PrintTable(
     int32_t version,
-    const absl::btree_map<uint16_t, fasterswiper::CGEventDataElement> &fields) {
+    const absl::btree_map<uint16_t, fasterswiper::CGEventDataElement>& fields) {
   std::cout << "CGEvent Version: " << version << "\n";
   std::cout << "+------------+-------------------------------+--------------+--"
                "--------------------------------------------------\n";
@@ -157,7 +160,7 @@ void PrintTable(
   std::cout << "+------------+-------------------------------+--------------+--"
                "--------------------------------------------------\n";
 
-  for (const auto &[field_id, value_variant] : fields) {
+  for (const auto& [field_id, value_variant] : fields) {
     std::string name = GetFieldName(field_id);
     std::string type;
     std::string val_str;
@@ -198,7 +201,7 @@ void PrintTable(
               val_str = absl::StrFormat("%f (0x%016x)", v,
                                         std::bit_cast<uint64_t>(v));
             },
-            [&](const std::string &v) {
+            [&](const std::string& v) {
               type = "std::string";
               if (field_id == 4205 || field_id == 4502) {
                 auto decoded_or =
@@ -242,9 +245,9 @@ void PrintTable(
                "--------------------------------------------------\n";
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
 
   std::string input_json_path = absl::GetFlag(FLAGS_input_json);
@@ -279,9 +282,9 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    const auto &events = root["events"];
+    const auto& events = root["events"];
     for (size_t i = 0; i < events.size(); ++i) {
-      const auto &event = events[i];
+      const auto& event = events[i];
       if (!event.contains("data") || !event["data"].is_string()) {
         std::cerr << "Warning: Event " << i
                   << " is missing 'data' string field. Skipping.\n";

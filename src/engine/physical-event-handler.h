@@ -15,26 +15,27 @@ namespace fasterswiper {
 
 class PhysicalEventHandler {
 public:
-  static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
-  Create(proto::DaemonOptions options);
+  static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>> Create(
+      proto::DaemonOptions options);
 
   ~PhysicalEventHandler();
 
   // Non-copyable, non-movable.
-  PhysicalEventHandler(const PhysicalEventHandler &) = delete;
-  PhysicalEventHandler &operator=(const PhysicalEventHandler &) = delete;
-  PhysicalEventHandler(PhysicalEventHandler &&) = delete;
-  PhysicalEventHandler &operator=(PhysicalEventHandler &&) = delete;
+  PhysicalEventHandler(const PhysicalEventHandler&) = delete;
+  PhysicalEventHandler& operator=(const PhysicalEventHandler&) = delete;
+  PhysicalEventHandler(PhysicalEventHandler&&) = delete;
+  PhysicalEventHandler& operator=(PhysicalEventHandler&&) = delete;
 
-  CGEventRef absl_nullable HandleEvent(CGEventTapProxy absl_nonnull proxy, CGEventType event_type,
-                         CGEventRef absl_nonnull event);
+  CGEventRef absl_nullable HandleEvent(CGEventTapProxy absl_nonnull proxy,
+                                       CGEventType event_type,
+                                       CGEventRef absl_nonnull event);
 
 private:
   struct GestureCommand {
     DockControlEvent event ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
-    friend void AbslStringify(Sink &sink, const GestureCommand &command) {
+    friend void AbslStringify(Sink& sink, const GestureCommand& command) {
       absl::Format(&sink, "GestureCommand{event=%v}", command.event);
     }
   };
@@ -50,11 +51,9 @@ private:
     ArrowKeyDirection arrow_key_direction ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
-    friend void AbslStringify(Sink &sink, const RelativeMoveCommand &command) {
-      absl::Format(
-          &sink,
-          "RelativeMoveCommand{arrow_key_direction=%s}",
-          magic_enum::enum_name(command.arrow_key_direction));
+    friend void AbslStringify(Sink& sink, const RelativeMoveCommand& command) {
+      absl::Format(&sink, "RelativeMoveCommand{arrow_key_direction=%s}",
+                   magic_enum::enum_name(command.arrow_key_direction));
     }
   };
 
@@ -62,7 +61,7 @@ private:
     int64_t space_index ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
-    friend void AbslStringify(Sink &sink, const JumpToSpaceCommand &command) {
+    friend void AbslStringify(Sink& sink, const JumpToSpaceCommand& command) {
       absl::Format(&sink, "JumpToSpaceCommand{space_index=%d}",
                    command.space_index);
     }
@@ -81,19 +80,23 @@ private:
   PhysicalEventHandler(proto::DaemonOptions options,
                        HotkeyConfigurations hotkey_configs);
 
-  absl::Status HandleCommand(const Command &command, CGEventTapProxy absl_nonnull proxy);
-  absl::Status HandleCommand(const GestureCommand &command, CGEventTapProxy absl_nonnull proxy);
-  absl::Status HandleBeginGesture(const DockControlEvent &swipe_event, CGEventSink *absl_nonnull event_sink);
-  absl::Status HandleChangeGesture(const DockControlEvent &swipe_event, CGEventSink *absl_nonnull event_sink);
-  absl::Status HandleEndGesture(const DockControlEvent &swipe_event);
-  absl::Status HandleCancelGesture(const DockControlEvent &swipe_event);
+  absl::Status HandleCommand(const Command& command,
+                             CGEventTapProxy absl_nonnull proxy);
+  absl::Status HandleCommand(const GestureCommand& command,
+                             CGEventTapProxy absl_nonnull proxy);
+  absl::Status HandleBeginGesture(const DockControlEvent& swipe_event,
+                                  CGEventSink* absl_nonnull event_sink);
+  absl::Status HandleChangeGesture(const DockControlEvent& swipe_event,
+                                   CGEventSink* absl_nonnull event_sink);
+  absl::Status HandleEndGesture(const DockControlEvent& swipe_event);
+  absl::Status HandleCancelGesture(const DockControlEvent& swipe_event);
 
-  absl::Status HandleCommand(const RelativeMoveCommand &command);
-  absl::Status HandleCommand(const JumpToSpaceCommand &command);
+  absl::Status HandleCommand(const RelativeMoveCommand& command);
+  absl::Status HandleCommand(const JumpToSpaceCommand& command);
 
   absl::Status CheckGestureActive();
-  absl::Status
-  SetUpForNewGesture(Axis axis, SpaceSwitchOperation::Options options = {});
+  absl::Status SetUpForNewGesture(Axis axis,
+                                  SpaceSwitchOperation::Options options = {});
 
   bool IsAxisEnabled(Axis axis) const;
   absl::Duration GetDurationForAxis(Axis axis) const;
@@ -101,10 +104,10 @@ private:
 
   Axis current_axis_ = Axis::kHorizontal;
 
-  std::optional<RelativeMoveCommand>
-  TryGetRelativeMoveCommandFromKeyEvent(const KeyEvent &event) const;
-  std::optional<JumpToSpaceCommand>
-  TryGetJumpToSpaceCommand(const KeyEvent &event) const;
+  std::optional<RelativeMoveCommand> TryGetRelativeMoveCommandFromKeyEvent(
+      const KeyEvent& event) const;
+  std::optional<JumpToSpaceCommand> TryGetJumpToSpaceCommand(
+      const KeyEvent& event) const;
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

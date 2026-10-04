@@ -8,8 +8,8 @@
 namespace fasterswiper {
 
 absl::Status CheckForAccessibilityPermissions() {
-  std::array<const void *, 1> keys{kAXTrustedCheckOptionPrompt};
-  std::array<const void *, 1> values{kCFBooleanTrue};
+  std::array<const void*, 1> keys{kAXTrustedCheckOptionPrompt};
+  std::array<const void*, 1> values{kCFBooleanTrue};
   const auto opts = WrapCFUnique(CFDictionaryCreate(
       nullptr, keys.data(), values.data(), 1, &kCFTypeDictionaryKeyCallBacks,
       &kCFTypeDictionaryValueCallBacks));
@@ -22,4 +22,4 @@ absl::Status CheckForAccessibilityPermissions() {
   return absl::OkStatus();
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

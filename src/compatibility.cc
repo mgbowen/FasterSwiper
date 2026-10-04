@@ -22,4 +22,4 @@ bool IsMacOS27() {
   return false;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

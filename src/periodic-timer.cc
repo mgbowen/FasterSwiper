@@ -74,4 +74,4 @@ void PeriodicTimer::HandleTick() {
   }
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

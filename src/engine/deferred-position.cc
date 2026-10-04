@@ -12,7 +12,7 @@ namespace {
 
 constexpr int64_t kDeferAbsThreshold = 20;
 
-} // namespace
+}  // namespace
 
 DeferredPosition::DeferredPosition(int64_t initial_position)
     : effective_(initial_position) {}
@@ -52,4 +52,4 @@ void DeferredPosition::CommitDeferred() {
   }
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

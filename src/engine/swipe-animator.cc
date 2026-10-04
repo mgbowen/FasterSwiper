@@ -42,16 +42,15 @@ bool SwipeAnimator::is_committed() const {
 }
 
 absl::Status SwipeAnimator::SetPosition(int64_t new_position,
-                                        CGEventSink *absl_nonnull event_sink) {
+                                        CGEventSink* absl_nonnull event_sink) {
   CHECK(event_sink != nullptr);
   RETURN_IF_ERROR(CancelAnimationAndEnsureNotCommitted());
   operation_->SetPosition(new_position, event_sink);
   return absl::OkStatus();
 }
 
-absl::Status
-SwipeAnimator::AnimateToPosition(AnimateParameters params,
-                                 std::unique_ptr<CGEventSink> event_sink) {
+absl::Status SwipeAnimator::AnimateToPosition(
+    AnimateParameters params, std::unique_ptr<CGEventSink> event_sink) {
   CHECK(params.easing_function != nullptr);
   CHECK(event_sink != nullptr);
 
@@ -100,9 +99,9 @@ SwipeAnimator::AnimateToPosition(AnimateParameters params,
             interpolated_position == state->params.target_position;
 
         CHECK(active_event_sink_ != nullptr);
-        operation_->SetPosition(finished ? state->params.target_position
-                                         : interpolated_position,
-                                active_event_sink_.get());
+        operation_->SetPosition(
+            finished ? state->params.target_position : interpolated_position,
+            active_event_sink_.get());
 
         return finished ? PeriodicTimerTickResult::kFinishTimer
                         : PeriodicTimerTickResult::kContinueTimer;
@@ -112,19 +111,19 @@ SwipeAnimator::AnimateToPosition(AnimateParameters params,
               PeriodicTimerStopReason stop_reason) mutable -> void {
         switch (stop_reason) {
           using enum PeriodicTimerStopReason;
-        case kFinished:
-          CHECK(active_event_sink_ != nullptr);
-          operation_->Commit(active_event_sink_.get());
-          promise.set_value(AnimatedSpaceSwitchOperationResult::kCommitted);
-          break;
-        case kCancelled:
-          promise.set_value(AnimatedSpaceSwitchOperationResult::kCancelled);
-          break;
-        default:
-          LOG(FATAL)
-              << "Unknown PeriodicTimerStopReason "
-              << static_cast<std::underlying_type_t<PeriodicTimerStopReason>>(
-                     stop_reason);
+          case kFinished:
+            CHECK(active_event_sink_ != nullptr);
+            operation_->Commit(active_event_sink_.get());
+            promise.set_value(AnimatedSpaceSwitchOperationResult::kCommitted);
+            break;
+          case kCancelled:
+            promise.set_value(AnimatedSpaceSwitchOperationResult::kCancelled);
+            break;
+          default:
+            LOG(FATAL)
+                << "Unknown PeriodicTimerStopReason "
+                << static_cast<std::underlying_type_t<PeriodicTimerStopReason>>(
+                       stop_reason);
         }
       },
   });
@@ -155,14 +154,14 @@ absl::Status SwipeAnimator::CancelAnimationAndEnsureNotCommitted() {
   const AnimatedSpaceSwitchOperationResult cancel_result = CancelAnimation();
   switch (cancel_result) {
     using enum AnimatedSpaceSwitchOperationResult;
-  case kCancelled:
-    break;
-  case kCommitted:
-    return absl::FailedPreconditionError(
-        "AnimatedSpaceSwitchOperation has already been committed");
+    case kCancelled:
+      break;
+    case kCommitted:
+      return absl::FailedPreconditionError(
+          "AnimatedSpaceSwitchOperation has already been committed");
   }
 
   return absl::OkStatus();
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

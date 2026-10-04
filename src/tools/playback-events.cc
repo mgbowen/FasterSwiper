@@ -17,21 +17,22 @@
 #include <absl/strings/str_cat.h>
 #include <nlohmann/json.hpp>
 
-ABSL_FLAG(double, playback_speed, 1.0,
-          "Multiplier on playback speed. e.g., 0.5 is half speed (double duration), "
-          "2.0 is double speed (half duration).");
+ABSL_FLAG(
+    double, playback_speed, 1.0,
+    "Multiplier on playback speed. e.g., 0.5 is half speed (double duration), "
+    "2.0 is double speed (half duration).");
 
 namespace fasterswiper {
 namespace {
 
 using nlohmann::json;
 
-void PostEvent(const json &j) {
+void PostEvent(const json& j) {
   std::string buffer;
   CHECK(absl::Base64Unescape((std::string)j.at("data"), &buffer));
 
   auto cf_buffer = WrapCFUnique(CFDataCreateWithBytesNoCopy(
-      nullptr, reinterpret_cast<const uint8_t *>(buffer.data()), buffer.size(),
+      nullptr, reinterpret_cast<const uint8_t*>(buffer.data()), buffer.size(),
       kCFAllocatorNull));
   auto dock = WrapCFUnique(CGEventCreateFromData(nullptr, cf_buffer.get()));
   CHECK(dock != nullptr);
@@ -39,7 +40,7 @@ void PostEvent(const json &j) {
   CGEventPost(kCGSessionEventTap, dock.get());
 }
 
-absl::Status Run(const std::string &input_path, double playback_speed) {
+absl::Status Run(const std::string& input_path, double playback_speed) {
   if (absl::Status status = CheckForAccessibilityPermissions(); !status.ok()) {
     return status;
   }
@@ -70,9 +71,10 @@ absl::Status Run(const std::string &input_path, double playback_speed) {
   const int64_t playback_start_ns = UptimeInNanoseconds();
   int64_t cumulative_delta_ns = 0;
 
-  for (const auto &j : events) {
+  for (const auto& j : events) {
     const int64_t delta_ns = j["delta_ns"];
-    cumulative_delta_ns += static_cast<int64_t>(std::round(delta_ns / playback_speed));
+    cumulative_delta_ns +=
+        static_cast<int64_t>(std::round(delta_ns / playback_speed));
 
     const int64_t now_ns = UptimeInNanoseconds();
     auto target_ns = playback_start_ns + cumulative_delta_ns;
@@ -90,13 +92,14 @@ absl::Status Run(const std::string &input_path, double playback_speed) {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   std::vector<char*> positional_args = absl::ParseCommandLine(argc, argv);
   if (positional_args.size() != 2) {
-    std::cerr << "Usage: " << positional_args[0] << " <input_json_path> [--playback_speed <multiplier>]\n";
+    std::cerr << "Usage: " << positional_args[0]
+              << " <input_json_path> [--playback_speed <multiplier>]\n";
     return 1;
   }
 

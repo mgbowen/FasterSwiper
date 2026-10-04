@@ -14,17 +14,17 @@ using EasingFunction = std::function<double(double)>;
 EasingFunction MakeEasingFunctionLinear();
 EasingFunction MakeEasingFunctionEaseOutQuadratic();
 EasingFunction MakeEasingFunctionEaseOutQuintic();
-EasingFunction
-MakeEasingFunctionBezier(const third_party::chromium::gfx::CubicBezier &bezier);
+EasingFunction MakeEasingFunctionBezier(
+    const third_party::chromium::gfx::CubicBezier& bezier);
 
-absl::StatusOr<EasingFunction>
-FromGestureSettings(proto::EasingFunction easing_function,
-                    const proto::CubicBezierCurve &cubic_bezier_curve);
+absl::StatusOr<EasingFunction> FromGestureSettings(
+    proto::EasingFunction easing_function,
+    const proto::CubicBezierCurve& cubic_bezier_curve);
 
-absl::StatusOr<EasingFunction>
-FromGestureSettings(const proto::GestureSettings &settings);
+absl::StatusOr<EasingFunction> FromGestureSettings(
+    const proto::GestureSettings& settings);
 
-absl::StatusOr<EasingFunction>
-FromDaemonOptions(const proto::DaemonOptions &options);
+absl::StatusOr<EasingFunction> FromDaemonOptions(
+    const proto::DaemonOptions& options);
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

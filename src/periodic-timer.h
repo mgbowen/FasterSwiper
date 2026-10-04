@@ -1,9 +1,9 @@
 #pragma once
 
 #include <atomic>
-#include <dispatch/dispatch.h>
 
 #include <absl/functional/any_invocable.h>
+#include <dispatch/dispatch.h>
 
 namespace fasterswiper {
 
@@ -17,13 +17,13 @@ enum class PeriodicTimerStopReason {
   kCancelled,
 };
 
-constexpr std::string_view
-PeriodicTimerStopReasonToString(PeriodicTimerStopReason stop_reason) {
+constexpr std::string_view PeriodicTimerStopReasonToString(
+    PeriodicTimerStopReason stop_reason) {
   switch (stop_reason) {
-  case PeriodicTimerStopReason::kFinished:
-    return "kFinished";
-  case PeriodicTimerStopReason::kCancelled:
-    return "kCancelled";
+    case PeriodicTimerStopReason::kFinished:
+      return "kFinished";
+    case PeriodicTimerStopReason::kCancelled:
+      return "kCancelled";
   }
 }
 
@@ -41,10 +41,10 @@ public:
 
   explicit PeriodicTimer(Parameters parameters);
 
-  PeriodicTimer(const PeriodicTimer &) = delete;
-  PeriodicTimer(PeriodicTimer &&) = delete;
-  PeriodicTimer &operator=(const PeriodicTimer &) = delete;
-  PeriodicTimer &operator=(PeriodicTimer &&) = delete;
+  PeriodicTimer(const PeriodicTimer&) = delete;
+  PeriodicTimer(PeriodicTimer&&) = delete;
+  PeriodicTimer& operator=(const PeriodicTimer&) = delete;
+  PeriodicTimer& operator=(PeriodicTimer&&) = delete;
 
   ~PeriodicTimer();
 
@@ -67,4 +67,4 @@ private:
   void HandleTick();
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

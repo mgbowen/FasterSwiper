@@ -2,9 +2,9 @@
 
 #include <optional>
 
-#include "gtest/gtest.h"
 #include <absl/flags/declare.h>
 #include <absl/flags/flag.h>
+#include <gtest/gtest.h>
 
 ABSL_DECLARE_FLAG(std::optional<int>, force_os_version);
 
@@ -29,5 +29,5 @@ TEST(CompatibilityTest, ForceOSVersion) {
   absl::SetFlag(&FLAGS_force_os_version, original_value);
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper

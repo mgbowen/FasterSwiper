@@ -32,22 +32,21 @@ absl::StatusOr<CFUniquePtr<CFDictionaryRef>> LoadAllHotkeysSettings() {
 absl_nullable CFStringRef HotkeyTypeToDictionaryKey(HotkeyType hotkey_type) {
   switch (hotkey_type) {
     using enum HotkeyType;
-  case kMoveSpaceLeft:
-    return CFSTR("79");
-  case kMoveSpaceRight:
-    return CFSTR("81");
-  case kOpenMissionControl:
-    return CFSTR("32");
-  case kOpenAppExpose:
-    return CFSTR("33");
+    case kMoveSpaceLeft:
+      return CFSTR("79");
+    case kMoveSpaceRight:
+      return CFSTR("81");
+    case kOpenMissionControl:
+      return CFSTR("32");
+    case kOpenAppExpose:
+      return CFSTR("33");
   }
 
   return nullptr;
 }
 
-absl::StatusOr<absl_nullable CFDictionaryRef>
-GetHotkeySettingsForHotkeyType(absl_nonnull CFDictionaryRef hotkey_prefs,
-                               HotkeyType hotkey_type) {
+absl::StatusOr<absl_nullable CFDictionaryRef> GetHotkeySettingsForHotkeyType(
+    absl_nonnull CFDictionaryRef hotkey_prefs, HotkeyType hotkey_type) {
   absl_nullable CFStringRef dict_key = HotkeyTypeToDictionaryKey(hotkey_type);
   if (dict_key == nullptr) {
     return absl::InvalidArgumentError(absl::StrCat(
@@ -69,30 +68,30 @@ constexpr CGKeyCode kKeyCodeUpArrow = 126;
 absl::StatusOr<Hotkey> DefaultHotkeyForHotkeyType(HotkeyType hotkey_type) {
   switch (hotkey_type) {
     using enum HotkeyType;
-  case kMoveSpaceLeft:
-    return Hotkey{
-        .enabled = true,
-        .key_code = kKeyCodeLeftArrow,
-        .modifiers = kCGEventFlagMaskControl,
-    };
-  case kMoveSpaceRight:
-    return Hotkey{
-        .enabled = true,
-        .key_code = kKeyCodeRightArrow,
-        .modifiers = kCGEventFlagMaskControl,
-    };
-  case kOpenMissionControl:
-    return Hotkey{
-        .enabled = true,
-        .key_code = kKeyCodeUpArrow,
-        .modifiers = kCGEventFlagMaskControl,
-    };
-  case kOpenAppExpose:
-    return Hotkey{
-        .enabled = true,
-        .key_code = kKeyCodeDownArrow,
-        .modifiers = kCGEventFlagMaskControl,
-    };
+    case kMoveSpaceLeft:
+      return Hotkey{
+          .enabled = true,
+          .key_code = kKeyCodeLeftArrow,
+          .modifiers = kCGEventFlagMaskControl,
+      };
+    case kMoveSpaceRight:
+      return Hotkey{
+          .enabled = true,
+          .key_code = kKeyCodeRightArrow,
+          .modifiers = kCGEventFlagMaskControl,
+      };
+    case kOpenMissionControl:
+      return Hotkey{
+          .enabled = true,
+          .key_code = kKeyCodeUpArrow,
+          .modifiers = kCGEventFlagMaskControl,
+      };
+    case kOpenAppExpose:
+      return Hotkey{
+          .enabled = true,
+          .key_code = kKeyCodeDownArrow,
+          .modifiers = kCGEventFlagMaskControl,
+      };
   }
 
   return absl::InvalidArgumentError(
@@ -100,9 +99,8 @@ absl::StatusOr<Hotkey> DefaultHotkeyForHotkeyType(HotkeyType hotkey_type) {
                    magic_enum::enum_name(hotkey_type)));
 }
 
-absl::StatusOr<Hotkey>
-ParseHotkeyForHotkeyType(HotkeyType hotkey_type,
-                         absl_nonnull CFDictionaryRef hotkey_settings) {
+absl::StatusOr<Hotkey> ParseHotkeyForHotkeyType(
+    HotkeyType hotkey_type, absl_nonnull CFDictionaryRef hotkey_settings) {
   ASSIGN_OR_RETURN(Hotkey result, DefaultHotkeyForHotkeyType(hotkey_type));
 
   auto ctx = absl::StrCat("HotkeyType ", magic_enum::enum_name(hotkey_type));
@@ -157,9 +155,8 @@ ParseHotkeyForHotkeyType(HotkeyType hotkey_type,
   return result;
 }
 
-absl::StatusOr<Hotkey>
-LoadHotkeyForHotkeyType(HotkeyType hotkey_type,
-                        CFDictionaryRef all_hotkey_settings) {
+absl::StatusOr<Hotkey> LoadHotkeyForHotkeyType(
+    HotkeyType hotkey_type, CFDictionaryRef all_hotkey_settings) {
   ASSIGN_OR_RETURN(
       absl_nullable CFDictionaryRef hotkey_settings,
       GetHotkeySettingsForHotkeyType(all_hotkey_settings, hotkey_type));
@@ -170,7 +167,7 @@ LoadHotkeyForHotkeyType(HotkeyType hotkey_type,
   return ParseHotkeyForHotkeyType(hotkey_type, hotkey_settings);
 }
 
-} // namespace
+}  // namespace
 
 absl::StatusOr<HotkeyConfigurations> LoadHotkeyConfiguration() {
   ASSIGN_OR_RETURN(CFUniquePtr<CFDictionaryRef> all_hotkey_settings,
@@ -193,4 +190,4 @@ absl::StatusOr<HotkeyConfigurations> LoadHotkeyConfiguration() {
   return result;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

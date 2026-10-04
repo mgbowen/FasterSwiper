@@ -19,7 +19,6 @@
 #include <absl/status/status_macros.h>
 #include <absl/status/statusor.h>
 #include <absl/strings/str_cat.h>
-
 #include <grpcpp/grpcpp.h>
 
 ABSL_FLAG(std::string, server_address, "127.0.0.1:8080",
@@ -40,7 +39,7 @@ void SignalHandler(int signal) {
   }
 }
 
-void SenderThreadLoop(const std::string &address, Channel<std::string> &queue) {
+void SenderThreadLoop(const std::string& address, Channel<std::string>& queue) {
   while (!stop_requested) {
     std::cout << "Connecting to gRPC server at " << address << "..."
               << std::endl;
@@ -51,8 +50,7 @@ void SenderThreadLoop(const std::string &address, Channel<std::string> &queue) {
     if (!grpc_channel->WaitForConnected(
             gpr_time_add(gpr_now(GPR_CLOCK_REALTIME),
                          gpr_time_from_seconds(5, GPR_TIMESPAN)))) {
-      if (stop_requested)
-        break;
+      if (stop_requested) break;
       std::cerr << "Failed to connect to " << address
                 << ". Retrying in 2 seconds..." << std::endl;
       std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -129,7 +127,7 @@ absl::Status Run() {
     const auto buffer_length = CFDataGetLength(event_data.get());
     std::string buffer(buffer_length, '\0');
     CFDataGetBytes(event_data.get(), CFRangeMake(0, buffer_length),
-                   reinterpret_cast<uint8_t *>(buffer.data()));
+                   reinterpret_cast<uint8_t*>(buffer.data()));
 
     std::cout << "Captured swipe (phase="
               << CGEventGetIntegerValueField(event, kCGEventGesturePhase)
@@ -146,11 +144,11 @@ absl::Status Run() {
     return nullptr;
   };
 
-  ASSIGN_OR_RETURN(auto tap_manager,
-                   EventTapManager::Create(kCGSessionEventTap,
-                                           kCGHeadInsertEventTap,
-                                           kCGEventTapOptionDefault,
-                                           {kCGSEventDockControl}, callback));
+  ASSIGN_OR_RETURN(
+      auto tap_manager,
+      EventTapManager::Create(kCGSessionEventTap, kCGHeadInsertEventTap,
+                              kCGEventTapOptionDefault, {kCGSEventDockControl},
+                              callback));
   CFUniquePtr<CFRunLoopSourceRef> src =
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
   CFRunLoopAddSource(CFRunLoopGetMain(), src.get(), kCFRunLoopCommonModes);
@@ -171,10 +169,10 @@ absl::Status Run() {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
   QCHECK_OK(fasterswiper::Run());
   return 0;

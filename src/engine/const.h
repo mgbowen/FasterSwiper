@@ -12,4 +12,4 @@ constexpr double kInstantSwitchVelocity = 500;
 
 constexpr int64_t kOneSwipeInNanoswipes = 1'000'000;
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

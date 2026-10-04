@@ -33,7 +33,8 @@ namespace fasterswiper {
 //   // Reader thread:
 //   absl::StatusOr<int> value = channel.Read();
 //
-template <typename T> class Channel {
+template <typename T>
+class Channel {
 public:
   // Creates a channel with the given maximum capacity. `capacity` must be > 0.
   explicit Channel(int64_t capacity) : capacity_(capacity) {}
@@ -41,10 +42,10 @@ public:
   ~Channel() = default;
 
   // Non-copyable, non-movable.
-  Channel(const Channel &) = delete;
-  Channel &operator=(const Channel &) = delete;
-  Channel(Channel &&) = delete;
-  Channel &operator=(Channel &&) = delete;
+  Channel(const Channel&) = delete;
+  Channel& operator=(const Channel&) = delete;
+  Channel(Channel&&) = delete;
+  Channel& operator=(Channel&&) = delete;
 
   // Writes a value to the channel. Blocks if the queue is at capacity until
   // space becomes available, the reader side is closed, or the writer side is
@@ -137,4 +138,4 @@ private:
   }
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

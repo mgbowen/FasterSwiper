@@ -1,8 +1,8 @@
 #include "src/cf-util.h"
 #include "src/macos-private.h"
-#include "src/tools/util/accessibility-check.h"
 #include "src/tools/stream-events.grpc.pb.h"
 #include "src/tools/stream-events.pb.h"
+#include "src/tools/util/accessibility-check.h"
 
 #include <csignal>
 #include <iostream>
@@ -14,7 +14,6 @@
 #include <absl/log/check.h>
 #include <absl/status/status.h>
 #include <absl/strings/str_cat.h>
-
 #include <grpcpp/grpcpp.h>
 
 ABSL_FLAG(int32_t, port, 8080, "Port to listen on");
@@ -22,13 +21,13 @@ ABSL_FLAG(int32_t, port, 8080, "Port to listen on");
 namespace fasterswiper {
 namespace {
 
-class GestureStreamerServiceImpl final : public proto::GestureStreamer::Service {
+class GestureStreamerServiceImpl final
+    : public proto::GestureStreamer::Service {
 public:
   grpc::Status StreamGestures(
       grpc::ServerContext* context,
       grpc::ServerReader<proto::GestureEventProto>* reader,
       proto::StreamResult* response) override {
-    
     std::cout << "Client connected, streaming gestures..." << std::endl;
     proto::GestureEventProto event_proto;
     int count = 0;
@@ -51,15 +50,18 @@ public:
       std::cout << "Received and playing swipe (phase="
                 << CGEventGetIntegerValueField(dock.get(), kCGEventGesturePhase)
                 << ", progress="
-                << CGEventGetDoubleValueField(dock.get(), kCGEventGestureSwipeProgress)
+                << CGEventGetDoubleValueField(dock.get(),
+                                              kCGEventGestureSwipeProgress)
                 << ")\n";
 
       CGEventPost(kCGSessionEventTap, dock.get());
       count++;
     }
 
-    std::cout << "Stream finished. Replayed " << count << " gestures." << std::endl;
-    response->set_message(absl::StrCat("Successfully replayed ", count, " events"));
+    std::cout << "Stream finished. Replayed " << count << " gestures."
+              << std::endl;
+    response->set_message(
+        absl::StrCat("Successfully replayed ", count, " events"));
     return grpc::Status::OK;
   }
 };
@@ -90,7 +92,8 @@ absl::Status Run() {
   server = builder.BuildAndStart();
 
   if (!server) {
-    return absl::InternalError(absl::StrCat("Failed to start gRPC server on ", server_address));
+    return absl::InternalError(
+        absl::StrCat("Failed to start gRPC server on ", server_address));
   }
 
   std::signal(SIGINT, SignalHandler);
@@ -102,10 +105,10 @@ absl::Status Run() {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
   QCHECK_OK(fasterswiper::Run());
   return 0;

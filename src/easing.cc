@@ -18,7 +18,7 @@ constexpr double EasingFunctionEaseOutQuintic(double t) {
   return 1.0 - inv * inv * inv * inv * inv;
 }
 
-} // namespace
+}  // namespace
 
 EasingFunction MakeEasingFunctionLinear() { return EasingFunctionLinear; }
 
@@ -31,37 +31,38 @@ EasingFunction MakeEasingFunctionEaseOutQuintic() {
 }
 
 EasingFunction MakeEasingFunctionBezier(
-    const third_party::chromium::gfx::CubicBezier &bezier) {
+    const third_party::chromium::gfx::CubicBezier& bezier) {
   return [bezier](double t) -> double { return bezier.Solve(t); };
 }
 
-absl::StatusOr<EasingFunction>
-FromGestureSettings(proto::EasingFunction easing_function,
-                    const proto::CubicBezierCurve &cubic_bezier_curve) {
+absl::StatusOr<EasingFunction> FromGestureSettings(
+    proto::EasingFunction easing_function,
+    const proto::CubicBezierCurve& cubic_bezier_curve) {
   switch (easing_function) {
-  case proto::EASING_FUNCTION_LINEAR:
-    return MakeEasingFunctionLinear();
-  case proto::EASING_FUNCTION_QUADRATIC_EASE_OUT:
-    return MakeEasingFunctionEaseOutQuadratic();
-  case proto::EASING_FUNCTION_QUINTIC_EASE_OUT:
-    return MakeEasingFunctionEaseOutQuintic();
-  case proto::EASING_FUNCTION_CUBIC_BEZIER_CURVE:
-    return MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier(
-        cubic_bezier_curve.p1x(), cubic_bezier_curve.p1y(),
-        cubic_bezier_curve.p2x(), cubic_bezier_curve.p2y()));
+    case proto::EASING_FUNCTION_LINEAR:
+      return MakeEasingFunctionLinear();
+    case proto::EASING_FUNCTION_QUADRATIC_EASE_OUT:
+      return MakeEasingFunctionEaseOutQuadratic();
+    case proto::EASING_FUNCTION_QUINTIC_EASE_OUT:
+      return MakeEasingFunctionEaseOutQuintic();
+    case proto::EASING_FUNCTION_CUBIC_BEZIER_CURVE:
+      return MakeEasingFunctionBezier(third_party::chromium::gfx::CubicBezier(
+          cubic_bezier_curve.p1x(), cubic_bezier_curve.p1y(),
+          cubic_bezier_curve.p2x(), cubic_bezier_curve.p2y()));
   }
 
-  return absl::InvalidArgumentError("Invalid easing_function in GestureSettings");
+  return absl::InvalidArgumentError(
+      "Invalid easing_function in GestureSettings");
 }
 
-absl::StatusOr<EasingFunction>
-FromGestureSettings(const proto::GestureSettings &settings) {
+absl::StatusOr<EasingFunction> FromGestureSettings(
+    const proto::GestureSettings& settings) {
   return FromGestureSettings(settings.easing_function(),
                              settings.cubic_bezier_curve());
 }
 
-absl::StatusOr<EasingFunction>
-FromDaemonOptions(const proto::DaemonOptions &options) {
+absl::StatusOr<EasingFunction> FromDaemonOptions(
+    const proto::DaemonOptions& options) {
   if (options.has_horizontal_settings()) {
     return FromGestureSettings(options.horizontal_settings());
   }
@@ -72,4 +73,4 @@ FromDaemonOptions(const proto::DaemonOptions &options) {
 #pragma clang diagnostic pop
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

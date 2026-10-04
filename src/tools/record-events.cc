@@ -35,7 +35,7 @@ void SignalHandler(int signal) {
   }
 }
 
-absl::Status RecordGestures(const std::string &output_path) {
+absl::Status RecordGestures(const std::string& output_path) {
   if (absl::Status status = CheckForAccessibilityPermissions(); !status.ok()) {
     return status;
   }
@@ -72,7 +72,7 @@ absl::Status RecordGestures(const std::string &output_path) {
                    CFRangeMake(0, CFDataGetLength(event_data.get())),
                    buffer.data());
 
-    absl::string_view view(reinterpret_cast<const char *>(buffer.data()),
+    absl::string_view view(reinterpret_cast<const char*>(buffer.data()),
                            buffer.size());
 
     {
@@ -91,11 +91,11 @@ absl::Status RecordGestures(const std::string &output_path) {
     return event;
   };
 
-  ASSIGN_OR_RETURN(auto tap_manager,
-                   EventTapManager::Create(kCGSessionEventTap,
-                                           kCGHeadInsertEventTap,
-                                           kCGEventTapOptionDefault,
-                                           {kCGSEventDockControl}, callback));
+  ASSIGN_OR_RETURN(
+      auto tap_manager,
+      EventTapManager::Create(kCGSessionEventTap, kCGHeadInsertEventTap,
+                              kCGEventTapOptionDefault, {kCGSEventDockControl},
+                              callback));
   CFUniquePtr<CFRunLoopSourceRef> src =
       WrapCFUnique(CFMachPortCreateRunLoopSource(NULL, tap_manager->get(), 0));
   CFRunLoopAddSource(CFRunLoopGetMain(), src.get(), kCFRunLoopCommonModes);
@@ -128,10 +128,10 @@ absl::Status RecordGestures(const std::string &output_path) {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc != 2) {
     std::cerr << "Usage: " << argv[0] << " <output_json_path>\n";
     return 1;

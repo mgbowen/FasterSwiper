@@ -6,7 +6,7 @@
 
 namespace fasterswiper {
 
-inline std::string StatusOrToString(const auto &statusor) {
+inline std::string StatusOrToString(const auto& statusor) {
   if (statusor.ok()) {
     return absl::StrCat(*statusor);
   }
@@ -14,7 +14,7 @@ inline std::string StatusOrToString(const auto &statusor) {
   return absl::StrCat("(", statusor.status(), ")");
 }
 
-inline std::string OptionalToString(const auto &opt) {
+inline std::string OptionalToString(const auto& opt) {
   if (opt) {
     return absl::StrCat(*opt);
   }
@@ -22,4 +22,4 @@ inline std::string OptionalToString(const auto &opt) {
   return "(nullopt)";
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

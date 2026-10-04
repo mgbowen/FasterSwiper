@@ -2,7 +2,6 @@
 
 #include <CoreGraphics/CGEventTypes.h>
 #include <CoreGraphics/CGRemoteOperation.h>
-
 #include <absl/status/statusor.h>
 #include <absl/strings/str_cat.h>
 
@@ -31,7 +30,7 @@ struct Hotkey {
   CGEventFlags modifiers;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink, const Hotkey &hotkey) {
+  friend void AbslStringify(Sink& sink, const Hotkey& hotkey) {
     absl::Format(&sink, "Hotkey{enabled=%s, key_code=%d, modifiers=%d}",
                  hotkey.enabled ? "true" : "false", hotkey.key_code,
                  hotkey.modifiers);
@@ -45,8 +44,8 @@ struct HotkeyConfigurations {
   Hotkey open_app_expose;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink,
-                            const HotkeyConfigurations &hotkey_configs) {
+  friend void AbslStringify(Sink& sink,
+                            const HotkeyConfigurations& hotkey_configs) {
     absl::Format(
         &sink,
         "HotkeyConfigurations{move_space_left=%s, move_space_right=%s, "
@@ -60,4 +59,4 @@ struct HotkeyConfigurations {
 
 absl::StatusOr<HotkeyConfigurations> LoadHotkeyConfiguration();
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

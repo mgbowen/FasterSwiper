@@ -18,7 +18,7 @@ namespace {
 
 using nlohmann::json;
 
-void PostEvent(const json &j) {
+void PostEvent(const json& j) {
   auto dock = WrapCFUnique(CGEventCreate(nullptr));
   CHECK(dock != nullptr);
 
@@ -44,7 +44,7 @@ void PostEvent(const json &j) {
   CGEventPost(kCGSessionEventTap, dock.get());
 }
 
-absl::Status Run(const std::string &input_path) {
+absl::Status Run(const std::string& input_path) {
   if (absl::Status status = CheckForAccessibilityPermissions(); !status.ok()) {
     return status;
   }
@@ -75,7 +75,7 @@ absl::Status Run(const std::string &input_path) {
   const int64_t playback_start_ns = UptimeInNanoseconds();
   int64_t cumulative_delta_ns = 0;
 
-  for (const auto &j : events) {
+  for (const auto& j : events) {
     const int64_t delta_ns = j["delta_ns"];
     cumulative_delta_ns += delta_ns;
 
@@ -95,10 +95,10 @@ absl::Status Run(const std::string &input_path) {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc != 2) {
     std::cerr << "Usage: " << argv[0] << " <input_json_path>\n";
     return 1;

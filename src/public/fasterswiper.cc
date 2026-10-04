@@ -17,7 +17,6 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CGEventTypes.h>
 #include <IOKit/IOTypes.h>
-
 #include <absl/debugging/failure_signal_handler.h>
 #include <absl/debugging/symbolize.h>
 #include <absl/flags/parse.h>
@@ -43,12 +42,12 @@ namespace proto = fasterswiper::proto;
 proto::DaemonOptions GetDefaultDaemonOptions() {
   proto::DaemonOptions options;
 
-  auto *horizontal = options.mutable_horizontal_settings();
+  auto* horizontal = options.mutable_horizontal_settings();
   horizontal->set_enabled(true);
   *horizontal->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
   horizontal->set_easing_function(proto::EASING_FUNCTION_QUADRATIC_EASE_OUT);
 
-  auto *vertical = options.mutable_vertical_settings();
+  auto* vertical = options.mutable_vertical_settings();
   vertical->set_enabled(true);
   *vertical->mutable_duration() = ToProtoDuration(absl::Milliseconds(200));
   vertical->set_easing_function(proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
@@ -59,14 +58,14 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
   return options;
 }
 
-} // namespace
+}  // namespace
 
 extern "C" {
 
-void FS_Init(int argc, char **argv) {
+void FS_Init(int argc, char** argv) {
   static std::once_flag init_flag;
   std::call_once(init_flag, [&] {
-    std::vector<char *> positional_args;
+    std::vector<char*> positional_args;
     std::vector<absl::UnrecognizedFlag> unrecognized_flags;
     absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
 
@@ -97,7 +96,7 @@ struct FS_DaemonOptions {
   proto::DaemonOptions options;
 };
 
-bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options) {
+bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions** out_daemon_options) {
   if (out_daemon_options == nullptr) {
     return false;
   }
@@ -108,7 +107,7 @@ bool FS_LoadDefaultDaemonOptions(FS_DaemonOptions **out_daemon_options) {
   return true;
 }
 
-bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
+bool FS_HydrateDaemonOptions(FS_DaemonOptions* daemon_options) {
   proto::DaemonOptions default_options = GetDefaultDaemonOptions();
 
   // 1. Migrate legacy fields if present.
@@ -116,8 +115,7 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   const bool has_legacy_duration =
       daemon_options->options.has_animation_duration_per_space();
-  const bool has_legacy_easing =
-      daemon_options->options.has_easing_function();
+  const bool has_legacy_easing = daemon_options->options.has_easing_function();
   const bool has_legacy_bezier =
       daemon_options->options.has_cubic_bezier_curve();
 
@@ -125,11 +123,11 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
     const google::protobuf::Duration legacy_default_duration =
         ToProtoDuration(absl::Milliseconds(200));
 
-    auto *horizontal = daemon_options->options.mutable_horizontal_settings();
-    auto *vertical = daemon_options->options.mutable_vertical_settings();
+    auto* horizontal = daemon_options->options.mutable_horizontal_settings();
+    auto* vertical = daemon_options->options.mutable_vertical_settings();
 
     if (has_legacy_duration) {
-      const auto &legacy_duration =
+      const auto& legacy_duration =
           daemon_options->options.animation_duration_per_space();
       if (legacy_duration.seconds() != legacy_default_duration.seconds() ||
           legacy_duration.nanos() != legacy_default_duration.nanos()) {
@@ -164,7 +162,7 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
   daemon_options->options.mutable_unknown_fields()->DeleteByNumber(3);
 
   // 2. Hydrate missing fields on horizontal_settings.
-  auto *horizontal = daemon_options->options.mutable_horizontal_settings();
+  auto* horizontal = daemon_options->options.mutable_horizontal_settings();
   if (!horizontal->has_enabled()) {
     horizontal->set_enabled(true);
   }
@@ -176,7 +174,7 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
   }
 
   // 3. Hydrate missing fields on vertical_settings.
-  auto *vertical = daemon_options->options.mutable_vertical_settings();
+  auto* vertical = daemon_options->options.mutable_vertical_settings();
   if (!vertical->has_enabled()) {
     vertical->set_enabled(true);
   }
@@ -206,7 +204,7 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions *daemon_options) {
 }
 
 bool FS_LoadDaemonOptionsFromBinaryProto(
-    const char *data, size_t len, FS_DaemonOptions **out_daemon_options_ptr) {
+    const char* data, size_t len, FS_DaemonOptions** out_daemon_options_ptr) {
   auto binary_proto_data = absl::string_view(data, len);
   auto options = std::make_unique<FS_DaemonOptions>();
   if (!options->options.ParseFromString(binary_proto_data)) {
@@ -218,8 +216,8 @@ bool FS_LoadDaemonOptionsFromBinaryProto(
   return true;
 }
 
-bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
-                                       char *out_data, size_t *out_len) {
+bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions* daemon_options,
+                                       char* out_data, size_t* out_len) {
   if (daemon_options == nullptr) {
     return false;
   }
@@ -243,7 +241,7 @@ bool FS_SaveDaemonOptionsToBinaryProto(const FS_DaemonOptions *daemon_options,
   return true;
 }
 
-FS_Daemon *FS_Create(FS_DaemonOptions *options) {
+FS_Daemon* FS_Create(FS_DaemonOptions* options) {
   absl::StatusOr<std::shared_ptr<PhysicalEventHandler>>
       maybe_physical_event_handler =
           PhysicalEventHandler::Create(options->options);
@@ -300,7 +298,7 @@ FS_Daemon *FS_Create(FS_DaemonOptions *options) {
   };
 }
 
-bool FS_Destroy(FS_Daemon *state) {
+bool FS_Destroy(FS_Daemon* state) {
   if (state == nullptr) {
     return false;
   }
@@ -309,7 +307,7 @@ bool FS_Destroy(FS_Daemon *state) {
   return true;
 }
 
-bool FS_DestroyDaemonOptions(FS_DaemonOptions *options) {
+bool FS_DestroyDaemonOptions(FS_DaemonOptions* options) {
   if (options == nullptr) {
     return false;
   }
@@ -318,7 +316,7 @@ bool FS_DestroyDaemonOptions(FS_DaemonOptions *options) {
   return true;
 }
 
-bool FS_Start(FS_Daemon *state) {
+bool FS_Start(FS_Daemon* state) {
   if (state == nullptr) {
     std::cerr << "StartFasterSwiper called with null state\n";
     return false;
@@ -339,7 +337,7 @@ bool FS_Start(FS_Daemon *state) {
   return true;
 }
 
-bool FS_Stop(FS_Daemon *state) {
+bool FS_Stop(FS_Daemon* state) {
   if (state == nullptr) {
     std::cerr << "StopFasterSwiper called with null state\n";
     return false;
@@ -359,7 +357,7 @@ bool FS_Stop(FS_Daemon *state) {
   return true;
 }
 
-void FS_GetVersionInfo(FS_VersionInfo *info) {
+void FS_GetVersionInfo(FS_VersionInfo* info) {
   if (info == nullptr) {
     return;
   }

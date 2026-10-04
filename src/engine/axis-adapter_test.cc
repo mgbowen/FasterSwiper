@@ -11,11 +11,11 @@ namespace fasterswiper {
 namespace {
 
 TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS26) {
-  auto display_id = WrapCFUnique(
-      CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(
-      std::move(display_id),
-      {Space{.id = 101}, Space{.id = 102}, Space{.id = 103}}, /*index=*/1);
+  auto display_id = WrapCFUnique(CFStringCreateWithCString(
+      nullptr, "test-display", kCFStringEncodingUTF8));
+  SpaceState space_state(std::move(display_id),
+                         {Space{.id = 101}, Space{.id = 102}, Space{.id = 103}},
+                         /*index=*/1);
 
   AppExposeHorizontalAxisAdapter_MacOS26 adapter(space_state);
 
@@ -26,8 +26,7 @@ TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS26) {
   EXPECT_EQ(soft_min, 1 * kOneSwipeInNanoswipes);
   EXPECT_EQ(soft_max, 1 * kOneSwipeInNanoswipes);
 
-  EXPECT_TRUE(
-      adapter.WaitForCommittedPositionChanged(0, absl::ZeroDuration()));
+  EXPECT_TRUE(adapter.WaitForCommittedPositionChanged(0, absl::ZeroDuration()));
 
   const int64_t nanoswipes = 500'000;
   EXPECT_DOUBLE_EQ(adapter.NanoswipesToProgress(nanoswipes),
@@ -51,8 +50,7 @@ TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS27) {
   EXPECT_EQ(soft_min, -1 * kOneSwipeInNanoswipes);
   EXPECT_EQ(soft_max, 1 * kOneSwipeInNanoswipes);
 
-  EXPECT_TRUE(
-      adapter.WaitForCommittedPositionChanged(0, absl::ZeroDuration()));
+  EXPECT_TRUE(adapter.WaitForCommittedPositionChanged(0, absl::ZeroDuration()));
 
   EXPECT_DOUBLE_EQ(adapter.NanoswipesToProgress(0), 0.0);
   EXPECT_EQ(adapter.ProgressToNanoswipes(0.0), 0);
@@ -67,12 +65,11 @@ TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS27) {
 }
 
 TEST(AxisAdapterTest, VerticalAxisAdapter_DesktopSpace) {
-  auto display_id = WrapCFUnique(
-      CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(
-      std::move(display_id),
-      {Space{.id = 101, .is_desktop = true}},
-      /*index=*/0);
+  auto display_id = WrapCFUnique(CFStringCreateWithCString(
+      nullptr, "test-display", kCFStringEncodingUTF8));
+  SpaceState space_state(std::move(display_id),
+                         {Space{.id = 101, .is_desktop = true}},
+                         /*index=*/0);
 
   VerticalAxisAdapter adapter(space_state);
 
@@ -92,12 +89,11 @@ TEST(AxisAdapterTest, VerticalAxisAdapter_DesktopSpace) {
 }
 
 TEST(AxisAdapterTest, VerticalAxisAdapter_NonDesktopSpace) {
-  auto display_id = WrapCFUnique(
-      CFStringCreateWithCString(nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(
-      std::move(display_id),
-      {Space{.id = 101, .is_desktop = false}},
-      /*index=*/0);
+  auto display_id = WrapCFUnique(CFStringCreateWithCString(
+      nullptr, "test-display", kCFStringEncodingUTF8));
+  SpaceState space_state(std::move(display_id),
+                         {Space{.id = 101, .is_desktop = false}},
+                         /*index=*/0);
 
   VerticalAxisAdapter adapter(space_state);
 
@@ -106,5 +102,5 @@ TEST(AxisAdapterTest, VerticalAxisAdapter_NonDesktopSpace) {
   EXPECT_EQ(soft_max, 1 * kOneSwipeInNanoswipes);
 }
 
-} // namespace
-} // namespace fasterswiper
+}  // namespace
+}  // namespace fasterswiper

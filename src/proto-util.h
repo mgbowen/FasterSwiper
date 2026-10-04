@@ -5,13 +5,13 @@
 
 namespace fasterswiper {
 
-inline absl::Duration
-FromProtoDuration(const google::protobuf::Duration &proto_dur) {
+inline absl::Duration FromProtoDuration(
+    const google::protobuf::Duration& proto_dur) {
   return absl::Seconds(proto_dur.seconds()) +
          absl::Nanoseconds(proto_dur.nanos());
 }
 
-inline google::protobuf::Duration ToProtoDuration(const absl::Duration &dur) {
+inline google::protobuf::Duration ToProtoDuration(const absl::Duration& dur) {
   const absl::Duration truncated = absl::Trunc(dur, absl::Seconds(1));
   google::protobuf::Duration proto_dur;
   proto_dur.set_seconds(absl::ToInt64Seconds(truncated));
@@ -19,4 +19,4 @@ inline google::protobuf::Duration ToProtoDuration(const absl::Duration &dur) {
   return proto_dur;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

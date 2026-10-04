@@ -11,7 +11,6 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
-
 #include <absl/flags/parse.h>
 #include <absl/status/status.h>
 #include <absl/strings/str_cat.h>
@@ -21,8 +20,8 @@ namespace fasterswiper {
 namespace {
 
 absl::Status CheckForAccessibilityPermissions() {
-  const void *keys[] = {kAXTrustedCheckOptionPrompt};
-  const void *values[] = {kCFBooleanTrue};
+  const void* keys[] = {kAXTrustedCheckOptionPrompt};
+  const void* values[] = {kCFBooleanTrue};
   const auto opts = WrapCFUnique(
       CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
                          &kCFTypeDictionaryValueCallBacks));
@@ -37,26 +36,26 @@ absl::Status CheckForAccessibilityPermissions() {
 
 std::optional<int> KeyCodeToDigit(CGKeyCode key_code) {
   switch (key_code) {
-  case 18:
-    return 1;
-  case 19:
-    return 2;
-  case 20:
-    return 3;
-  case 21:
-    return 4;
-  case 23:
-    return 5;
-  case 22:
-    return 6;
-  case 26:
-    return 7;
-  case 28:
-    return 8;
-  case 25:
-    return 9;
-  default:
-    return std::nullopt;
+    case 18:
+      return 1;
+    case 19:
+      return 2;
+    case 20:
+      return 3;
+    case 21:
+      return 4;
+    case 23:
+      return 5;
+    case 22:
+      return 6;
+    case 26:
+      return 7;
+    case 28:
+      return 8;
+    case 25:
+      return 9;
+    default:
+      return std::nullopt;
   }
 }
 
@@ -123,7 +122,7 @@ absl::Status Run() {
         .ticks_per_second = 240,
     });
 
-    return nullptr; // Swallow the event
+    return nullptr;  // Swallow the event
   };
 
   auto maybe_tap_manager = EventTapManager::Create(
@@ -147,9 +146,9 @@ absl::Status Run() {
   return absl::OkStatus();
 }
 
-} // namespace
-} // namespace fasterswiper
-int main(int argc, char *argv[]) {
+}  // namespace
+}  // namespace fasterswiper
+int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
   if (absl::Status status = fasterswiper::Run(); !status.ok()) {

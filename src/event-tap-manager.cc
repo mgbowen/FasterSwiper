@@ -6,11 +6,11 @@
 
 namespace fasterswiper {
 
-absl::StatusOr<std::unique_ptr<EventTapManager>>
-EventTapManager::Create(CGEventTapLocation tap, CGEventTapPlacement place,
-                        CGEventTapOptions options,
-                        const std::vector<CGEventType>& event_types_of_interest,
-                        Callback callback) {
+absl::StatusOr<std::unique_ptr<EventTapManager>> EventTapManager::Create(
+    CGEventTapLocation tap, CGEventTapPlacement place,
+    CGEventTapOptions options,
+    const std::vector<CGEventType>& event_types_of_interest,
+    Callback callback) {
   auto result = absl::WrapUnique(new EventTapManager());
   result->callback_ = std::move(callback);
 
@@ -34,14 +34,14 @@ void EventTapManager::SetEnabled(bool enabled) {
 
 CGEventRef EventTapManager::CallbackShim(CGEventTapProxy proxy,
                                          CGEventType type, CGEventRef event,
-                                         void *user_info) {
+                                         void* user_info) {
   if (user_info == nullptr) {
     LOG(FATAL) << "Received a CGEventTap callback with null userInfo!";
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  auto tap = reinterpret_cast<EventTapManager *>(user_info);
+  auto tap = reinterpret_cast<EventTapManager*>(user_info);
   return tap->callback_(proxy, type, event);
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

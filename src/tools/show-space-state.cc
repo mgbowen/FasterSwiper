@@ -5,7 +5,7 @@
 #include <absl/flags/parse.h>
 #include <absl/strings/str_cat.h>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
   auto space_state = fasterswiper::LoadSpaceStateForActiveDisplay();

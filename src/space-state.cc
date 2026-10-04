@@ -16,7 +16,7 @@ int64_t RoundNanopositions(double val) {
   return static_cast<int64_t>(std::round(val));
 }
 
-} // namespace
+}  // namespace
 
 SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
                        std::vector<Space> spaces, CFIndex index)
@@ -25,14 +25,16 @@ SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
 
 SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
                        std::vector<Space> spaces, CFIndex index)
-    : display_id_(std::move(display_id)), spaces_(std::move(spaces)),
-      index_(index), unit_factor_(static_cast<double>(count()) /
-                                  static_cast<double>(count() - 1)) {}
+    : display_id_(std::move(display_id)),
+      spaces_(std::move(spaces)),
+      index_(index),
+      unit_factor_(static_cast<double>(count()) /
+                   static_cast<double>(count() - 1)) {}
 
 std::vector<int64_t> SpaceState::space_ids() const {
   std::vector<int64_t> ids;
   ids.reserve(spaces_.size());
-  for (const auto &space : spaces_) {
+  for (const auto& space : spaces_) {
     ids.push_back(space.id);
   }
 
@@ -56,12 +58,12 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
 
   if (VLOG_IS_ON(1)) {
     VLOG(1) << "Displays under mouse:";
-    for (const auto &display : *maybe_displays) {
+    for (const auto& display : *maybe_displays) {
       VLOG(1) << "  * \"" << StringFromCFStringRef(display.get());
     }
   }
 
-  const std::vector<CFUniquePtr<CFStringRef>> &displays_under_mouse =
+  const std::vector<CFUniquePtr<CFStringRef>>& displays_under_mouse =
       *maybe_displays;
   if (displays_under_mouse.empty()) {
     return absl::InternalError("No displays found under mouse");
@@ -89,7 +91,7 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
     }
 
     bool found_display = false;
-    for (const auto &display_under_mouse : displays_under_mouse) {
+    for (const auto& display_under_mouse : displays_under_mouse) {
       const int result =
           CFStringCompare(raw_display_id, display_under_mouse.get(), 0);
 
@@ -198,4 +200,4 @@ absl::StatusOr<std::vector<CFUniquePtr<CFStringRef>>> GetDisplaysUnderMouse() {
   return display_ids;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

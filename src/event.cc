@@ -3,17 +3,17 @@
 #include "src/cf-util.h"
 #include "src/compatibility.h"
 #include "src/macos-private.h"
+#include "src/string-util.h"
 
-#include <CoreGraphics/CGEventTypes.h>
-#include <mach/mach_time.h>
 #include <unistd.h>
 
-#include "src/string-util.h"
+#include <CoreGraphics/CGEventTypes.h>
 #include <absl/base/no_destructor.h>
 #include <absl/cleanup/cleanup.h>
 #include <absl/log/log.h>
 #include <absl/strings/str_cat.h>
 #include <absl/strings/str_format.h>
+#include <mach/mach_time.h>
 
 namespace fasterswiper {
 
@@ -50,14 +50,14 @@ std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
 
   auto key_state = [&]() -> std::optional<KeyState> {
     switch (event_type) {
-    case kCGEventKeyDown:
-      return KeyState::kDown;
-      break;
-    case kCGEventKeyUp:
-      return KeyState::kUp;
-      break;
-    default:
-      return std::nullopt;
+      case kCGEventKeyDown:
+        return KeyState::kDown;
+        break;
+      case kCGEventKeyUp:
+        return KeyState::kUp;
+        break;
+      default:
+        return std::nullopt;
     }
   }();
 
@@ -69,16 +69,16 @@ std::optional<KeyEvent> ParseKeyEvent(CGEventRef event,
       .key_code = key_code, .modifiers = modifiers, .key_state = *key_state};
 }
 
-} // namespace
+}  // namespace
 
-bool KeyEvent::ConcernsHotkey(const Hotkey &hotkey) const {
+bool KeyEvent::ConcernsHotkey(const Hotkey& hotkey) const {
   const auto adjusted_modifiers = modifiers & kModifierKeyMask;
   return hotkey.enabled && key_code == hotkey.key_code &&
          adjusted_modifiers == hotkey.modifiers;
 }
 
 bool KeyEvent::ConcernsAnyHotkey(
-    const HotkeyConfigurations &hotkey_configs) const {
+    const HotkeyConfigurations& hotkey_configs) const {
   return ConcernsHotkey(hotkey_configs.move_space_left) ||
          ConcernsHotkey(hotkey_configs.move_space_right) ||
          ConcernsHotkey(hotkey_configs.open_mission_control) ||
@@ -95,19 +95,19 @@ std::optional<Event> ParseEvent(CGEventRef event) {
 
   std::optional<EventData> event_data;
   switch (event_type) {
-  case kCGSEventDockControl:
-    event_data = ParseDockSwipeEvent(event);
-    VLOG(1) << "ParseEvent(): ParseDockSwipeEvent result="
-            << OptionalToString(event_data);
-    break;
-  case kCGEventKeyDown:
-  case kCGEventKeyUp:
-    event_data = ParseKeyEvent(event, event_type);
-    VLOG(1) << "ParseEvent(): ParseKeyEvent result="
-            << OptionalToString(event_data);
-    break;
-  default:
-    break;
+    case kCGSEventDockControl:
+      event_data = ParseDockSwipeEvent(event);
+      VLOG(1) << "ParseEvent(): ParseDockSwipeEvent result="
+              << OptionalToString(event_data);
+      break;
+    case kCGEventKeyDown:
+    case kCGEventKeyUp:
+      event_data = ParseKeyEvent(event, event_type);
+      VLOG(1) << "ParseEvent(): ParseKeyEvent result="
+              << OptionalToString(event_data);
+      break;
+    default:
+      break;
   }
 
   if (!event_data.has_value()) {
@@ -128,16 +128,16 @@ std::optional<Event> ParseEvent(CGEventRef event) {
 
 std::string EventGesturePhaseToString(int phase) {
   switch (phase) {
-  case kGestureBegan:
-    return "kGestureBegan";
-  case kGestureChanged:
-    return "kGestureChanged";
-  case kGestureEnded:
-    return "kGestureEnded";
-  case kGestureCancelled:
-    return "kGestureCancelled";
-  default:
-    return absl::StrCat("(unknown gesture phase ", phase, ")");
+    case kGestureBegan:
+      return "kGestureBegan";
+    case kGestureChanged:
+      return "kGestureChanged";
+    case kGestureEnded:
+      return "kGestureEnded";
+    case kGestureCancelled:
+      return "kGestureCancelled";
+    default:
+      return absl::StrCat("(unknown gesture phase ", phase, ")");
   }
 }
 
@@ -155,7 +155,7 @@ std::string EventDoubleToString(double val) {
   return absl::StrFormat("%f", val);
 }
 
-} // namespace
+}  // namespace
 
 std::string CFEventToDebugString(CGEventRef event) {
   return absl::StrFormat("CFEvent{phase=%s, progress=%s, velocity_x=%s}",
@@ -167,10 +167,9 @@ std::string CFEventToDebugString(CGEventRef event) {
                              event, kCGEventGestureSwipeVelocityX)));
 }
 
-CFUniquePtr<CGEventRef>
-CreateDockControlGestureEvent(int phase, int direction, double progress,
-                              std::optional<double> velocity,
-                              bool natural_scrolling_enabled) {
+CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
+    int phase, int direction, double progress, std::optional<double> velocity,
+    bool natural_scrolling_enabled) {
   if (IsMacOS27()) {
     if (natural_scrolling_enabled) {
       progress = -progress;
@@ -203,4 +202,4 @@ CreateDockControlGestureEvent(int phase, int direction, double progress,
   return event;
 }
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

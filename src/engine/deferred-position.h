@@ -40,10 +40,10 @@ private:
   std::optional<int64_t> deferred_;
 
   template <typename Sink>
-  friend void AbslStringify(Sink &sink, const DeferredPosition &pos) {
+  friend void AbslStringify(Sink& sink, const DeferredPosition& pos) {
     absl::Format(&sink, "DeferredPosition{effective=%d, deferred_=%s}",
                  pos.effective_, OptionalToString(pos.deferred_));
   }
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

@@ -2,8 +2,9 @@
 
 namespace fasterswiper {
 
-template <typename... Ts> struct overloaded : Ts... {
+template <typename... Ts>
+struct overloaded : Ts... {
   using Ts::operator()...;
 };
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

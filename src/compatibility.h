@@ -4,4 +4,4 @@ namespace fasterswiper {
 
 bool IsMacOS27();
 
-} // namespace fasterswiper
+}  // namespace fasterswiper

@@ -18,12 +18,12 @@ enum class Axis {
 
 inline constexpr std::optional<Axis> TryEventDirectionToAxis(int direction) {
   switch (direction) {
-  case kCGGestureMotionVertical:
-    return Axis::kVertical;
-  case kCGGestureMotionHorizontal:
-    return Axis::kHorizontal;
-  default:
-    return std::nullopt;
+    case kCGGestureMotionVertical:
+      return Axis::kVertical;
+    case kCGGestureMotionHorizontal:
+      return Axis::kHorizontal;
+    default:
+      return std::nullopt;
   }
 }
 
@@ -31,10 +31,10 @@ class AxisAdapter {
 public:
   AxisAdapter() = default;
 
-  AxisAdapter(const AxisAdapter &) = default;
-  AxisAdapter(AxisAdapter &&) = default;
-  AxisAdapter &operator=(const AxisAdapter &) = default;
-  AxisAdapter &operator=(AxisAdapter &&) = default;
+  AxisAdapter(const AxisAdapter&) = default;
+  AxisAdapter(AxisAdapter&&) = default;
+  AxisAdapter& operator=(const AxisAdapter&) = default;
+  AxisAdapter& operator=(AxisAdapter&&) = default;
 
   virtual ~AxisAdapter() = default;
 
@@ -42,29 +42,28 @@ public:
 
   [[nodiscard]] virtual Axis movement_direction() const = 0;
 
-  [[nodiscard]] virtual double
-  NanoswipesToProgress(int64_t nanoswipes) const = 0;
+  [[nodiscard]] virtual double NanoswipesToProgress(
+      int64_t nanoswipes) const = 0;
 
   [[nodiscard]] virtual int64_t ProgressToNanoswipes(double progress) const = 0;
 
-  [[nodiscard]] virtual bool
-  WaitForCommittedPositionChanged(int64_t original_position,
-                                  absl::Duration deadline) const;
+  [[nodiscard]] virtual bool WaitForCommittedPositionChanged(
+      int64_t original_position, absl::Duration deadline) const;
 
   [[nodiscard]] virtual absl::StatusOr<int64_t> committed_position() const = 0;
 
-  [[nodiscard]] virtual std::pair<int64_t, int64_t>
-  position_soft_limits() const = 0;
+  [[nodiscard]] virtual std::pair<int64_t, int64_t> position_soft_limits()
+      const = 0;
 };
 
 class HorizontalAxisAdapter : public AxisAdapter {
 public:
   explicit HorizontalAxisAdapter(SpaceState space_state);
 
-  HorizontalAxisAdapter(const HorizontalAxisAdapter &) = default;
-  HorizontalAxisAdapter(HorizontalAxisAdapter &&) = default;
-  HorizontalAxisAdapter &operator=(const HorizontalAxisAdapter &) = default;
-  HorizontalAxisAdapter &operator=(HorizontalAxisAdapter &&) = default;
+  HorizontalAxisAdapter(const HorizontalAxisAdapter&) = default;
+  HorizontalAxisAdapter(HorizontalAxisAdapter&&) = default;
+  HorizontalAxisAdapter& operator=(const HorizontalAxisAdapter&) = default;
+  HorizontalAxisAdapter& operator=(HorizontalAxisAdapter&&) = default;
 
   ~HorizontalAxisAdapter() override = default;
 
@@ -82,8 +81,8 @@ public:
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 
-  [[nodiscard]] std::pair<int64_t, int64_t>
-  position_soft_limits() const override;
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits()
+      const override;
 
 private:
   SpaceState space_state_;
@@ -93,10 +92,10 @@ class VerticalAxisAdapter : public AxisAdapter {
 public:
   explicit VerticalAxisAdapter(SpaceState space_state);
 
-  VerticalAxisAdapter(const VerticalAxisAdapter &) = default;
-  VerticalAxisAdapter(VerticalAxisAdapter &&) = default;
-  VerticalAxisAdapter &operator=(const VerticalAxisAdapter &) = default;
-  VerticalAxisAdapter &operator=(VerticalAxisAdapter &&) = default;
+  VerticalAxisAdapter(const VerticalAxisAdapter&) = default;
+  VerticalAxisAdapter(VerticalAxisAdapter&&) = default;
+  VerticalAxisAdapter& operator=(const VerticalAxisAdapter&) = default;
+  VerticalAxisAdapter& operator=(VerticalAxisAdapter&&) = default;
 
   ~VerticalAxisAdapter() override = default;
 
@@ -114,8 +113,8 @@ public:
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 
-  [[nodiscard]] std::pair<int64_t, int64_t>
-  position_soft_limits() const override;
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits()
+      const override;
 
 private:
   SpaceState space_state_;
@@ -126,13 +125,13 @@ public:
   explicit AppExposeHorizontalAxisAdapter_MacOS26(SpaceState space_state);
 
   AppExposeHorizontalAxisAdapter_MacOS26(
-      const AppExposeHorizontalAxisAdapter_MacOS26 &) = default;
+      const AppExposeHorizontalAxisAdapter_MacOS26&) = default;
   AppExposeHorizontalAxisAdapter_MacOS26(
-      AppExposeHorizontalAxisAdapter_MacOS26 &&) = default;
-  AppExposeHorizontalAxisAdapter_MacOS26 &
-  operator=(const AppExposeHorizontalAxisAdapter_MacOS26 &) = default;
-  AppExposeHorizontalAxisAdapter_MacOS26 &
-  operator=(AppExposeHorizontalAxisAdapter_MacOS26 &&) = default;
+      AppExposeHorizontalAxisAdapter_MacOS26&&) = default;
+  AppExposeHorizontalAxisAdapter_MacOS26& operator=(
+      const AppExposeHorizontalAxisAdapter_MacOS26&) = default;
+  AppExposeHorizontalAxisAdapter_MacOS26& operator=(
+      AppExposeHorizontalAxisAdapter_MacOS26&&) = default;
 
   ~AppExposeHorizontalAxisAdapter_MacOS26() override = default;
 
@@ -148,14 +147,13 @@ public:
 
   [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
 
-  [[nodiscard]] bool
-  WaitForCommittedPositionChanged(int64_t original_position,
-                                  absl::Duration deadline) const override;
+  [[nodiscard]] bool WaitForCommittedPositionChanged(
+      int64_t original_position, absl::Duration deadline) const override;
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 
-  [[nodiscard]] std::pair<int64_t, int64_t>
-  position_soft_limits() const override;
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits()
+      const override;
 
 private:
   SpaceState space_state_;
@@ -165,13 +163,13 @@ class AppExposeHorizontalAxisAdapter : public AxisAdapter {
 public:
   AppExposeHorizontalAxisAdapter() = default;
 
-  AppExposeHorizontalAxisAdapter(const AppExposeHorizontalAxisAdapter &) =
+  AppExposeHorizontalAxisAdapter(const AppExposeHorizontalAxisAdapter&) =
       default;
-  AppExposeHorizontalAxisAdapter(AppExposeHorizontalAxisAdapter &&) = default;
-  AppExposeHorizontalAxisAdapter &
-  operator=(const AppExposeHorizontalAxisAdapter &) = default;
-  AppExposeHorizontalAxisAdapter &
-  operator=(AppExposeHorizontalAxisAdapter &&) = default;
+  AppExposeHorizontalAxisAdapter(AppExposeHorizontalAxisAdapter&&) = default;
+  AppExposeHorizontalAxisAdapter& operator=(
+      const AppExposeHorizontalAxisAdapter&) = default;
+  AppExposeHorizontalAxisAdapter& operator=(AppExposeHorizontalAxisAdapter&&) =
+      default;
 
   ~AppExposeHorizontalAxisAdapter() override = default;
 
@@ -187,17 +185,16 @@ public:
 
   [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
 
-  [[nodiscard]] bool
-  WaitForCommittedPositionChanged(int64_t original_position,
-                                  absl::Duration deadline) const override;
+  [[nodiscard]] bool WaitForCommittedPositionChanged(
+      int64_t original_position, absl::Duration deadline) const override;
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 
-  [[nodiscard]] std::pair<int64_t, int64_t>
-  position_soft_limits() const override;
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits()
+      const override;
 };
 
 absl::StatusOr<std::unique_ptr<AxisAdapter>>
 CreateAppExposeHorizontalAxisAdapter();
 
-} // namespace fasterswiper
+}  // namespace fasterswiper
