@@ -12,9 +12,33 @@ public struct PickerOption: Identifiable, Hashable {
     }
 }
 
-public enum SettingsViewTab {
-    case settings
+public enum SettingsViewTab: String, CaseIterable, Identifiable, Hashable {
+    case general
+    case animation
+    case keyboard
     case about
+
+    public var id: String { rawValue }
+
+    public static var settings: SettingsViewTab { .general }
+
+    public var title: String {
+        switch self {
+        case .general: "General"
+        case .animation: "Animation"
+        case .keyboard: "Keyboard"
+        case .about: "About"
+        }
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .general: "gear"
+        case .animation: "slider.horizontal.3"
+        case .keyboard: "keyboard"
+        case .about: "info.circle"
+        }
+    }
 }
 
 @MainActor

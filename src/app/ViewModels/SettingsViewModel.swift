@@ -37,7 +37,7 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         self.daemonManager = daemonManager
     }
 
-    var selectedTab: SettingsViewTab = .settings
+    var selectedTab: SettingsViewTab = .general
 
     public var statusColor: Color { daemonManager.status.color }
     public var statusText: String { daemonManager.status.text }

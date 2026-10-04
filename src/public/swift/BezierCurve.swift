@@ -70,9 +70,9 @@ extension Fasterswiper_Proto_EasingFunction: @retroactive CustomStringConvertibl
     public var description: String {
         switch self {
         case .linear: return "Linear"
-        case .quadraticEaseOut: return "Quadratic Ease Out"
-        case .quinticEaseOut: return "Quintic Ease Out"
-        case .cubicBezierCurve: return "Cubic Bezier Curve"
+        case .quadraticEaseOut: return "Quadratic ease out"
+        case .quinticEaseOut: return "Quintic ease out"
+        case .cubicBezierCurve: return "Cubic Bezier curve"
         }
     }
 

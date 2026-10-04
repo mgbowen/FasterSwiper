@@ -8,7 +8,7 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
         self.selectedTab = selectedTab
     }
 
-    public var selectedTab: SettingsViewTab = .settings
+    public var selectedTab: SettingsViewTab = .general
 
     public var statusColor: Color { .green }
     public var statusText: String { "Running" }
@@ -18,9 +18,9 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
     public var easingFunctionOptions: [PickerOption] {
         [
             PickerOption(label: "Linear", tag: 0),
-            PickerOption(label: "Quadratic Ease Out", tag: 1),
-            PickerOption(label: "Quintic Ease Out", tag: 2),
-            PickerOption(label: "Cubic Bezier Curve", tag: 3),
+            PickerOption(label: "Quadratic ease out", tag: 1),
+            PickerOption(label: "Quintic ease out", tag: 2),
+            PickerOption(label: "Cubic Bezier curve", tag: 3),
         ]
     }
     public var selectedEasingFunctionTag: Int = 3
