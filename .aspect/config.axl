@@ -1,0 +1,5 @@
+def config(ctx: ConfigContext):
+    # Register default aspects for `aspect lint`
+    ctx.tasks["lint"].args.aspects = [
+        "//tools/lint:linters.bzl%clang_tidy",
+    ]

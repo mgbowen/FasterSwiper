@@ -1,0 +1,2 @@
+# Ignore vendored third-party code in linters and formatters
+third_party/** rules-lint-ignored

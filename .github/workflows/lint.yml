@@ -1,0 +1,32 @@
+name: Lint & Format
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: macos-26
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@v6
+        with:
+          # Fetch full history so merge-base can be computed for hold-the-line linting
+          fetch-depth: 0
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+        with:
+          disk-cache: true
+          repository-cache: true
+
+      - name: Install Aspect CLI
+        run: brew install aspect-build/aspect/aspect
+
+      - name: Check Formatting
+        run: aspect format --severity=error
+
+      - name: Lint Changed Code
+        run: aspect lint

@@ -106,6 +106,35 @@ bazel run -c opt //src/app:FasterSwiper_app
 
 ## Contributing
 
+### Linting and Formatting
+
+FasterSwiper uses [Aspect CLI](https://aspect.build/docs/cli). Install Aspect
+CLI with Homebrew:
+
+```bash
+brew install aspect-build/aspect/aspect
+```
+
+- To run a format pass on your local changes:
+  ```bash
+  aspect format
+  ```
+  Or on the entire repo:
+  ```bash
+  aspect format --scope=all
+  ```
+
+- To run a lint pass on your local changes:
+  ```bash
+  aspect lint
+  ```
+  To try to apply fixes automatically:
+  ```bash
+  aspect lint --fix
+  ```
+
+### Language Server (compile_commands.json)
+
 If you use VS Code, you may find it useful to generate a `compile_commands.json`
 file so the C++ language server can properly index the codebase:
 

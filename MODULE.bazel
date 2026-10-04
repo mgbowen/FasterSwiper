@@ -25,7 +25,7 @@ bazel_dep(name = "toolchains_llvm", version = "1.7.0")
 # Fixes some issue with transitive rules_android dependency
 bazel_dep(name = "rules_android", version = "0.7.2")
 
-# LLVM toolchain for clang-tidy
+# LLVM toolchain for clang-format, clang-tidy, etc.
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     cxx_standard = {"": "c++23"},

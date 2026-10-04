@@ -1,0 +1,16 @@
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
+
+package(default_visibility = ["//:__subpackages__"])
+
+alias(
+    name = "clang-format",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@llvm_toolchain_llvm//:bin/clang-format",
+        "//conditions:default": "@llvm_toolchain_llvm//:bin/clang-format",
+    }),
+)
+
+format_multirun(
+    name = "format",
+    cc = ":clang-format",
+)

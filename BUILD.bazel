@@ -18,4 +18,7 @@ xcodeproj(
     ],
 )
 
-exports_files([".clang-tidy"])
+exports_files([
+    ".clang-format",
+    ".clang-tidy",
+])
