@@ -32,7 +32,7 @@ SpaceSwitchOperation::Options Resolve(SpaceSwitchOperation::Options options) {
 // Integer division that rounds toward negative infinity, unlike C++ integer
 // division which truncates toward zero. b must be positive.
 int64_t FloorDiv(int64_t a, int64_t b) {
-  return a / b - (a % b != 0 && (a ^ b) < 0);
+  return a / b - (a % b != 0 && ((a < 0) != (b < 0)));
 }
 
 int Sign(auto spaceship_operator_result) {
@@ -129,6 +129,8 @@ void SpaceSwitchOperation::PostEvent(CGEventSink* absl_nonnull event_sink,
                                      int phase, double progress,
                                      std::optional<double> velocity) const {
   CHECK(event_sink != nullptr);
+  CHECK(options_.natural_scrolling_enabled.has_value());
+
   CFUniquePtr<CGEventRef> event = CreateDockControlGestureEvent(
       phase, static_cast<int>(axis_adapter_->movement_direction()), progress,
       velocity, *options_.natural_scrolling_enabled);

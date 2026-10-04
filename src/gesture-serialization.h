@@ -31,7 +31,7 @@ using IOHIDEventData =
     std::variant<IOHIDFluidTouchGestureData, IOHIDVelocityEventData>;
 
 struct IOHIDSystemQueueElementData {
-  IOHIDSystemQueueElement header;
+  IOHIDSystemQueueElement header{};
   std::vector<IOHIDEventData> events;
 };
 

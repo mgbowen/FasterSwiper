@@ -106,7 +106,7 @@ CGEventRef absl_nullable PhysicalEventHandler::HandleEvent(
                                       ? Axis::kVertical
                                       : Axis::kHorizontal;
                 if (IsAxisEnabled(axis)) {
-                  return *std::move(maybe_command);
+                  return *maybe_command;
                 }
               }
             }
@@ -116,7 +116,7 @@ CGEventRef absl_nullable PhysicalEventHandler::HandleEvent(
               const std::optional<JumpToSpaceCommand> maybe_command =
                   TryGetJumpToSpaceCommand(event);
               if (maybe_command.has_value()) {
-                return *std::move(maybe_command);
+                return *maybe_command;
               }
             }
 

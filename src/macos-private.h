@@ -39,7 +39,7 @@ CGError CGSRemoveNotifyProc(CGSNotifyProcPtr proc, CGSEventType type,
 
 CFStringRef SLSSpaceCopyName(int cid, SLSSpaceId sid);
 
-enum class CGSSpaceMask {
+enum class CGSSpaceMask : uint32_t {
   CGSSpaceIncludesCurrent = 1 << 0,  // Dock, Notification Center, etc.
   CGSSpaceIncludesOthers = 1 << 1,   // Expose
 
@@ -50,13 +50,13 @@ enum class CGSSpaceMask {
 
   kCGSCurrentSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesCurrent,
   kCGSOtherSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers,
-  kCGSAllSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers |
-      CGSSpaceIncludesCurrent,
+  kCGSAllSpacesMask =
+      CGSSpaceIncludesUser | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
 
   kCGSCurrentOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesCurrent,
   kCGSOtherOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers,
-  kCGSAllOSSpacesMask = CGSSpaceIncludesOS | CGSSpaceIncludesOthers |
-      CGSSpaceIncludesCurrent,
+  kCGSAllOSSpacesMask =
+      CGSSpaceIncludesOS | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
 
   kCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask,  // ?
 };
@@ -109,6 +109,7 @@ constexpr int kCGSSpaceUser = 0;
 using FixedFP1616 = int32_t;
 
 enum class IOHIDEventType : uint32_t {
+  kIOHIDEventTypeUnknown = 0,
   kIOHIDEventTypeVelocity = 9,
   kIOHIDEventTypeFluidTouchGesture = 23,
 };
@@ -137,6 +138,7 @@ static_assert(sizeof(IOHIDEventBase) == 16,
               "Unexpected sizeof(IOHIDEventBase)");
 
 enum class IOHIDSwipeMask : uint32_t {
+  kIOHIDUnknown = 0,
   kIOHIDSwipeUp = 1,
   kIOHIDSwipeDown = 2,
   kIOHIDSwipeLeft = 4,
@@ -144,11 +146,13 @@ enum class IOHIDSwipeMask : uint32_t {
 };
 
 enum class IOHIDGestureMotion : uint16_t {
+  kkIOHIDGestureMotionUnknown = 0,
   kIOHIDGestureMotionHorizontalX = 1,
   kIOHIDGestureMotionVerticalY = 2,
 };
 
 enum class IOHIDGestureFlavor : uint16_t {
+  kIOHIDGestureFlavorUnknown = 0,
   kIOHIDGestureFlavorDockPrimary = 3,
 };
 

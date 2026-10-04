@@ -28,7 +28,7 @@ public:
       grpc::ServerContext* context,
       grpc::ServerReader<proto::GestureEventProto>* reader,
       proto::StreamResult* response) override {
-    std::cout << "Client connected, streaming gestures..." << std::endl;
+    std::cout << "Client connected, streaming gestures...\n";
     proto::GestureEventProto event_proto;
     int count = 0;
     while (reader->Read(&event_proto)) {
@@ -37,13 +37,13 @@ public:
           nullptr, reinterpret_cast<const uint8_t*>(data.data()), data.size(),
           kCFAllocatorNull));
       if (!cf_buffer) {
-        std::cerr << "Failed to wrap event data in CFData" << std::endl;
+        std::cerr << "Failed to wrap event data in CFData\n";
         continue;
       }
 
       auto dock = WrapCFUnique(CGEventCreateFromData(nullptr, cf_buffer.get()));
       if (!dock) {
-        std::cerr << "Failed to recreate CGEvent from data" << std::endl;
+        std::cerr << "Failed to recreate CGEvent from data\n";
         continue;
       }
 
@@ -58,8 +58,7 @@ public:
       count++;
     }
 
-    std::cout << "Stream finished. Replayed " << count << " gestures."
-              << std::endl;
+    std::cout << "Stream finished. Replayed " << count << " gestures.\n";
     response->set_message(
         absl::StrCat("Successfully replayed ", count, " events"));
     return grpc::Status::OK;
@@ -70,7 +69,7 @@ std::unique_ptr<grpc::Server> server;
 
 void SignalHandler(int signal) {
   if (signal == SIGINT) {
-    std::cout << "\nShutting down server..." << std::endl;
+    std::cout << "\nShutting down server...\n";
     if (server) {
       server->Shutdown();
     }

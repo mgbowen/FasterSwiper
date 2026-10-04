@@ -11,7 +11,13 @@ namespace fasterswiper {
 
 class CGEventSink {
 public:
+  CGEventSink() = default;
   virtual ~CGEventSink() = default;
+  CGEventSink(const CGEventSink&) = default;
+  CGEventSink& operator=(const CGEventSink&) = default;
+  CGEventSink(CGEventSink&&) = default;
+  CGEventSink& operator=(CGEventSink&&) = default;
+
   virtual void Post(CGEventRef absl_nonnull event) = 0;
 };
 

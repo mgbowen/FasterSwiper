@@ -128,7 +128,7 @@ absl::StatusOr<CGEventDataFieldHeader> ReadFieldHeader(
   ASSIGN_OR_RETURN(const auto element_size, ReadBE<uint16_t>(data));
   ASSIGN_OR_RETURN(const auto tag_and_field, ReadBE<uint16_t>(data));
 
-  const uint16_t tag = (tag_and_field >> 14) & 0x0003;
+  const uint16_t tag = tag_and_field >> 14 & 0x0003;
   const uint16_t field = tag_and_field & 0x3FFF;
 
   return CGEventDataFieldHeader{
@@ -140,7 +140,8 @@ absl::StatusOr<CGEventDataFieldHeader> ReadFieldHeader(
 
 void WriteFieldHeader(absl::Cord& cord, const CGEventDataFieldHeader& header) {
   const uint16_t tag_and_field =
-      ((header.tag & 0x0003) << 14) | (header.field & 0x3FFF);
+      ((static_cast<uint32_t>(header.tag) & 0x0003u) << 14u) |
+      (static_cast<uint32_t>(header.field) & 0x3FFFu);
 
   WriteBE(cord, header.element_size);
   WriteBE(cord, tag_and_field);
@@ -325,6 +326,9 @@ absl::StatusOr<IOHIDEventData> ConsumeIOHIDEventData(absl::string_view& data) {
     case kIOHIDEventTypeFluidTouchGesture: {
       return ConsumeStruct<IOHIDFluidTouchGestureData>(data,
                                                        event_data_header->size);
+    }
+    case kIOHIDEventTypeUnknown: {
+      break;
     }
   }
 

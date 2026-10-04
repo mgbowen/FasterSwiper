@@ -121,7 +121,7 @@ std::optional<Event> ParseEvent(CGEventRef event) {
   }
 
   return Event{
-      .data = *std::move(event_data),
+      .data = *event_data,
       .source = source,
   };
 }

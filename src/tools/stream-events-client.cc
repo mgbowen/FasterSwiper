@@ -41,8 +41,7 @@ void SignalHandler(int signal) {
 
 void SenderThreadLoop(const std::string& address, Channel<std::string>& queue) {
   while (!stop_requested) {
-    std::cout << "Connecting to gRPC server at " << address << "..."
-              << std::endl;
+    std::cout << "Connecting to gRPC server at " << address << "...\n";
     auto grpc_channel =
         grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
 
@@ -52,19 +51,19 @@ void SenderThreadLoop(const std::string& address, Channel<std::string>& queue) {
                          gpr_time_from_seconds(5, GPR_TIMESPAN)))) {
       if (stop_requested) break;
       std::cerr << "Failed to connect to " << address
-                << ". Retrying in 2 seconds..." << std::endl;
+                << ". Retrying in 2 seconds...\n";
       std::this_thread::sleep_for(std::chrono::seconds(2));
       continue;
     }
 
-    std::cout << "Connected to server. Starting stream." << std::endl;
+    std::cout << "Connected to server. Starting stream.\n";
     auto stub = proto::GestureStreamer::NewStub(grpc_channel);
     grpc::ClientContext context;
     proto::StreamResult response;
     auto writer = stub->StreamGestures(&context, &response);
     if (!writer) {
       std::cerr << "Failed to create stream writer. Retrying in 2 seconds..."
-                << std::endl;
+                << '\n';
       std::this_thread::sleep_for(std::chrono::seconds(2));
       continue;
     }
@@ -81,7 +80,7 @@ void SenderThreadLoop(const std::string& address, Channel<std::string>& queue) {
       proto::GestureEventProto proto_event;
       proto_event.set_serialized_event(std::move(*event_or));
       if (!writer->Write(proto_event)) {
-        std::cerr << "Write failed. Reconnecting..." << std::endl;
+        std::cerr << "Write failed. Reconnecting...\n";
         break;
       }
     }
@@ -120,7 +119,7 @@ absl::Status Run() {
 
     auto event_data = WrapCFUnique(CGEventCreateData(nullptr, event));
     if (!event_data) {
-      std::cerr << "Failed to create CGEventData" << std::endl;
+      std::cerr << "Failed to create CGEventData\n";
       return event;
     }
 
@@ -138,7 +137,7 @@ absl::Status Run() {
     absl::Status write_status = event_queue.Write(std::move(buffer));
     if (!write_status.ok()) {
       std::cerr << "Failed to write event to queue: " << write_status.ToString()
-                << std::endl;
+                << "\n";
     }
 
     return nullptr;
