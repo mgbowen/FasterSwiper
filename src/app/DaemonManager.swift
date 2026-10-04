@@ -14,7 +14,12 @@ public enum DaemonStatus: Sendable {
         switch self {
         case .running: "Running"
         case .stopped: "Stopped"
-        case .accessibilityPermissionDenied: "Accessibility permissions denied"
+        case .accessibilityPermissionDenied:
+            if #available(macOS 27, *) {
+                "Device Control and Data Access permissions denied"
+            } else {
+                "Accessibility permissions denied"
+            }
         case .genericError: "Failed to start"
         }
     }
