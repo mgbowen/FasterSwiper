@@ -178,25 +178,6 @@ absl::Status PhysicalEventHandler::HandleCommand(const GestureCommand& command,
                                                  absl_nonnull proxy) {
   VLOG(1) << "HandleCommand(): command=" << command;
 
-  if (animator_ != nullptr && !animator_->is_committed()) {
-    // Active animation, make sure the requested gesture direction matches the
-    // animation's direction.
-    const Axis active_animation_direction =
-        animator_->operation().axis_adapter().movement_direction();
-    if (static_cast<int>(active_animation_direction) !=
-        command.event.direction) {
-      VLOG(1) << "HandleCommand(): Ignoring GestureCommand because an "
-                 "animation is active and its direction ("
-              << magic_enum::enum_name(active_animation_direction)
-              << ") does not match the "
-                 "command's requested direction ("
-              << magic_enum::enum_name(
-                     static_cast<Axis>(command.event.direction))
-              << ")";
-      return absl::OkStatus();
-    }
-  }
-
   const std::optional<Axis> maybe_gesture_axis =
       TryEventDirectionToAxis(command.event.direction);
   if (!maybe_gesture_axis.has_value()) {
@@ -211,6 +192,36 @@ absl::Status PhysicalEventHandler::HandleCommand(const GestureCommand& command,
                  << magic_enum::enum_name(*maybe_gesture_axis)
                  << " gestures are disabled";
     return absl::OkStatus();
+  }
+
+  if (animator_ != nullptr) {
+    // Potentially active animation, make sure the requested gesture direction
+    // matches the animation's direction.
+    const Axis existing_animation_direction =
+        animator_->operation().axis_adapter().movement_direction();
+    const auto command_direction = static_cast<Axis>(command.event.direction);
+    const bool direction_mismatch =
+        existing_animation_direction != command_direction;
+    if (direction_mismatch) {
+      if (!animator_->is_committed()) {
+        VLOG(1) << "HandleCommand(): Ignoring GestureCommand because an "
+                   "animation is active and its direction ("
+                << magic_enum::enum_name(existing_animation_direction)
+                << ") does not match the command's requested direction ("
+                << magic_enum::enum_name(command_direction) << ")";
+        return absl::OkStatus();
+      }
+
+      if (command.event.phase != kGestureBegan) {
+        VLOG(1) << "HandleCommand(): Ignoring GestureCommand because a "
+                   "mid-gesture event was received after an animator was "
+                   "committed and the animation's direction ("
+                << magic_enum::enum_name(existing_animation_direction)
+                << ") does not match the command's requested direction ("
+                << magic_enum::enum_name(command_direction) << ")";
+        return absl::OkStatus();
+      }
+    }
   }
 
   if (command.event.phase == kGestureBegan) {
