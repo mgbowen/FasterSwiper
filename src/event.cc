@@ -158,13 +158,16 @@ std::string EventDoubleToString(double val) {
 }  // namespace
 
 std::string CFEventToDebugString(CGEventRef event) {
-  return absl::StrFormat("CFEvent{phase=%s, progress=%s, velocity_x=%s}",
-                         EventGesturePhaseToString(CGEventGetIntegerValueField(
-                             event, kCGEventGesturePhase)),
-                         EventDoubleToString(CGEventGetDoubleValueField(
-                             event, kCGEventGestureSwipeProgress)),
-                         EventDoubleToString(CGEventGetDoubleValueField(
-                             event, kCGEventGestureSwipeVelocityX)));
+  return absl::StrFormat(
+      "CFEvent{phase=%s, progress=%s, velocity_x=%s, velocity_y=%s}",
+      EventGesturePhaseToString(
+          CGEventGetIntegerValueField(event, kCGEventGesturePhase)),
+      EventDoubleToString(
+          CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress)),
+      EventDoubleToString(
+          CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityX)),
+      EventDoubleToString(
+          CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityY)));
 }
 
 CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
@@ -195,8 +198,16 @@ CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
                              progress);
 
   if (velocity.has_value()) {
-    CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeVelocityX,
-                               *velocity);
+    if (direction == kCGGestureMotionHorizontal) {
+      CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeVelocityX,
+                                 *velocity);
+    } else if (direction == kCGGestureMotionVertical) {
+      CGEventSetDoubleValueField(event.get(), kCGEventGestureSwipeVelocityY,
+                                 *velocity);
+    } else {
+      LOG(WARNING) << "Unknown dock control event direction " << direction
+                   << ", ignoring velocity";
+    }
   }
 
   return event;

@@ -1,7 +1,9 @@
 #include "src/cf-util.h"
 #include "src/event-tap-manager.h"
+#include "src/gesture-serialization.h"
 #include "src/macos-private.h"
 #include "src/periodic-timer.h"
+#include "src/string-util.h"
 #include "src/tools/util/accessibility-check.h"
 
 #include <csignal>
@@ -10,13 +12,18 @@
 #include <vector>
 
 #include <absl/base/no_destructor.h>
+#include <absl/flags/flag.h>
 #include <absl/log/check.h>
+#include <absl/log/log.h>
 #include <absl/status/status.h>
 #include <absl/status/status_macros.h>
 #include <absl/strings/escaping.h>
 #include <absl/strings/str_cat.h>
 #include <absl/strings/string_view.h>
 #include <nlohmann/json.hpp>
+
+ABSL_FLAG(bool, capture_synthetic, false,
+          "Captures synthetic events if true, physical events if false");
 
 namespace fasterswiper {
 namespace {
@@ -55,6 +62,12 @@ absl::Status RecordGestures(const std::string& output_path) {
       return event;
     }
 
+    const bool is_physical =
+        CGEventGetIntegerValueField(event, kCGEventSourceUnixProcessID) == 0;
+    if (absl::GetFlag(FLAGS_capture_synthetic) == is_physical) {
+      return event;
+    }
+
     const int64_t now_ns = UptimeInNanoseconds();
     int64_t delta_ns = 0;
     if (last_event_ns.has_value()) {
@@ -82,10 +95,38 @@ absl::Status RecordGestures(const std::string& output_path) {
       captured_events.push_back(std::move(j));
     }
 
+    std::optional<double> iohid_progress;
+
+    absl::StatusOr<CGEventData> maybe_event_map = DeserializeCGEventData(event);
+    if (!maybe_event_map.ok()) {
+      LOG(WARNING) << "Failed to deserialize CGEventData: "
+                   << maybe_event_map.status();
+    } else {
+      const absl::string_view iohid_data =
+          std::get<std::string>(maybe_event_map->fields[4205]);
+      absl::StatusOr<IOHIDSystemQueueElementData> maybe_iohid =
+          DeserializeIOHIDSystemQueueElementData(iohid_data);
+      if (!maybe_iohid.ok()) {
+        LOG(WARNING) << "Failed to deserialize IOHIDSystemQueueElementData: "
+                     << maybe_event_map.status();
+      } else {
+        for (const auto iohid_event : maybe_iohid->events) {
+          if (std::holds_alternative<IOHIDFluidTouchGestureData>(iohid_event)) {
+            iohid_progress =
+                static_cast<double>(
+                    std::get<IOHIDFluidTouchGestureData>(iohid_event)
+                        .swipe_progress) /
+                65536;
+          }
+        }
+      }
+    }
+
     std::cout << "Captured event (phase="
               << CGEventGetIntegerValueField(event, kCGEventGesturePhase)
               << ", progress="
               << CGEventGetDoubleValueField(event, kCGEventGestureSwipeProgress)
+              << ", IOHID progress=" << OptionalToString(iohid_progress)
               << ")\n";
 
     return event;
