@@ -1,5 +1,8 @@
 def config(ctx: ConfigContext):
-    # Register default aspects for `aspect lint`
     ctx.tasks["lint"].args.aspects = [
         "//tools/lint:linters.bzl%clang_tidy",
     ]
+
+    # Don't reach out to origin when diffing files.
+    ctx.tasks["lint"].args.base_ref = "HEAD"
+    ctx.tasks["format"].args.base_ref = "HEAD"

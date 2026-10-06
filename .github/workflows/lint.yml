@@ -12,9 +12,6 @@ jobs:
     steps:
       - name: Checkout FasterSwiper
         uses: actions/checkout@v6
-        with:
-          # Fetch full history so merge-base can be computed for hold-the-line linting
-          fetch-depth: 0
 
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
@@ -28,5 +25,5 @@ jobs:
       - name: Check Formatting
         run: aspect format --severity=fail
 
-      - name: Lint Changed Code
+      - name: Lint
         run: aspect lint
