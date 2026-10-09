@@ -9,8 +9,6 @@
 #include <absl/strings/str_cat.h>
 #include <magic_enum/magic_enum.hpp>
 
-using namespace fasterswiper;
-
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
@@ -29,15 +27,16 @@ int main(int argc, char* argv[]) {
 
   std::vector<SLSSpaceId> space_ids;
   for (CFIndex i = 0; i < spaces_length; i++) {
-    auto space_id = *CFArrayGetAs<SLSSpaceId>(spaces_ref.get(), i);
+    auto space_id =
+        *fasterswiper::CFArrayGetAs<SLSSpaceId>(spaces_ref.get(), i);
     space_ids.push_back(space_id);
   }
 
   std::cout << "Current space IDs: [" << absl::StrJoin(space_ids, ", ")
             << "]\n";
 
-  absl::StatusOr<ActiveMultitaskingWindow> maybe_window =
-      GetActiveMultitaskingWindow();
+  absl::StatusOr<fasterswiper::ActiveMultitaskingWindow> maybe_window =
+      fasterswiper::GetActiveMultitaskingWindow();
   std::cout << "Active multitasking window: "
             << magic_enum::enum_name(*maybe_window) << "\n";
 
