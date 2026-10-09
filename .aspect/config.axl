@@ -3,6 +3,9 @@ def config(ctx: ConfigContext):
         "//tools/lint:linters.bzl%clang_tidy",
     ]
 
+    ctx.tasks["lint"].args.strategy = "hard"
+    ctx.tasks["format"].args.scope = "all"
+
     # Don't reach out to origin when diffing files.
     ctx.tasks["lint"].args.base_ref = "HEAD"
     ctx.tasks["format"].args.base_ref = "HEAD"
