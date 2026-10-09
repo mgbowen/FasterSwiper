@@ -103,8 +103,8 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                     Toggle("Enabled", isOn: $viewModel.horizontalEnabled)
                     Text(
                         viewModel.horizontalEnabled
-                            ? "Gestures will be handled by FasterSwiper."
-                            : "Gestures will be handled by macOS."
+                            ? "Horizontal gestures will be handled by FasterSwiper."
+                            : "Horizontal gestures will be handled by macOS."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -165,8 +165,8 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                     Toggle("Enabled", isOn: $viewModel.verticalEnabled)
                     Text(
                         viewModel.verticalEnabled
-                            ? "Gestures will be handled by FasterSwiper."
-                            : "Gestures will be handled by macOS."
+                            ? "Vertical gestures will be handled by FasterSwiper."
+                            : "Vertical gestures will be handled by macOS."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -257,7 +257,7 @@ struct KeyboardSettingsView<VM: SettingsViewModelProtocol>: View {
                         isOn: $viewModel.interceptMissionControlShortcuts
                     )
                     Text(
-                        "Change these shortcuts in [System Settings → Keyboard → Keyboard Shortcuts](x-apple.systempreferences:com.apple.Keyboard?ModifierKeys) → Mission Control."
+                        "Change these shortcuts in System Settings → Keyboard → Keyboard Shortcuts → Mission Control."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
