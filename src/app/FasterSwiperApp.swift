@@ -129,7 +129,9 @@ struct FasterSwiperApp: App {
     }
 
     private func openSettings() {
-        settingsViewModel.selectedTab = .general
+        if settingsViewModel.selectedTab == .about {
+            settingsViewModel.selectedTab = .general
+        }
         openSettingsAction()
     }
 
