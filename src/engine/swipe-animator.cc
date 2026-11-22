@@ -3,9 +3,6 @@
 #include "src/engine/space-switch-operation.h"
 #include "src/periodic-timer.h"
 
-#include <algorithm>
-#include <cmath>
-
 #include <absl/cleanup/cleanup.h>
 #include <absl/log/check.h>
 #include <absl/log/log.h>
@@ -78,33 +75,19 @@ absl::Status SwipeAnimator::AnimateToPosition(
   pending_future_ = promise.get_future().share();
   timer_ = std::make_unique<PeriodicTimer>(PeriodicTimer::Parameters{
       .period_ns = period_ns,
+      .fire_immediately = operation_->FiresAnimationTimerImmediately(),
       .tick_callback =
           [this, state = std::move(state)](
               int64_t time_since_start_ns) -> PeriodicTimerTickResult {
-        const double total_ns =
-            absl::ToDoubleNanoseconds(state->params.duration);
-        const double elapsed_ns = static_cast<double>(time_since_start_ns);
-        const double linear_t =
-            total_ns <= 0 ? 1.0 : std::clamp(elapsed_ns / total_ns, 0.0, 1.0);
-        const double eased_t = state->params.easing_function(linear_t);
-
-        const int64_t interpolated_position =
-            state->start_position +
-            static_cast<int64_t>(std::round(
-                (state->params.target_position - state->start_position) *
-                eased_t));
-
-        const bool finished =
-            linear_t >= 1.0 ||
-            interpolated_position == state->params.target_position;
-
         CHECK(active_event_sink_ != nullptr);
-        operation_->SetPosition(
-            finished ? state->params.target_position : interpolated_position,
-            active_event_sink_.get());
-
-        return finished ? PeriodicTimerTickResult::kFinishTimer
-                        : PeriodicTimerTickResult::kContinueTimer;
+        const SpaceSwitchOperation::AnimationStepResult result =
+            operation_->StepAnimation(
+                state->start_position, state->params.target_position,
+                time_since_start_ns, state->params.duration,
+                state->params.easing_function, active_event_sink_.get());
+        return result == SpaceSwitchOperation::AnimationStepResult::kFinished
+                   ? PeriodicTimerTickResult::kFinishTimer
+                   : PeriodicTimerTickResult::kContinueTimer;
       },
       .stopped_callback =
           [this, promise = std::move(promise)](

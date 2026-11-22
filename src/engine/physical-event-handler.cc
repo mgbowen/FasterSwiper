@@ -1,5 +1,6 @@
 #include "src/engine/physical-event-handler.h"
 
+#include "src/compatibility.h"
 #include "src/engine/axis-adapter.h"
 #include "src/engine/const.h"
 #include "src/engine/space-switch-operation.h"
@@ -25,6 +26,11 @@
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
+
+bool ShouldUseVerticalSpringCompensation(const proto::DaemonOptions& options) {
+  return IsMacOS27() && (!options.has_enable_vertical_spring_compensation() ||
+                         options.enable_vertical_spring_compensation());
+}
 
 absl::StatusOr<std::unique_ptr<PhysicalEventHandler>>
 PhysicalEventHandler::Create(proto::DaemonOptions options) {
@@ -397,6 +403,18 @@ absl::Status PhysicalEventHandler::HandleCommand(
     return absl::OkStatus();
   }
 
+  if (animator_ != nullptr &&
+      animator_->operation().axis_adapter().movement_direction() != axis &&
+      !animator_->is_committed()) {
+    VLOG(1) << "HandleCommand(): Ignoring RelativeMoveCommand because an "
+               "animation is active and its direction ("
+            << magic_enum::enum_name(
+                   animator_->operation().axis_adapter().movement_direction())
+            << ") does not match the command's requested direction ("
+            << magic_enum::enum_name(axis) << ")";
+    return absl::OkStatus();
+  }
+
   SpaceSwitchOperation::Options operation_options;
   if (axis == Axis::kVertical) {
     // Stock macOS always has the up and down keyboard shortcuts act the same
@@ -441,6 +459,19 @@ absl::Status PhysicalEventHandler::HandleCommand(
   if (!IsAxisEnabled(Axis::kHorizontal)) {
     VLOG(1) << "HandleCommand(): ignoring JumpToSpaceCommand because "
                "horizontal gestures are disabled";
+    return absl::OkStatus();
+  }
+
+  if (animator_ != nullptr &&
+      animator_->operation().axis_adapter().movement_direction() !=
+          Axis::kHorizontal &&
+      !animator_->is_committed()) {
+    VLOG(1) << "HandleCommand(): Ignoring JumpToSpaceCommand because an "
+               "animation is active and its direction ("
+            << magic_enum::enum_name(
+                   animator_->operation().axis_adapter().movement_direction())
+            << ") does not match the command's requested direction ("
+            << magic_enum::enum_name(Axis::kHorizontal) << ")";
     return absl::OkStatus();
   }
 
@@ -549,8 +580,14 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
                          LoadSpaceStateForActiveDisplay());
         std::unique_ptr<AxisAdapter> axis_adapter =
             std::make_unique<VerticalAxisAdapter>(std::move(space_state));
-        ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
-                                        std::move(axis_adapter), options));
+        if (ShouldUseVerticalSpringCompensation(options_)) {
+          ASSIGN_OR_RETURN(operation,
+                           CompensatedVerticalSpaceSwitchOperation::Create(
+                               std::move(axis_adapter), options));
+        } else {
+          ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
+                                          std::move(axis_adapter), options));
+        }
         break;
       }
     }

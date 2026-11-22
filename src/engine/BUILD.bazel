@@ -55,6 +55,27 @@ cc_library(
 )
 
 cc_library(
+    name = "spring-math",
+    srcs = ["spring-math.cc"],
+    hdrs = ["spring-math.h"],
+    deps = [
+        "//src:fp1616",
+        "@abseil-cpp//absl/log:check",
+    ],
+)
+
+cc_library(
+    name = "vertical-spring-compensator",
+    srcs = ["vertical-spring-compensator.cc"],
+    hdrs = ["vertical-spring-compensator.h"],
+    deps = [
+        ":spring-math",
+        "//src:easing",
+        "//src:fp1616",
+    ],
+)
+
+cc_library(
     name = "space-switch-operation",
     srcs = ["space-switch-operation.cc"],
     hdrs = ["space-switch-operation.h"],
@@ -62,7 +83,9 @@ cc_library(
         ":axis-adapter",
         ":const",
         ":deferred-position",
+        ":vertical-spring-compensator",
         "//src:cf-util",
+        "//src:easing",
         "//src:event",
         "//src:gesture-serialization",
         "//src:macos-private",
@@ -71,12 +94,14 @@ cc_library(
         "//src:space-state",
         "//src:string-util",
         "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -89,6 +114,7 @@ cc_library(
         ":const",
         ":space-switch-operation",
         ":swipe-animator",
+        "//src:compatibility",
         "//src:easing",
         "//src:enum-util",
         "//src:event",
@@ -140,6 +166,67 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "spring-math_test",
+    srcs = ["spring-math_test.cc"],
+    deps = [
+        ":spring-math",
+        "//src:fp1616",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "vertical-spring-compensator_test",
+    srcs = ["vertical-spring-compensator_test.cc"],
+    deps = [
+        ":spring-math",
+        ":vertical-spring-compensator",
+        "//src:easing",
+        "//src:fp1616",
+        "//third_party/chromium:cubic-bezier",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "space-switch-operation_test",
+    srcs = ["space-switch-operation_test.cc"],
+    deps = [
+        ":axis-adapter",
+        ":const",
+        ":space-switch-operation",
+        "//src:ApplicationServices",
+        "//src:compatibility",
+        "//src:easing",
+        "//src:event",
+        "//src:fp1616",
+        "//src:macos-private",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "physical-event-handler_test",
+    srcs = ["physical-event-handler_test.cc"],
+    deps = [
+        ":physical-event-handler",
+        "//src:compatibility",
+        "//src/public:fasterswiper_cc_proto",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

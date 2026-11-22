@@ -62,6 +62,7 @@ TEST(FasterSwiperTest, DefaultDaemonOptions) {
   EXPECT_EQ(result.frames_per_second(), 240);
   EXPECT_TRUE(result.intercept_mission_control_shortcuts());
   EXPECT_TRUE(result.enable_jump_to_space_shortcuts());
+  EXPECT_TRUE(result.enable_vertical_spring_compensation());
 }
 
 TEST(FasterSwiperTest, MigrateLegacyDefaultsNotCopied) {
@@ -93,6 +94,7 @@ TEST(FasterSwiperTest, MigrateLegacyDefaultsNotCopied) {
             absl::Milliseconds(200));
   EXPECT_EQ(output.vertical_settings().easing_function(),
             proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
+  EXPECT_TRUE(output.enable_vertical_spring_compensation());
 }
 
 TEST(FasterSwiperTest, MigrateLegacyCustomValuesCopied) {
@@ -161,6 +163,16 @@ TEST(FasterSwiperTest, PreserveExistingSettings) {
             absl::Milliseconds(200));
   EXPECT_EQ(output.vertical_settings().easing_function(),
             proto::EASING_FUNCTION_QUINTIC_EASE_OUT);
+  EXPECT_TRUE(output.enable_vertical_spring_compensation());
+}
+
+TEST(FasterSwiperTest, PreserveExplicitFalseVerticalSpringCompensation) {
+  proto::DaemonOptions input;
+  input.set_enable_vertical_spring_compensation(false);
+
+  proto::DaemonOptions output = HydrateAndExtract(input);
+  EXPECT_TRUE(output.has_enable_vertical_spring_compensation());
+  EXPECT_FALSE(output.enable_vertical_spring_compensation());
 }
 
 }  // namespace

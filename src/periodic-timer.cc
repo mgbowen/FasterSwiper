@@ -37,9 +37,11 @@ PeriodicTimer::PeriodicTimer(Parameters parameters)
     stopped_.notify_all();
   });
 
-  dispatch_source_set_timer(timer_,
-                            dispatch_time(DISPATCH_TIME_NOW, params_.period_ns),
-                            params_.period_ns, 0);
+  const dispatch_time_t start_time =
+      params_.fire_immediately
+          ? DISPATCH_TIME_NOW
+          : dispatch_time(DISPATCH_TIME_NOW, params_.period_ns);
+  dispatch_source_set_timer(timer_, start_time, params_.period_ns, 0);
 
   start_time_ns_ = UptimeInNanoseconds();
   dispatch_resume(timer_);

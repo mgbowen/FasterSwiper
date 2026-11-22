@@ -107,6 +107,14 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
+    var verticalSpringCompensationEnabled: Bool {
+        get { settingsStore.daemonOptions.enableVerticalSpringCompensation }
+        set {
+            settingsStore.daemonOptions.enableVerticalSpringCompensation = newValue
+            scheduleRestart()
+        }
+    }
+
     var verticalAnimationDurationMs: Double {
         get {
             Double(

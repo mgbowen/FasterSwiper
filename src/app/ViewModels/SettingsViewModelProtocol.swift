@@ -57,6 +57,7 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
 
     // Vertical animation settings
     var verticalEnabled: Bool { get set }
+    var verticalSpringCompensationEnabled: Bool { get set }
     var verticalAnimationDurationMs: Double { get set }
     var verticalSelectedEasingFunctionTag: Int { get set }
     var verticalShowCubicBezierField: Bool { get }

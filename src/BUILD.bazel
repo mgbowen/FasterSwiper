@@ -233,6 +233,29 @@ cc_library(
 )
 
 cc_library(
+    name = "fp1616",
+    hdrs = ["fp1616.h"],
+)
+
+cc_test(
+    name = "fp1616_test",
+    srcs = ["fp1616_test.cc"],
+    deps = [
+        ":ApplicationServices",
+        ":compatibility",
+        ":event",
+        ":fp1616",
+        ":gesture-serialization",
+        ":macos-private",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "gesture-serialization",
     srcs = ["gesture-serialization.cc"],
     hdrs = ["gesture-serialization.h"],
@@ -240,6 +263,7 @@ cc_library(
         ":ApplicationServices",
         ":CoreFoundation",
         ":cf-util",
+        ":fp1616",
         ":macos-private",
         ":variant-util",
         "@abseil-cpp//absl/container:btree",

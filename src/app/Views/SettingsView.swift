@@ -103,8 +103,8 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                     Toggle("Enabled", isOn: $viewModel.horizontalEnabled)
                     Text(
                         viewModel.horizontalEnabled
-                            ? "Horizontal gestures will be handled by FasterSwiper."
-                            : "Horizontal gestures will be handled by macOS."
+                            ? "Horizontal gestures are handled by FasterSwiper."
+                            : "Horizontal gestures are handled by macOS."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -165,8 +165,8 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                     Toggle("Enabled", isOn: $viewModel.verticalEnabled)
                     Text(
                         viewModel.verticalEnabled
-                            ? "Vertical gestures will be handled by FasterSwiper."
-                            : "Vertical gestures will be handled by macOS."
+                            ? "Vertical gestures are handled by FasterSwiper."
+                            : "Vertical gestures are handled by macOS."
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -174,6 +174,21 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                 }
 
                 Group {
+                    if #available(macOS 27, *) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle(
+                                "Damper compensation",
+                                isOn: $viewModel.verticalSpringCompensationEnabled
+                            )
+                            Text(
+                                "Attempts to correct for macOS's built-in vertical gesture damping."
+                            )
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 48)
+                        }
+                    }
+
                     LabeledContent("Duration") {
                         HStack(spacing: 8) {
                             Slider(

@@ -1,6 +1,7 @@
 #include "src/gesture-serialization.h"
 
 #include "src/cf-util.h"
+#include "src/fp1616.h"
 #include "src/macos-private.h"
 #include "src/variant-util.h"
 
@@ -17,16 +18,6 @@
 namespace fasterswiper {
 
 namespace {
-
-FixedFP1616 DoubleToFixedFP1616(double val) {
-  const auto fixed_val = static_cast<FixedFP1616>(val * 65536.0);
-  if (fixed_val == 0 && std::abs(val) > 0) {
-    const FixedFP1616 sign = val > 0 ? 1 : -1;
-    return sign;
-  }
-
-  return fixed_val;
-}
 
 void SwapBytes(uint8_t* absl_nonnull ptr, size_t length) {
   for (auto i = 0; i < length / 2; i++) {

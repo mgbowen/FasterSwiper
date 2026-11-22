@@ -36,4 +36,5 @@ message DaemonOptions {
     bool enable_jump_to_space_shortcuts = 6;
     GestureSettings horizontal_settings = 7;
     GestureSettings vertical_settings = 8;
+    bool enable_vertical_spring_compensation = 9;
 }

@@ -1,11 +1,19 @@
 #pragma once
 
+#include "src/easing.h"
 #include "src/engine/axis-adapter.h"
 #include "src/engine/deferred-position.h"
+#include "src/engine/vertical-spring-compensator.h"
+#include "src/periodic-timer.h"
+
+#include <optional>
+#include <variant>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <absl/base/nullability.h>
+#include <absl/functional/any_invocable.h>
 #include <absl/status/statusor.h>
+#include <absl/time/time.h>
 
 namespace fasterswiper {
 
@@ -38,6 +46,11 @@ private:
 
 class SpaceSwitchOperation {
 public:
+  enum class AnimationStepResult {
+    kContinue,
+    kFinished,
+  };
+
   struct Options {
     std::optional<bool> natural_scrolling_enabled;
 
@@ -78,6 +91,16 @@ public:
   void SetPosition(int64_t new_position, CGEventSink* absl_nonnull event_sink)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
+  [[nodiscard]] virtual bool FiresAnimationTimerImmediately() const {
+    return false;
+  }
+
+  [[nodiscard]] AnimationStepResult StepAnimation(
+      int64_t start_position, int64_t target_position,
+      int64_t time_since_start_ns, absl::Duration duration,
+      const EasingFunction& easing, CGEventSink* absl_nonnull event_sink)
+      ABSL_LOCKS_EXCLUDED(mutex_);
+
   void Commit(CGEventSink* absl_nonnull event_sink) ABSL_LOCKS_EXCLUDED(mutex_);
 
 protected:
@@ -89,6 +112,11 @@ protected:
   virtual void SetPositionLocked(int64_t new_position,
                                  CGEventSink* absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) = 0;
+  [[nodiscard]] virtual AnimationStepResult StepAnimationLocked(
+      int64_t start_position, int64_t target_position,
+      int64_t time_since_start_ns, absl::Duration duration,
+      const EasingFunction& easing, CGEventSink* absl_nonnull event_sink)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   virtual void CommitLocked(CGEventSink* absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) = 0;
 
@@ -199,6 +227,68 @@ private:
                   CGEventSink* absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
   int64_t GetNextBoundary(bool is_moving_positive)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+};
+
+class CompensatedVerticalSpaceSwitchOperation : public SpaceSwitchOperation {
+public:
+  using ClockFn = absl::AnyInvocable<int64_t() const>;
+
+  static absl::StatusOr<
+      std::unique_ptr<CompensatedVerticalSpaceSwitchOperation>>
+  Create(std::unique_ptr<AxisAdapter> axis_adapter, Options options = Options{},
+         ClockFn clock = UptimeInNanoseconds);
+
+  constexpr absl::string_view debug_name() const override {
+    return "CompensatedVerticalSpaceSwitchOperation";
+  }
+
+  [[nodiscard]] bool FiresAnimationTimerImmediately() const override {
+    return true;
+  }
+
+private:
+  const int64_t operation_origin_position_ = 0;
+  ClockFn clock_;
+  int64_t logical_position_ = 0;
+  std::optional<int64_t> intended_target_position_;
+  VerticalSpringCompensator compensator_;
+
+  struct States {
+    struct Idle {};
+    struct GestureActive {
+      int64_t origin_position = 0;
+      int64_t direction = 1;  // +1 or -1
+      bool is_rubberbanding = false;
+    };
+  };
+
+  using State = std::variant<States::Idle, States::GestureActive>;
+  State state_ = States::Idle{};
+
+  CompensatedVerticalSpaceSwitchOperation(
+      std::unique_ptr<AxisAdapter> axis_adapter,
+      int64_t operation_origin_position, Options options, ClockFn clock);
+
+  [[nodiscard]] int64_t position_locked() const override
+      ABSL_SHARED_LOCKS_REQUIRED(mutex());
+  void SetPositionLocked(int64_t new_position,
+                         CGEventSink* absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  [[nodiscard]] AnimationStepResult StepAnimationLocked(
+      int64_t start_position, int64_t target_position,
+      int64_t time_since_start_ns, absl::Duration duration,
+      const EasingFunction& easing,
+      CGEventSink* absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void CommitLocked(CGEventSink* absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+
+  void StartSegmentLocked(int64_t dir, int64_t now_ns,
+                          CGEventSink* absl_nonnull event_sink)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void EndSegmentLocked(int64_t final_segment_position, int64_t now_ns,
+                        CGEventSink* absl_nonnull event_sink)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
 };
 

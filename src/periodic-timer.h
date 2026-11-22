@@ -33,6 +33,7 @@ class PeriodicTimer {
 public:
   struct Parameters {
     int64_t period_ns = 0;
+    bool fire_immediately = false;
     absl::AnyInvocable<PeriodicTimerTickResult(
         int64_t /* time_since_timer_start_ns */)>
         tick_callback;

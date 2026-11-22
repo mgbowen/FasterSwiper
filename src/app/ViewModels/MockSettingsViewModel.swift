@@ -22,6 +22,7 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
 
     // Vertical animation settings
     public var verticalEnabled: Bool = false
+    public var verticalSpringCompensationEnabled: Bool = true
     public var verticalAnimationDurationMs: Double = 350
     public var verticalSelectedEasingFunctionTag: Int = 3
     public var verticalShowCubicBezierField: Bool { verticalSelectedEasingFunctionTag == 3 }

@@ -55,6 +55,7 @@ proto::DaemonOptions GetDefaultDaemonOptions() {
   options.set_frames_per_second(240);
   options.set_intercept_mission_control_shortcuts(true);
   options.set_enable_jump_to_space_shortcuts(true);
+  options.set_enable_vertical_spring_compensation(true);
   return options;
 }
 
@@ -198,6 +199,11 @@ bool FS_HydrateDaemonOptions(FS_DaemonOptions* daemon_options) {
   if (!daemon_options->options.has_enable_jump_to_space_shortcuts()) {
     daemon_options->options.set_enable_jump_to_space_shortcuts(
         default_options.enable_jump_to_space_shortcuts());
+  }
+
+  if (!daemon_options->options.has_enable_vertical_spring_compensation()) {
+    daemon_options->options.set_enable_vertical_spring_compensation(
+        default_options.enable_vertical_spring_compensation());
   }
 
   return true;

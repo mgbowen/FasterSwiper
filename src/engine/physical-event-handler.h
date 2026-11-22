@@ -13,6 +13,9 @@
 
 namespace fasterswiper {
 
+[[nodiscard]] bool ShouldUseVerticalSpringCompensation(
+    const proto::DaemonOptions& options);
+
 class PhysicalEventHandler {
 public:
   static absl::StatusOr<std::unique_ptr<PhysicalEventHandler>> Create(
