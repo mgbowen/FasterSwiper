@@ -263,6 +263,7 @@ cc_library(
         ":ApplicationServices",
         ":CoreFoundation",
         ":cf-util",
+        ":event",
         ":fp1616",
         ":macos-private",
         ":variant-util",

@@ -5,6 +5,9 @@
 #include "src/macos-private.h"
 #include "src/string-util.h"
 
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
 #include <unistd.h>
 
 #include <CoreGraphics/CGEventTypes.h>
@@ -170,6 +173,73 @@ std::string CFEventToDebugString(CGEventRef event) {
           CGEventGetDoubleValueField(event, kCGEventGestureSwipeVelocityY)));
 }
 
+namespace {
+
+const mach_timebase_info_data_t& GetMachTimebaseInfo() {
+  static const mach_timebase_info_data_t kInfo = [] {
+    mach_timebase_info_data_t info{};
+    mach_timebase_info(&info);
+    if (info.numer == 0 || info.denom == 0) {
+      info.numer = 1;
+      info.denom = 1;
+    }
+    return info;
+  }();
+  return kInfo;
+}
+
+}  // namespace
+
+uint64_t MachTicksToNanoseconds(uint64_t ticks,
+                                mach_timebase_info_data_t timebase) {
+  return static_cast<uint64_t>(
+      (static_cast<unsigned __int128>(ticks) * timebase.numer +
+       timebase.denom / 2) /
+      timebase.denom);
+}
+
+uint64_t MachTicksToNanoseconds(uint64_t ticks) {
+  return MachTicksToNanoseconds(ticks, GetMachTimebaseInfo());
+}
+
+uint64_t NanosecondsToMachTicks(uint64_t ns,
+                                mach_timebase_info_data_t timebase) {
+  return static_cast<uint64_t>(
+      (static_cast<unsigned __int128>(ns) * timebase.denom +
+       timebase.numer / 2) /
+      timebase.numer);
+}
+
+uint64_t NanosecondsToMachTicks(uint64_t ns) {
+  return NanosecondsToMachTicks(ns, GetMachTimebaseInfo());
+}
+
+uint64_t AdvanceMonotonicMachTimestamp(uint64_t now_ticks,
+                                       mach_timebase_info_data_t timebase,
+                                       std::atomic<uint64_t>& last_ticks) {
+  const uint64_t step_ticks =
+      (static_cast<uint64_t>(timebase.denom) + timebase.numer - 1) /
+      timebase.numer;
+  uint64_t prev = last_ticks.load(std::memory_order_relaxed);
+  while (true) {
+    const uint64_t next = std::max(now_ticks, prev + step_ticks);
+    if (last_ticks.compare_exchange_weak(prev, next,
+                                         std::memory_order_relaxed)) {
+      return next;
+    }
+  }
+}
+
+uint64_t NextMonotonicMachTimestamp() {
+  static std::atomic<uint64_t> last_ticks{0};
+  return AdvanceMonotonicMachTimestamp(mach_absolute_time(),
+                                       GetMachTimebaseInfo(), last_ticks);
+}
+
+uint64_t NextMonotonicNanosecondTimestamp() {
+  return MachTicksToNanoseconds(NextMonotonicMachTimestamp());
+}
+
 CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
     int phase, int direction, double progress, std::optional<double> velocity,
     bool natural_scrolling_enabled) {
@@ -186,6 +256,9 @@ CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
   if (!event) {
     LOG(FATAL) << "CGEventCreate() return nullptr";
   }
+
+  // Ensure strictly-increasing nanosecond timestamps on outer CGEvent.
+  CGEventSetTimestamp(event.get(), NextMonotonicNanosecondTimestamp());
 
   CGEventSetIntegerValueField(event.get(), kCGSEventTypeField,
                               static_cast<int64_t>(kCGSEventDockControl));

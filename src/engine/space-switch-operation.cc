@@ -24,6 +24,11 @@ namespace {
 
 constexpr absl::Duration kCommitDeadline = absl::Milliseconds(50);
 
+constexpr int64_t kAnimatedCommitMaxPenultimateGap = kOneSwipeInNanoswipes / 20;
+constexpr double kAnimatedFinalVelocityPerSpace = 8.0;
+constexpr double kInstantFinalVelocityPerSpace = 1500.0;
+constexpr double kMaxFinalVelocity = 32000.0;
+
 // Signed velocity_y on kGestureEnded (> 5.0 selects WindowTransitionDisplay's
 // 0.15 s critical release spring over 0.25 s if any residual motion remains).
 constexpr double kCompensatedEndVelocity = 6.0;
@@ -55,6 +60,28 @@ int Sign(auto spaceship_operator_result) {
   }
 
   return 0;
+}
+
+// Adjusts a logical swipe position when it falls within
+// kBoundaryHoldbackNanoswipes of an integer space boundary.
+int64_t VisualPositionForGesture(int64_t position, int64_t origin_position,
+                                 int approach_dir) {
+  constexpr int64_t kHoldback =
+      ContinuousSpaceSwitchOperation::kBoundaryHoldbackNanoswipes;
+  const int64_t remainder = std::abs(position % kOneSwipeInNanoswipes);
+  const int64_t distance_to_boundary =
+      std::min(remainder, kOneSwipeInNanoswipes - remainder);
+  if (distance_to_boundary > kHoldback) {
+    return position;
+  }
+
+  const int64_t boundary =
+      (position >= 0 ? position + kHoldback : position - kHoldback) /
+      kOneSwipeInNanoswipes * kOneSwipeInNanoswipes;
+  const int64_t holdback_dir = boundary != origin_position
+                                   ? (boundary > origin_position ? 1 : -1)
+                                   : approach_dir;
+  return boundary - kHoldback * holdback_dir;
 }
 
 }  // namespace
@@ -207,10 +234,12 @@ ContinuousSpaceSwitchOperation::ContinuousSpaceSwitchOperation(
     Options options)
     : SpaceSwitchOperation(std::move(axis_adapter), options),
       origin_position_(origin_position),
-      current_position_(origin_position_) {}
+      current_position_(origin_position_),
+      last_emitted_position_(origin_position_),
+      previous_position_(origin_position_) {}
 
 int64_t ContinuousSpaceSwitchOperation::distance_from_origin() const {
-  return *current_position_ - origin_position_;
+  return current_position_ - origin_position_;
 }
 
 double ContinuousSpaceSwitchOperation::progress_from_origin() const {
@@ -218,7 +247,7 @@ double ContinuousSpaceSwitchOperation::progress_from_origin() const {
 }
 
 int64_t ContinuousSpaceSwitchOperation::position_locked() const {
-  return *current_position_;
+  return current_position_;
 }
 
 void ContinuousSpaceSwitchOperation::SetPositionLocked(
@@ -227,52 +256,117 @@ void ContinuousSpaceSwitchOperation::SetPositionLocked(
     return;
   }
 
-  latest_direction_ = (new_position - *current_position_) > 0 ? 1 : -1;
+  previous_position_ = current_position_;
+  latest_direction_ = new_position > current_position_ ? 1 : -1;
 
   if (!gesture_started_) {
     PostEvent(event_sink, kGestureBegan, kEpsilon * latest_direction_);
     gesture_started_ = true;
   }
 
-  current_position_.Set(new_position);
-  PostEvent(event_sink, kGestureChanged, progress_from_origin());
+  current_position_ = new_position;
+  last_emitted_position_ = VisualPositionForGesture(
+      new_position, origin_position_, latest_direction_);
+  ++changed_count_;
+  PostEvent(event_sink, kGestureChanged,
+            axis_adapter_locked().NanoswipesToProgress(last_emitted_position_ -
+                                                       origin_position_));
 }
 
 void ContinuousSpaceSwitchOperation::CommitLocked(
     CGEventSink* absl_nonnull event_sink) {
   VLOG(1) << "Commit(): origin_position_=" << origin_position_
           << ", current_position_=" << current_position_
+          << ", last_emitted_position_=" << last_emitted_position_
           << ", latest_direction_=" << latest_direction_
           << ", distance_from_origin=" << distance_from_origin()
           << ", progress_from_origin=" << progress_from_origin();
 
-  current_position_.CommitDeferred();
-
-  const int64_t num_spaces =
-      std::abs(distance_from_origin() / kOneSwipeInNanoswipes);
-
-  if (distance_from_origin() == 0) {
-    PostEvent(event_sink, kGestureCancelled, kEpsilon * latest_direction_ * -1,
-              kEpsilon * latest_direction_);
-  } else {
-    const double direction_from_origin_to_target =
-        distance_from_origin() > 0 ? 1 : -1;
-
-    PostEvent(event_sink, kGestureEnded,
-              kEpsilon * direction_from_origin_to_target,
-              kInstantSwitchVelocity * latest_direction_);
-
-    for (int i = 0; i < num_spaces - 1; i++) {
-      PostEvent(event_sink, kGestureBegan,
-                kEpsilon * direction_from_origin_to_target);
-      PostEvent(event_sink, kGestureEnded,
-                kEpsilon * direction_from_origin_to_target,
-                kInstantSwitchVelocity * latest_direction_);
-    }
-
-    (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        origin_position_, kCommitDeadline);
+  if (!gesture_started_) {
+    return;
   }
+
+  const int64_t distance = distance_from_origin();
+  const int64_t raw_num_spaces = std::abs(distance / kOneSwipeInNanoswipes);
+
+  if (raw_num_spaces == 0) {
+    const double cancel_dir =
+        latest_direction_ != 0 ? static_cast<double>(latest_direction_) : 1.0;
+    PostEvent(event_sink, kGestureCancelled, kEpsilon * -cancel_dir,
+              kEpsilon * cancel_dir);
+    return;
+  }
+
+  const int64_t dir_int = distance > 0 ? 1 : -1;
+  const double direction_from_origin_to_target = static_cast<double>(dir_int);
+
+  const auto [soft_min, soft_max] = position_soft_limits_locked();
+  const int64_t target_position = std::clamp(
+      origin_position_ + dir_int * raw_num_spaces * kOneSwipeInNanoswipes,
+      soft_min, soft_max);
+  const int64_t num_spaces =
+      std::abs(target_position - origin_position_) / kOneSwipeInNanoswipes;
+
+  if (num_spaces == 0) {
+    const double cancel_dir =
+        latest_direction_ != 0 ? static_cast<double>(latest_direction_) : 1.0;
+    PostEvent(event_sink, kGestureCancelled, kEpsilon * -cancel_dir,
+              kEpsilon * cancel_dir);
+    return;
+  }
+
+  // Ensure the pre-commit visual position is strictly on the origin side of
+  // target_position
+  const bool pre_commit_past_target =
+      (last_emitted_position_ - target_position) * dir_int >= 0;
+  if (pre_commit_past_target) {
+    const int64_t origin_side_position =
+        target_position - kBoundaryHoldbackNanoswipes * dir_int;
+    last_emitted_position_ = origin_side_position;
+    PostEvent(event_sink, kGestureChanged,
+              axis_adapter_locked().NanoswipesToProgress(origin_side_position -
+                                                         origin_position_));
+  }
+
+  const int64_t space_count =
+      std::max<int64_t>(1, (soft_max - soft_min) / kOneSwipeInNanoswipes + 1);
+  const int64_t penultimate_gap =
+      std::abs(target_position - previous_position_);
+  const bool prev_past_target =
+      (previous_position_ - target_position) * dir_int >= 0;
+  const bool is_far_side_overwrite_risk =
+      pre_commit_past_target ||
+      (prev_past_target && num_spaces > 1 &&
+       penultimate_gap > kAnimatedCommitMaxPenultimateGap);
+  const bool is_normal_animated_commit =
+      changed_count_ > 1 && penultimate_gap <= kAnimatedCommitMaxPenultimateGap;
+
+  double final_velocity = 0.0;
+  if (is_far_side_overwrite_risk) {
+    final_velocity = 0.0;
+  } else if (is_normal_animated_commit) {
+    final_velocity =
+        kAnimatedFinalVelocityPerSpace * static_cast<double>(space_count);
+  } else {
+    final_velocity = std::min(
+        kInstantFinalVelocityPerSpace * static_cast<double>(space_count),
+        kMaxFinalVelocity);
+  }
+
+  for (int64_t i = 0; i < num_spaces - 1; ++i) {
+    PostEvent(event_sink, kGestureEnded,
+              kEpsilon * direction_from_origin_to_target, 0.0);
+    PostEvent(event_sink, kGestureBegan,
+              -kEpsilon * direction_from_origin_to_target);
+  }
+
+  PostEvent(
+      event_sink, kGestureEnded, kEpsilon * direction_from_origin_to_target,
+      final_velocity == 0.0 ? 0.0
+                            : final_velocity * direction_from_origin_to_target);
+
+  (void)axis_adapter_locked().WaitForCommittedPositionChanged(
+      origin_position_, target_position, kCommitDeadline);
 }
 
 absl::StatusOr<std::unique_ptr<SegmentedSpaceSwitchOperation>>
@@ -423,7 +517,8 @@ void SegmentedSpaceSwitchOperation::CommitLocked(
 
   if (operation_origin_position_ != current_position_.deferred()) {
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        operation_origin_position_, kCommitDeadline);
+        operation_origin_position_, current_position_.deferred(),
+        kCommitDeadline);
   }
 }
 
@@ -487,6 +582,24 @@ CompensatedVerticalSpaceSwitchOperation::
   compensator_.Reset(0.0, 0.0, clock_());
 }
 
+std::pair<int64_t, int64_t>
+CompensatedVerticalSpaceSwitchOperation::position_soft_limits_locked() const {
+  // Match stock macOS vertical gesture locking: once a non-rubberbanding
+  // vertical gesture starts in a direction, constrain its reachable targets to
+  // [origin, origin + dir * kOneSwipeInNanoswipes] until released and committed
+  // so callers (e.g. PhysicalEventHandler) do not retarget across origin or
+  // chain past Desktop into the opposite mode.
+  if (const auto* active = std::get_if<States::GestureActive>(&state_);
+      active != nullptr && !active->is_rubberbanding) {
+    const int64_t end_boundary =
+        active->origin_position + active->direction * kOneSwipeInNanoswipes;
+    return {std::min(active->origin_position, end_boundary),
+            std::max(active->origin_position, end_boundary)};
+  }
+
+  return axis_adapter_locked().position_soft_limits();
+}
+
 int64_t CompensatedVerticalSpaceSwitchOperation::position_locked() const {
   if (const auto* active = std::get_if<States::GestureActive>(&state_)) {
     if (active->is_rubberbanding) {
@@ -505,7 +618,8 @@ int64_t CompensatedVerticalSpaceSwitchOperation::position_locked() const {
 void CompensatedVerticalSpaceSwitchOperation::StartSegmentLocked(
     int64_t dir, int64_t now_ns, CGEventSink* absl_nonnull event_sink) {
   const int64_t end_boundary = logical_position_ + dir * kOneSwipeInNanoswipes;
-  const auto [soft_min, soft_max] = position_soft_limits_locked();
+  const auto [soft_min, soft_max] =
+      axis_adapter_locked().position_soft_limits();
   const bool is_rubberbanding =
       end_boundary < soft_min || end_boundary > soft_max;
   state_ = States::GestureActive{
@@ -522,71 +636,59 @@ void CompensatedVerticalSpaceSwitchOperation::SetPositionLocked(
   intended_target_position_.reset();
   const int64_t now_ns = clock_();
 
-  if (new_position == logical_position_) {
-    if (const auto* active = std::get_if<States::GestureActive>(&state_)) {
-      if (!active->is_rubberbanding) {
-        const double r = std::clamp(
-            static_cast<double>((new_position - active->origin_position) *
-                                active->direction) /
-                kOneSwipeInNanoswipes,
-            0.0, 1.0);
-        const double u = compensator_.StepPhysicalDrag(r, now_ns);
-        PostEvent(event_sink, kGestureChanged, active->direction * u);
-      }
+  if (std::holds_alternative<States::Idle>(state_)) {
+    if (new_position == logical_position_) {
+      return;
     }
-    return;
+    StartSegmentLocked(new_position > logical_position_ ? 1 : -1, now_ns,
+                       event_sink);
   }
 
-  const auto [soft_min, soft_max] = position_soft_limits_locked();
-
-  while (logical_position_ != new_position) {
-    if (std::holds_alternative<States::Idle>(state_)) {
-      StartSegmentLocked(new_position > logical_position_ ? 1 : -1, now_ns,
-                         event_sink);
+  if (const auto* active = std::get_if<States::GestureActive>(&state_);
+      active != nullptr && active->is_rubberbanding) {
+    if (new_position == logical_position_) {
+      return;
     }
-
-    const auto active = std::get<States::GestureActive>(state_);
-    const int64_t origin = active.origin_position;
-    const int64_t dir = active.direction;
-
-    if ((new_position - origin) * dir <= 0) {
-      EndSegmentLocked(origin, now_ns, event_sink);
-      continue;
-    }
-
-    if (active.is_rubberbanding) {
+    const int64_t origin = active->origin_position;
+    const int64_t dir = active->direction;
+    if ((new_position - origin) * dir > 0) {
       const double raw_r = static_cast<double>((new_position - origin) * dir) /
                            kOneSwipeInNanoswipes;
       PostEvent(event_sink, kGestureChanged, dir * std::max(kEpsilon, raw_r));
       logical_position_ = new_position;
-      break;
+      return;
     }
-
-    const int64_t end_boundary = origin + dir * kOneSwipeInNanoswipes;
-    const int64_t next_end_boundary =
-        end_boundary + dir * kOneSwipeInNanoswipes;
-    const bool has_further_segment =
-        next_end_boundary >= soft_min && next_end_boundary <= soft_max;
-
-    if (has_further_segment && (new_position - end_boundary) * dir > 0) {
-      EndSegmentLocked(end_boundary, now_ns, event_sink);
-      continue;
+    EndSegmentLocked(origin, now_ns, event_sink);
+    if (new_position == logical_position_) {
+      return;
     }
-
-    // Hold in GestureActive at end_boundary when no further in-limits segment
-    // exists (or at exact boundary) so finger lift still gets the settle tail.
-    const bool at_or_past_end = (new_position - end_boundary) * dir >= 0;
-    const int64_t clamped_position =
-        at_or_past_end ? end_boundary : new_position;
-    const double r =
-        std::clamp(static_cast<double>((clamped_position - origin) * dir) /
-                       kOneSwipeInNanoswipes,
-                   0.0, 1.0);
-    const double u = compensator_.StepPhysicalDrag(r, now_ns);
-    PostEvent(event_sink, kGestureChanged, dir * u);
-    logical_position_ = clamped_position;
-    break;
+    StartSegmentLocked(new_position > logical_position_ ? 1 : -1, now_ns,
+                       event_sink);
   }
+
+  const auto active = std::get<States::GestureActive>(state_);
+  const int64_t origin = active.origin_position;
+  const int64_t dir = active.direction;
+
+  if (active.is_rubberbanding) {
+    const double raw_r = static_cast<double>((new_position - origin) * dir) /
+                         kOneSwipeInNanoswipes;
+    PostEvent(event_sink, kGestureChanged, dir * std::max(kEpsilon, raw_r));
+    logical_position_ = new_position;
+    return;
+  }
+
+  const int64_t end_boundary = origin + dir * kOneSwipeInNanoswipes;
+  const int64_t clamped_position =
+      std::clamp(new_position, std::min(origin, end_boundary),
+                 std::max(origin, end_boundary));
+  const double r =
+      std::clamp(static_cast<double>((clamped_position - origin) * dir) /
+                     kOneSwipeInNanoswipes,
+                 0.0, 1.0);
+  const double u = compensator_.StepPhysicalDrag(r, now_ns);
+  PostEvent(event_sink, kGestureChanged, dir * u);
+  logical_position_ = clamped_position;
 }
 
 SpaceSwitchOperation::AnimationStepResult
@@ -637,42 +739,14 @@ CompensatedVerticalSpaceSwitchOperation::StepAnimationLocked(
     }
   }
 
-  const double clamped_eased_s = std::clamp(raw_eased_s, 0.0, 1.0);
-  const int64_t ref_pos =
-      start_position +
-      static_cast<int64_t>(
-          std::llround((target_position - start_position) * clamped_eased_s));
-
-  // Split across intermediate segment boundaries (multi-segment forward or
-  // cross-origin reversal).
-  while (const auto* cur = std::get_if<States::GestureActive>(&state_)) {
-    if (cur->is_rubberbanding) {
-      break;
-    }
-    const int64_t origin = cur->origin_position;
-    const int64_t dir = cur->direction;
-    const int64_t end_boundary = origin + dir * kOneSwipeInNanoswipes;
-
-    if ((target_position - end_boundary) * dir > 0 &&
-        (ref_pos - end_boundary) * dir >= 0) {
-      EndSegmentLocked(end_boundary, now_ns, event_sink);
-      StartSegmentLocked(target_position > logical_position_ ? 1 : -1, now_ns,
-                         event_sink);
-    } else if ((target_position - origin) * dir < 0 &&
-               (ref_pos - origin) * dir <= 0) {
-      EndSegmentLocked(origin, now_ns, event_sink);
-      StartSegmentLocked(target_position > logical_position_ ? 1 : -1, now_ns,
-                         event_sink);
-    } else {
-      break;
-    }
-  }
-
   const auto current_active = std::get<States::GestureActive>(state_);
   const int64_t active_origin = current_active.origin_position;
   const int64_t active_dir = current_active.direction;
 
   if (current_active.is_rubberbanding) {
+    const int64_t ref_pos =
+        start_position + static_cast<int64_t>(std::round(
+                             (target_position - start_position) * raw_eased_s));
     const bool finished = linear_s >= 1.0 || ref_pos == target_position;
     const int64_t next_pos = finished ? target_position : ref_pos;
     if ((next_pos - active_origin) * active_dir > 0) {
@@ -687,11 +761,26 @@ CompensatedVerticalSpaceSwitchOperation::StepAnimationLocked(
                     : AnimationStepResult::kContinue;
   }
 
+  const int64_t end_boundary =
+      active_origin + active_dir * kOneSwipeInNanoswipes;
+  const int64_t seg_min = std::min(active_origin, end_boundary);
+  const int64_t seg_max = std::max(active_origin, end_boundary);
+  const int64_t effective_start = std::clamp(start_position, seg_min, seg_max);
+  const int64_t effective_target =
+      std::clamp(target_position, seg_min, seg_max);
+  intended_target_position_ = effective_target;
+
+  const double clamped_eased_s = std::clamp(raw_eased_s, 0.0, 1.0);
+  const int64_t ref_pos =
+      effective_start +
+      static_cast<int64_t>(
+          std::llround((effective_target - effective_start) * clamped_eased_s));
+
   const double start_r =
-      static_cast<double>((start_position - active_origin) * active_dir) /
+      static_cast<double>((effective_start - active_origin) * active_dir) /
       kOneSwipeInNanoswipes;
   const double target_r =
-      static_cast<double>((target_position - active_origin) * active_dir) /
+      static_cast<double>((effective_target - active_origin) * active_dir) /
       kOneSwipeInNanoswipes;
   const VerticalSpringCompensator::AnimationTickResult tick =
       compensator_.StepAnimationTick(elapsed_s, duration_s, start_r, target_r,
@@ -759,7 +848,7 @@ void CompensatedVerticalSpaceSwitchOperation::CommitLocked(
 
   if (operation_origin_position_ != logical_position_) {
     (void)axis_adapter_locked().WaitForCommittedPositionChanged(
-        operation_origin_position_, kCommitDeadline);
+        operation_origin_position_, logical_position_, kCommitDeadline);
   }
 }
 

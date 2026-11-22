@@ -104,8 +104,8 @@ public:
   void Commit(CGEventSink* absl_nonnull event_sink) ABSL_LOCKS_EXCLUDED(mutex_);
 
 protected:
-  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits_locked() const
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  [[nodiscard]] virtual std::pair<int64_t, int64_t>
+  position_soft_limits_locked() const ABSL_SHARED_LOCKS_REQUIRED(mutex_);
 
   [[nodiscard]] virtual int64_t position_locked() const
       ABSL_SHARED_LOCKS_REQUIRED(mutex_) = 0;
@@ -141,6 +141,11 @@ private:
 
 class ContinuousSpaceSwitchOperation : public SpaceSwitchOperation {
 public:
+  // Holdback distance (in nanoswipes) from an integer space boundary when
+  // emitting kGestureChanged events, keeping pre-commit positions strictly on
+  // the origin side of target spaces and avoiding progress == 0.0 near origin.
+  static constexpr int64_t kBoundaryHoldbackNanoswipes = 20;
+
   static absl::StatusOr<std::unique_ptr<ContinuousSpaceSwitchOperation>> Create(
       std::unique_ptr<AxisAdapter> axis_adapter, Options options = Options{});
 
@@ -152,8 +157,16 @@ private:
   const int64_t origin_position_ = 0;
 
   bool gesture_started_ = false;
-  DeferredPosition current_position_;
-  int64_t latest_direction_ = 0;
+  int64_t current_position_ = 0;
+  int64_t last_emitted_position_ = 0;
+
+  // Position prior to the most recent SetPositionLocked call
+  int64_t previous_position_ = 0;
+
+  // Number of emitted kGestureChanged events
+  int64_t changed_count_ = 0;
+
+  int latest_direction_ = 0;
 
   ContinuousSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
                                  int64_t origin_position,
@@ -270,6 +283,8 @@ private:
       std::unique_ptr<AxisAdapter> axis_adapter,
       int64_t operation_origin_position, Options options, ClockFn clock);
 
+  [[nodiscard]] std::pair<int64_t, int64_t> position_soft_limits_locked()
+      const override ABSL_SHARED_LOCKS_REQUIRED(mutex());
   [[nodiscard]] int64_t position_locked() const override
       ABSL_SHARED_LOCKS_REQUIRED(mutex());
   void SetPositionLocked(int64_t new_position,

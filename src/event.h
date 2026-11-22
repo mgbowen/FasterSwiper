@@ -4,12 +4,15 @@
 #include "src/hotkeys.h"
 #include "src/variant-util.h"
 
+#include <atomic>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <variant>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <absl/strings/str_format.h>
+#include <mach/mach_time.h>
 
 namespace fasterswiper {
 
@@ -99,6 +102,21 @@ std::optional<Event> ParseEvent(CGEventRef event);
 std::string EventGesturePhaseToString(int phase);
 
 std::string CFEventToDebugString(CGEventRef event);
+
+uint64_t MachTicksToNanoseconds(uint64_t ticks);
+uint64_t MachTicksToNanoseconds(uint64_t ticks,
+                                mach_timebase_info_data_t timebase);
+
+uint64_t NanosecondsToMachTicks(uint64_t ns);
+uint64_t NanosecondsToMachTicks(uint64_t ns,
+                                mach_timebase_info_data_t timebase);
+
+uint64_t AdvanceMonotonicMachTimestamp(uint64_t now_ticks,
+                                       mach_timebase_info_data_t timebase,
+                                       std::atomic<uint64_t>& last_ticks);
+
+uint64_t NextMonotonicMachTimestamp();
+uint64_t NextMonotonicNanosecondTimestamp();
 
 CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
     int phase, int direction, double progress, std::optional<double> velocity,

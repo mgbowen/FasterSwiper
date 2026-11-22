@@ -1,6 +1,7 @@
 #include "src/gesture-serialization.h"
 
 #include "src/cf-util.h"
+#include "src/event.h"
 #include "src/fp1616.h"
 #include "src/macos-private.h"
 #include "src/variant-util.h"
@@ -13,7 +14,6 @@
 #include <absl/log/check.h>
 #include <absl/log/log.h>
 #include <absl/status/status_macros.h>
-#include <mach/mach_time.h>
 
 namespace fasterswiper {
 
@@ -423,10 +423,10 @@ GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
         .velocity_z = 0});
   }
 
-  uint64_t timestamp = CGEventGetTimestamp(event);
-  if (timestamp == 0) {
-    timestamp = mach_absolute_time();
-  }
+  const uint64_t cg_timestamp_ns = CGEventGetTimestamp(event);
+  const uint64_t timestamp = cg_timestamp_ns != 0
+                                 ? NanosecondsToMachTicks(cg_timestamp_ns)
+                                 : NextMonotonicMachTimestamp();
 
   result.header = {.timestamp = timestamp,
                    .sender_id = 0,

@@ -208,6 +208,7 @@ cc_test(
         "//src:easing",
         "//src:event",
         "//src:fp1616",
+        "//src:gesture-serialization",
         "//src:macos-private",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:reflection",

@@ -28,8 +28,9 @@ SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
     : display_id_(std::move(display_id)),
       spaces_(std::move(spaces)),
       index_(index),
-      unit_factor_(static_cast<double>(count()) /
-                   static_cast<double>(count() - 1)) {}
+      unit_factor_(count() <= 1 ? 1.0
+                                : static_cast<double>(count()) /
+                                      static_cast<double>(count() - 1)) {}
 
 std::vector<int64_t> SpaceState::space_ids() const {
   std::vector<int64_t> ids;

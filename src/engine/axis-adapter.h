@@ -48,7 +48,8 @@ public:
   [[nodiscard]] virtual int64_t ProgressToNanoswipes(double progress) const = 0;
 
   [[nodiscard]] virtual bool WaitForCommittedPositionChanged(
-      int64_t original_position, absl::Duration deadline) const;
+      int64_t original_position, int64_t target_position,
+      absl::Duration deadline) const;
 
   [[nodiscard]] virtual absl::StatusOr<int64_t> committed_position() const = 0;
 
@@ -148,7 +149,8 @@ public:
   [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
 
   [[nodiscard]] bool WaitForCommittedPositionChanged(
-      int64_t original_position, absl::Duration deadline) const override;
+      int64_t original_position, int64_t target_position,
+      absl::Duration deadline) const override;
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 
@@ -186,7 +188,8 @@ public:
   [[nodiscard]] int64_t ProgressToNanoswipes(double progress) const override;
 
   [[nodiscard]] bool WaitForCommittedPositionChanged(
-      int64_t original_position, absl::Duration deadline) const override;
+      int64_t original_position, int64_t target_position,
+      absl::Duration deadline) const override;
 
   [[nodiscard]] absl::StatusOr<int64_t> committed_position() const override;
 

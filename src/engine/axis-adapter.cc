@@ -7,6 +7,7 @@
 #include "src/mission-control.h"
 #include "src/periodic-timer.h"
 
+#include <algorithm>
 #include <thread>
 
 #include <absl/base/no_destructor.h>
@@ -46,34 +47,41 @@ absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState& space_state) {
 }  // namespace
 
 bool AxisAdapter::WaitForCommittedPositionChanged(
-    int64_t original_position, absl::Duration deadline) const {
+    int64_t original_position, int64_t target_position,
+    absl::Duration deadline) const {
   // Wait for WindowServer to commit the space change.
   const int64_t start_time = UptimeInNanoseconds();
   const int64_t deadline_ns = start_time + absl::ToInt64Nanoseconds(deadline);
   while (UptimeInNanoseconds() < deadline_ns) {
-    const int64_t new_committed_position = *committed_position();
+    const absl::StatusOr<int64_t> maybe_committed_position =
+        committed_position();
+    if (!maybe_committed_position.ok()) {
+      VLOG_EVERY_N_SEC(1, 0.1)
+          << "WaitForPendingCommit: failed to read committed position: "
+          << maybe_committed_position.status();
+      std::this_thread::yield();
+      continue;
+    }
+
+    const int64_t new_committed_position = *maybe_committed_position;
 
     VLOG_EVERY_N_SEC(1, 0.1)
         << "WaitForPendingCommit: waiting for gesture "
            "commit, original_position="
-        << original_position
+        << original_position << ", target_position=" << target_position
         << ", new_committed_position=" << new_committed_position;
 
-    if (original_position != new_committed_position) {
+    if (new_committed_position == target_position) {
       const int64_t commit_latency_ns = UptimeInNanoseconds() - start_time;
       VLOG(1) << "Commit(): took " << absl::Nanoseconds(commit_latency_ns);
-      break;
+      return true;
     }
 
     std::this_thread::yield();
   }
 
-  if (UptimeInNanoseconds() >= deadline_ns) {
-    LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
-    return false;
-  }
-
-  return true;
+  LOG(ERROR) << "Waiting for pending commit exceeded deadline, bailing out";
+  return false;
 }
 
 HorizontalAxisAdapter::HorizontalAxisAdapter(SpaceState space_state)
@@ -93,7 +101,7 @@ absl::StatusOr<int64_t> HorizontalAxisAdapter::committed_position() const {
 
 std::pair<int64_t, int64_t> HorizontalAxisAdapter::position_soft_limits()
     const {
-  return {0, static_cast<int64_t>(space_state_.count() - 1) *
+  return {0, std::max<int64_t>(0, space_state_.count() - 1) *
                  kOneSwipeInNanoswipes};
 }
 
@@ -147,7 +155,8 @@ int64_t AppExposeHorizontalAxisAdapter_MacOS26::ProgressToNanoswipes(
 }
 
 bool AppExposeHorizontalAxisAdapter_MacOS26::WaitForCommittedPositionChanged(
-    int64_t /*original_position*/, absl::Duration /*deadline*/) const {
+    int64_t /*original_position*/, int64_t /*target_position*/,
+    absl::Duration /*deadline*/) const {
   return true;
 }
 
@@ -174,7 +183,8 @@ int64_t AppExposeHorizontalAxisAdapter::ProgressToNanoswipes(
 }
 
 bool AppExposeHorizontalAxisAdapter::WaitForCommittedPositionChanged(
-    int64_t /*original_position*/, absl::Duration /*deadline*/) const {
+    int64_t /*original_position*/, int64_t /*target_position*/,
+    absl::Duration /*deadline*/) const {
   return true;
 }
 
