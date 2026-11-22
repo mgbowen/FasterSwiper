@@ -1,0 +1,92 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "schedule:weekly"
+  ],
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "Group GitHub Actions updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "Keep Sparkle updated in lockstep across MODULE.bazel and publish-appcast.yml",
+      "matchPackageNames": ["sparkle-project/Sparkle"],
+      "groupName": "Sparkle"
+    },
+    {
+      "description": "Keep toolchains_llvm and pinned LLVM version in sync",
+      "matchPackageNames": ["toolchains_llvm", "llvm/llvm-project"],
+      "groupName": "LLVM toolchain"
+    },
+    {
+      "description": "Untagged git_override deps are tracked by the git-refs custom manager below",
+      "matchManagers": ["bazel-module"],
+      "matchDepTypes": ["git_override"],
+      "enabled": false
+    },
+    {
+      "description": "Exclude hedron_compile_commands from automated updates",
+      "matchDepNames": ["hedron_compile_commands"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update Sparkle http_archive version and sha256 in MODULE.bazel",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "sha256\\s*=\\s*\"(?<currentDigest>[a-f0-9]{64})\",\\s*\\n\\s*url\\s*=\\s*\"https://github\\.com/(?<depName>sparkle-project/Sparkle)/releases/download/(?<currentValue>[^/]+)/Sparkle-[^/]+\\.tar\\.xz\""
+      ],
+      "autoReplaceStringTemplate": "sha256 = \"{{{newDigest}}}\",\n    url = \"https://github.com/{{{depName}}}/releases/download/{{{newValue}}}/Sparkle-{{{newValue}}}.tar.xz\"",
+      "datasourceTemplate": "github-release-attachments"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Sparkle CLI version and sha256 in publish-appcast.yml",
+      "managerFilePatterns": ["/^\\.github/workflows/publish-appcast\\.yml$/"],
+      "matchStrings": [
+        "SPARKLE_VERSION:\\s*\"(?<currentValue>[^\"]+)\"\\s*\\n\\s*SPARKLE_SHA256:\\s*\"(?<currentDigest>[a-f0-9]{64})\""
+      ],
+      "depNameTemplate": "sparkle-project/Sparkle",
+      "datasourceTemplate": "github-release-attachments"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Aspect CLI version in .aspect/version.axl",
+      "managerFilePatterns": ["/^\\.aspect/version\\.axl$/"],
+      "matchStrings": [
+        "version\\(\"(?<currentValue>[^\"]+)\"\\)"
+      ],
+      "depNameTemplate": "aspect-build/aspect-cli",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update LLVM toolchain version in MODULE.bazel",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "llvm_versions\\s*=\\s*\\{\\s*\"\":\\s*\"(?<currentValue>[^\"]+)\",?\\s*\\}"
+      ],
+      "depNameTemplate": "llvm/llvm-project",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^llvmorg-(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update untagged git_override commits in MODULE.bazel",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "git_override\\(\\s*module_name\\s*=\\s*\"(?<depName>[^\"]+)\",\\s*commit\\s*=\\s*\"(?<currentDigest>[a-f0-9]{40})\",\\s*remote\\s*=\\s*\"(?<packageName>[^\"]+)\""
+      ],
+      "currentValueTemplate": "main",
+      "datasourceTemplate": "git-refs"
+    }
+  ]
+}
