@@ -214,10 +214,12 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -o errexit -o nounset -o pipefail
+          DMG_ASSET="FasterSwiper-${RELEASE_TAG}.dmg"
+          cp in/FasterSwiper.dmg "$DMG_ASSET"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" in/FasterSwiper.dmg --clobber
+            gh release upload "$RELEASE_TAG" "$DMG_ASSET" --clobber
           else
-            gh release create "$RELEASE_TAG" in/FasterSwiper.dmg \
+            gh release create "$RELEASE_TAG" "$DMG_ASSET" \
               --draft \
               --generate-notes \
               --title "$RELEASE_TAG"
