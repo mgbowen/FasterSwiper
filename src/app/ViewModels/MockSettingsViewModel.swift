@@ -46,7 +46,6 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
     public var automaticallyChecksForUpdates: Bool = true
     public var automaticallyDownloadsUpdates: Bool = false
     public var canCheckForUpdates: Bool = true
-    public var availableUpdateVersion: String? = nil
 
     public var versionText: String = "Version v99.99.99 (1234abc, dirty)"
 

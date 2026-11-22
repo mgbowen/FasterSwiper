@@ -74,7 +74,6 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var automaticallyChecksForUpdates: Bool { get set }
     var automaticallyDownloadsUpdates: Bool { get set }
     var canCheckForUpdates: Bool { get }
-    var availableUpdateVersion: String? { get }
 
     var versionText: String { get }
 

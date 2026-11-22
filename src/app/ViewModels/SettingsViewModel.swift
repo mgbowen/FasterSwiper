@@ -224,8 +224,6 @@ final class SettingsViewModel: SettingsViewModelProtocol {
 
     var canCheckForUpdates: Bool { updaterManager.canCheckForUpdates }
 
-    var availableUpdateVersion: String? { updaterManager.availableUpdateVersion }
-
     var versionText: String {
         let versionInfo = daemonManager.version
         let appVersion = "Version " + (versionInfo.version ?? "HEAD")

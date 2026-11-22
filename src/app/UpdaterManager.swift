@@ -7,14 +7,10 @@ import Sparkle
 @MainActor
 @Observable
 public final class UpdaterManager: NSObject {
-    private static let dismissedUpdateVersionKey = "dismissedUpdateVersion"
-
     public private(set) var canCheckForUpdates: Bool = false
-    public private(set) var availableUpdateVersion: String?
     public private(set) var hasPendingUpdateNotification: Bool = false
 
     @ObservationIgnored private let daemonManager: DaemonManager
-    @ObservationIgnored private var availableUpdateBuild: String?
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController!
     @ObservationIgnored private var canCheckCancellable: AnyCancellable?
 
@@ -71,16 +67,29 @@ public final class UpdaterManager: NSObject {
         NSApp.activate(ignoringOtherApps: true)
         updaterController.checkForUpdates(nil)
     }
-
-    public func dismissUpdateNotification() {
-        if let build = availableUpdateBuild {
-            UserDefaults.standard.set(build, forKey: Self.dismissedUpdateVersionKey)
-        }
-        hasPendingUpdateNotification = false
-    }
 }
 
 extension UpdaterManager: SPUUpdaterDelegate {
+    nonisolated public func updater(
+        _ updater: SPUUpdater,
+        userDidMake choice: SPUUserUpdateChoice,
+        forUpdate updateItem: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        MainActor.assumeIsolated {
+            switch choice {
+            case .skip, .install, .dismiss:
+                // Clear the menu bar badge on any explicit user choice:
+                // - .skip: Sparkle permanently skips this version
+                // - .install: installation is starting
+                // - .dismiss (Remind Me Later / close): Sparkle re-notifies in ~24h
+                hasPendingUpdateNotification = false
+            @unknown default:
+                break
+            }
+        }
+    }
+
     nonisolated public func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
         MainActor.assumeIsolated {
             daemonManager.stop()
@@ -93,39 +102,24 @@ extension UpdaterManager: SPUStandardUserDriverDelegate {
         true
     }
 
+    nonisolated public func standardUserDriverShouldHandleShowingScheduledUpdate(
+        _ update: SUAppcastItem,
+        andInImmediateFocus immediateFocus: Bool
+    ) -> Bool {
+        // Defer scheduled updates to the menu bar badge rather than popping up
+        // an alert window unprompted. User-initiated checks still show directly.
+        false
+    }
+
     nonisolated public func standardUserDriverWillHandleShowingUpdate(
         _ handleShowingUpdate: Bool,
         forUpdate update: SUAppcastItem,
         state: SPUUserUpdateState
     ) {
         MainActor.assumeIsolated {
-            availableUpdateVersion = update.displayVersionString
-            availableUpdateBuild = update.versionString
+            guard !handleShowingUpdate && !state.userInitiated else { return }
 
-            guard !state.userInitiated else { return }
-
-            let dismissedVersion = UserDefaults.standard.string(
-                forKey: Self.dismissedUpdateVersionKey
-            )
-            if dismissedVersion != update.versionString {
-                hasPendingUpdateNotification = true
-            }
-        }
-    }
-
-    nonisolated public func standardUserDriverDidReceiveUserAttention(
-        forUpdate update: SUAppcastItem
-    ) {
-        MainActor.assumeIsolated {
-            hasPendingUpdateNotification = false
-        }
-    }
-
-    nonisolated public func standardUserDriverWillFinishUpdateSession() {
-        MainActor.assumeIsolated {
-            hasPendingUpdateNotification = false
-            availableUpdateVersion = nil
-            availableUpdateBuild = nil
+            hasPendingUpdateNotification = true
         }
     }
 }

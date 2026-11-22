@@ -98,16 +98,6 @@ struct GeneralSettingsView<VM: SettingsViewModelProtocol>: View {
                     isOn: $viewModel.automaticallyDownloadsUpdates
                 )
                 .disabled(!viewModel.automaticallyChecksForUpdates)
-                HStack {
-                    Spacer()
-                    Button(
-                        viewModel.availableUpdateVersion.map { "Install Update (\($0))..." }
-                            ?? "Check for Updates..."
-                    ) {
-                        viewModel.checkForUpdates()
-                    }
-                    .disabled(!viewModel.canCheckForUpdates)
-                }
             }
         }
         .formStyle(.grouped)
@@ -349,10 +339,7 @@ struct AboutSettingsView<VM: SettingsViewModelProtocol>: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Button(
-                            viewModel.availableUpdateVersion.map { "Install Update (\($0))..." }
-                                ?? "Check for Updates..."
-                        ) {
+                        Button("Check for Updates...") {
                             viewModel.checkForUpdates()
                         }
                         .disabled(!viewModel.canCheckForUpdates)

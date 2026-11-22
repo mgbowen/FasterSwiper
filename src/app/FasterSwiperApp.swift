@@ -86,14 +86,10 @@ struct FasterSwiperApp: App {
         ) {
             if updaterManager.hasPendingUpdateNotification {
                 Button(
-                    "Update Available (\(updaterManager.availableUpdateVersion ?? ""))...",
+                    "Update Available...",
                     systemImage: "arrow.down.circle.fill"
                 ) {
                     updaterManager.checkForUpdates()
-                }
-
-                Button("Dismiss Update Notification", systemImage: "xmark.circle") {
-                    updaterManager.dismissUpdateNotification()
                 }
 
                 Divider()
