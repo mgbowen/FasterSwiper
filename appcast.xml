@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>FasterSwiper</title>
+    <item>
+      <title>1.7.0</title>
+      <pubDate>Sun, 22 Nov 2026 22:44:11 +0000</pubDate>
+      <sparkle:version>1.7.0</sparkle:version>
+      <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <enclosure url="https://github.com/mgbowen/FasterSwiper/releases/download/v1.7.0/FasterSwiper-v1.7.0.dmg" length="2221001" type="application/octet-stream" sparkle:edSignature="1WNfvK3D1oN7c4tjlyFXqPOpC0a6uD5galRRdLYdUK2s94rLWJ971pfxjxMhcw+6v0IrkU+CvVaT3p5D0JUqDQ==" />
+      <sparkle:fullReleaseNotesLink>https://github.com/mgbowen/FasterSwiper/releases/tag/v1.7.0</sparkle:fullReleaseNotesLink>
+      <description sparkle:format="markdown">This release brings three notable changes:
+* macOS 27 added damping to vertical three-finger gestures (i.e. swiping up to Mission Control or down to App Expose), which means that the configured curve in FasterSwiper wouldn't be followed very well. v1.7.0 adds a new feature that attempts to compensate for this damping, bringing the actual animation closer to the intended curve. It's not perfect, but should be a major improvement. It's on by default, but you can toggle it off in Settings if it doesn't work well for you.
+* The occurrence of errant "black slide animations," typically caused by long instant travels between spaces (e.g. jumping from space 1 to space 10), should be largely eliminated (fixes #6).
+* FasterSwiper now periodically checks for updates by default. You can toggle this feature off in Settings.
+
+**Full Changelog**: https://github.com/mgbowen/FasterSwiper/compare/v1.6.0...v1.7.0</description>
+    </item>
+  </channel>
+</rss>
