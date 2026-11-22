@@ -71,9 +71,15 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var launchAtLogin: Bool { get set }
     var hideMenuBarIcon: Bool { get set }
 
+    var automaticallyChecksForUpdates: Bool { get set }
+    var automaticallyDownloadsUpdates: Bool { get set }
+    var canCheckForUpdates: Bool { get }
+    var availableUpdateVersion: String? { get }
+
     var versionText: String { get }
 
     func refreshLaunchAtLogin()
     func toggleDaemon()
+    func checkForUpdates()
     func quitApplication()
 }

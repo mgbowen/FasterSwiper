@@ -31,10 +31,12 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     @ObservationIgnored @Environment(\.settingsStore) private var settingsStore
 
     private let daemonManager: DaemonManager
+    private let updaterManager: UpdaterManager
     private var cachedLaunchAtLogin: Bool = false
 
-    init(daemonManager: DaemonManager) {
+    init(daemonManager: DaemonManager, updaterManager: UpdaterManager) {
         self.daemonManager = daemonManager
+        self.updaterManager = updaterManager
     }
 
     var selectedTab: SettingsViewTab = .general
@@ -210,6 +212,20 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         set { settingsStore.hideMenuBarIcon = newValue }
     }
 
+    var automaticallyChecksForUpdates: Bool {
+        get { updaterManager.automaticallyChecksForUpdates }
+        set { updaterManager.automaticallyChecksForUpdates = newValue }
+    }
+
+    var automaticallyDownloadsUpdates: Bool {
+        get { updaterManager.automaticallyDownloadsUpdates }
+        set { updaterManager.automaticallyDownloadsUpdates = newValue }
+    }
+
+    var canCheckForUpdates: Bool { updaterManager.canCheckForUpdates }
+
+    var availableUpdateVersion: String? { updaterManager.availableUpdateVersion }
+
     var versionText: String {
         let versionInfo = daemonManager.version
         let appVersion = "Version " + (versionInfo.version ?? "HEAD")
@@ -231,6 +247,8 @@ final class SettingsViewModel: SettingsViewModelProtocol {
     }
 
     public func toggleDaemon() { daemonManager.toggle() }
+
+    public func checkForUpdates() { updaterManager.checkForUpdates() }
 
     public func quitApplication() { NSApplication.shared.terminate(nil) }
 

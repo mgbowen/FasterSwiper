@@ -19,22 +19,53 @@ swift_library(
     srcs = [
         "DaemonManager.swift",
         "FasterSwiperApp.swift",
+        "MenuBarIcon.swift",
         "PermissionsMonitor.swift",
         "SettingsStore.swift",
+        "UpdaterManager.swift",
         "ViewModels/SettingsViewModel.swift",
     ],
     module_name = "FasterSwiper_App",
     deps = [
         ":FasterSwiper_Views",
         "//src/public/swift",
+        "@sparkle//:Sparkle",
     ],
+)
+
+genrule(
+    name = "generate_version_plist",
+    outs = ["Version.plist"],
+    cmd = """
+    VERSION_VAL=$$(awk '/^STABLE_VERSION / {print $$2}' bazel-out/stable-status.txt)
+    if [[ -z "$$VERSION_VAL" ]]; then
+        VERSION_VAL="0.0.0"
+    fi
+
+    cat <<EOF > "$@"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleShortVersionString</key>
+    <string>$$VERSION_VAL</string>
+    <key>CFBundleVersion</key>
+    <string>$$VERSION_VAL</string>
+</dict>
+</plist>
+EOF
+    """,
+    stamp = True,
 )
 
 macos_application(
     name = "FasterSwiper_app",
     bundle_id = "com.mgbowen.FasterSwiper",
     bundle_name = "FasterSwiper",
-    infoplists = ["Info.plist"],
+    infoplists = [
+        "Info.plist",
+        ":generate_version_plist",
+    ],
     minimum_os_version = "26.0",
     deps = [
         ":FasterSwiper_lib",

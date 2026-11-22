@@ -1,4 +1,4 @@
-name: Build .app
+name: Release
 
 on:
   push:
@@ -6,14 +6,18 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build Unsigned .app
     runs-on: macos-26
-    outputs:
-      artifact-name: ${{ steps.build.outputs.artifact_name }}
     steps:
       - name: Checkout FasterSwiper
-        uses: actions/checkout@v6
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
@@ -22,17 +26,199 @@ jobs:
           repository-cache: true
 
       - name: Build App
-        id: build
         run: |
           build_opts='--compilation_mode=opt //src/app:FasterSwiper_app'
           bazel build $build_opts
-          ZIP_PATH=$(bazel cquery --output=files $build_opts)
+          ZIP_PATH="$(bazel cquery --output=files $build_opts)"
           mkdir -p out
-          unzip "$ZIP_PATH" -d out
+          cp "$ZIP_PATH" out/FasterSwiper_app.zip
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Unsigned App Archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: FasterSwiper_app.zip
-          path: out/
-          retention-days: 90
+          name: FasterSwiper_app
+          path: out/FasterSwiper_app.zip
+          retention-days: 7
+
+  sign-app:
+    name: Sign .app
+    needs: build
+    environment: release
+    runs-on: macos-26
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+
+      - name: Download Unsigned App Archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: FasterSwiper_app
+          path: in
+
+      - name: Sign App Bundle
+        env:
+          DEVELOPER_ID_CERT_BASE64: ${{ secrets.DEVELOPER_ID_CERT_BASE64 }}
+          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+
+          CERT_PATH="$RUNNER_TEMP/developer_id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          printf '%s' "$DEVELOPER_ID_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          chmod 600 "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" \
+            -P "$DEVELOPER_ID_CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          mkdir -p out
+          KEYCHAIN_PATH="$KEYCHAIN_PATH" ./sign.sh \
+            --sign-app \
+            in/FasterSwiper_app.zip \
+            out/FasterSwiper_signed_app.zip
+
+      - name: Clean Up Signing Credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/developer_id.p12"
+
+      - name: Upload Signed App Archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: FasterSwiper_signed_app
+          path: out/FasterSwiper_signed_app.zip
+          retention-days: 7
+
+  package-dmg:
+    name: Package DMG
+    needs: sign-app
+    runs-on: macos-26
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+        with:
+          disk-cache: true
+          repository-cache: true
+
+      - name: Download Signed App Archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: FasterSwiper_signed_app
+          path: in
+
+      - name: Create Unsigned DMG
+        run: |
+          set -o errexit -o nounset -o pipefail
+          SIGNED_DIR="$RUNNER_TEMP/signed_app"
+          mkdir -p "$SIGNED_DIR"
+          ditto -xk in/FasterSwiper_signed_app.zip "$SIGNED_DIR"
+          bazel run @mgbowen_bazel_create_dmg//:create-dmg -- \
+            --no-code-sign \
+            --overwrite \
+            --no-version-in-filename \
+            "$SIGNED_DIR/FasterSwiper.app"
+
+      - name: Upload Unsigned DMG
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: FasterSwiper_dmg_unsigned
+          path: FasterSwiper.dmg
+          retention-days: 7
+
+  notarize-and-draft:
+    name: Sign, Notarize & Create Draft Release
+    needs: package-dmg
+    environment: release
+    permissions:
+      contents: write
+    runs-on: macos-26
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+
+      - name: Download Unsigned DMG
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: FasterSwiper_dmg_unsigned
+          path: in
+
+      - name: Sign & Notarize DMG
+        env:
+          DEVELOPER_ID_CERT_BASE64: ${{ secrets.DEVELOPER_ID_CERT_BASE64 }}
+          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+
+          CERT_PATH="$RUNNER_TEMP/developer_id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+
+          printf '%s' "$DEVELOPER_ID_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          chmod 600 "$CERT_PATH"
+
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+          chmod 600 "$NOTARY_KEY_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" \
+            -P "$DEVELOPER_ID_CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          KEYCHAIN_PATH="$KEYCHAIN_PATH" NOTARY_KEY_PATH="$NOTARY_KEY_PATH" \
+            ./sign.sh --notarize-dmg in/FasterSwiper.dmg
+
+      - name: Clean Up Signing & Notarization Credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/developer_id.p12" "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Create or Update Draft GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" in/FasterSwiper.dmg --clobber
+          else
+            gh release create "$RELEASE_TAG" in/FasterSwiper.dmg \
+              --draft \
+              --generate-notes \
+              --title "$RELEASE_TAG"
+          fi

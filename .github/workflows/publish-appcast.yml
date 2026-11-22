@@ -1,0 +1,107 @@
+name: Publish Appcast
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish-appcast:
+    name: Sign & Publish Sparkle Appcast
+    environment: appcast
+    permissions:
+      contents: write
+    runs-on: macos-26
+    steps:
+      - name: Checkout FasterSwiper
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+
+      - name: Download Published DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          mkdir -p "$RUNNER_TEMP/release_dmg"
+          gh release download "$RELEASE_TAG" \
+            --pattern "FasterSwiper.dmg" \
+            --dir "$RUNNER_TEMP/release_dmg"
+
+      - name: Download & Verify Sparkle CLI Tools
+        env:
+          SPARKLE_VERSION: "2.10.1"
+          SPARKLE_SHA256: "1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27"
+        run: |
+          set -o errexit -o nounset -o pipefail
+          ARCHIVE="$RUNNER_TEMP/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          curl -fsSL -o "$ARCHIVE" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          printf '%s  %s\n' "$SPARKLE_SHA256" "$ARCHIVE" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$ARCHIVE" -C "$RUNNER_TEMP/sparkle" bin/generate_appcast
+
+      - name: Generate Signed Appcast Entry
+        env:
+          SPARKLE_ED25519_PRIVATE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          printf '%s' "$SPARKLE_ED25519_PRIVATE_KEY" | \
+            "$RUNNER_TEMP/sparkle/bin/generate_appcast" \
+              --ed-key-file - \
+              --download-url-prefix "https://github.com/${REPO}/releases/download/${RELEASE_TAG}/" \
+              -o "$RUNNER_TEMP/new_appcast.xml" \
+              "$RUNNER_TEMP/release_dmg"
+
+      - name: Checkout gh-pages Branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          GH_PAGES_DIR="$RUNNER_TEMP/gh-pages"
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch \
+              "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+              "$GH_PAGES_DIR"
+          else
+            git init -b gh-pages "$GH_PAGES_DIR"
+            git -C "$GH_PAGES_DIR" remote add origin \
+              "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          fi
+
+      - name: Merge Appcast & Push to gh-pages
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          GH_PAGES_DIR="$RUNNER_TEMP/gh-pages"
+          BODY_FILE="$RUNNER_TEMP/release_body.md"
+          printf '%s' "$RELEASE_BODY" > "$BODY_FILE"
+
+          EXTRA_ARGS=()
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            EXTRA_ARGS+=(--channel beta)
+          fi
+
+          python3 tools/release/merge_appcast.py \
+            --existing "$GH_PAGES_DIR/appcast.xml" \
+            --new "$RUNNER_TEMP/new_appcast.xml" \
+            --output "$GH_PAGES_DIR/appcast.xml" \
+            --full-release-notes-url "$RELEASE_URL" \
+            --release-notes-file "$BODY_FILE" \
+            ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+
+          git -C "$GH_PAGES_DIR" config user.name "github-actions[bot]"
+          git -C "$GH_PAGES_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$GH_PAGES_DIR" add appcast.xml
+          if ! git -C "$GH_PAGES_DIR" diff --cached --quiet; then
+            git -C "$GH_PAGES_DIR" commit -m "Update appcast.xml for ${RELEASE_TAG}"
+            git -C "$GH_PAGES_DIR" push origin gh-pages
+          fi

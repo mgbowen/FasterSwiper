@@ -3,13 +3,6 @@ import FasterSwiper_Daemon
 import FasterSwiper_Views
 import SwiftUI
 
-prefix func ! (value: Binding<Bool>) -> Binding<Bool> {
-    Binding<Bool>(
-        get: { !value.wrappedValue },
-        set: { value.wrappedValue = !$0 }
-    )
-}
-
 // Handles events from macOS when the user attempts to open the app again, which
 // allows someone to open the settings window if they've hidden the menu bar
 // icon. Also opens settings on first launch if the menu bar icon is hidden and
@@ -56,6 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct FasterSwiperApp: App {
     @State private var daemonManager: DaemonManager
+    @State private var updaterManager: UpdaterManager
     @State private var settingsViewModel: SettingsViewModel
     @Environment(\.settingsStore) private var settingsStore
     @Environment(\.openSettings) private var openSettingsAction
@@ -63,9 +57,14 @@ struct FasterSwiperApp: App {
 
     init() {
         let manager = DaemonManager(daemon: Daemon())
-        let viewModel = SettingsViewModel(daemonManager: manager)
+        let updater = UpdaterManager(daemonManager: manager)
+        let viewModel = SettingsViewModel(
+            daemonManager: manager,
+            updaterManager: updater
+        )
 
         _daemonManager = State(initialValue: manager)
+        _updaterManager = State(initialValue: updater)
         _settingsViewModel = State(initialValue: viewModel)
 
         Task { @MainActor in
@@ -77,10 +76,29 @@ struct FasterSwiperApp: App {
         @Bindable var settingsStore = settingsStore
 
         MenuBarExtra(
-            "FasterSwiper",
-            systemImage: "appwindow.swipe.rectangle",
-            isInserted: !$settingsStore.hideMenuBarIcon
+            isInserted: Binding(
+                get: {
+                    !settingsStore.hideMenuBarIcon
+                        || updaterManager.hasPendingUpdateNotification
+                },
+                set: { _ in }
+            )
         ) {
+            if updaterManager.hasPendingUpdateNotification {
+                Button(
+                    "Update Available (\(updaterManager.availableUpdateVersion ?? ""))...",
+                    systemImage: "arrow.down.circle.fill"
+                ) {
+                    updaterManager.checkForUpdates()
+                }
+
+                Button("Dismiss Update Notification", systemImage: "xmark.circle") {
+                    updaterManager.dismissUpdateNotification()
+                }
+
+                Divider()
+            }
+
             Button("About FasterSwiper", systemImage: "info.circle") {
                 openAbout()
             }
@@ -113,6 +131,17 @@ struct FasterSwiperApp: App {
             Button("Quit FasterSwiper", systemImage: "xmark.rectangle") {
                 NSApplication.shared.terminate(nil)
             }
+        } label: {
+            Image(
+                nsImage: updaterManager.hasPendingUpdateNotification
+                    ? MenuBarIcon.updateAvailable
+                    : MenuBarIcon.normal
+            )
+            .accessibilityLabel(
+                updaterManager.hasPendingUpdateNotification
+                    ? "FasterSwiper — Update Available"
+                    : "FasterSwiper"
+            )
         }
 
         Settings {

@@ -1,0 +1,10 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "merge_appcast_test",
+    srcs = ["merge_appcast_test.sh"],
+    data = [
+        "merge_appcast.py",
+        "merge_appcast_test.py",
+    ],
+)

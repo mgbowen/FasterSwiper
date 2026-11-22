@@ -43,9 +43,15 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
     public var launchAtLogin: Bool = true
     public var hideMenuBarIcon: Bool = true
 
+    public var automaticallyChecksForUpdates: Bool = true
+    public var automaticallyDownloadsUpdates: Bool = false
+    public var canCheckForUpdates: Bool = true
+    public var availableUpdateVersion: String? = nil
+
     public var versionText: String = "Version v99.99.99 (1234abc, dirty)"
 
     public func refreshLaunchAtLogin() {}
     public func toggleDaemon() {}
+    public func checkForUpdates() {}
     public func quitApplication() {}
 }

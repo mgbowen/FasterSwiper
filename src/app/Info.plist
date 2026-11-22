@@ -14,13 +14,15 @@
     <string>FasterSwiper</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUFeedURL</key>
+    <string>https://mgbowen.dev/FasterSwiper/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>t9MtaEoNZ75lsrnGMOBWW1anMD5lAe5zsP28q3r2JI8=</string>
 </dict>
 </plist>

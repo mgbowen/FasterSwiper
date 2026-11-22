@@ -60,3 +60,12 @@ git_override(
     commit = "352250f742a82a5c6f4d02d05c7bf187a56c5ca9",
     remote = "https://github.com/mgbowen/bazel-create-dmg.git",
 )
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "sparkle",
+    build_file = "//third_party:sparkle.BUILD",
+    sha256 = "1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27",
+    url = "https://github.com/sparkle-project/Sparkle/releases/download/2.10.1/Sparkle-2.10.1.tar.xz",
+)
