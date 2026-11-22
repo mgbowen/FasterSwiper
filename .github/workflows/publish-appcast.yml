@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout FasterSwiper
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v7
 
       - name: Download Published DMG
         env:

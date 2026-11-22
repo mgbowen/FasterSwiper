@@ -11,10 +11,10 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout FasterSwiper
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+        uses: bazel-contrib/setup-bazel@f34d6a05eae3c24acab7fa54587492daeaeffdab
         with:
           disk-cache: true
           repository-cache: true
