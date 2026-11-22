@@ -32,6 +32,11 @@ swift_deps = use_extension(
     "@rules_swift_package_manager//:extensions.bzl",
     "swift_deps",
 )
+# Workaround for https://github.com/dependabot/dependabot-core/issues/16965:
+# Dependabot's Bazel file fetcher only extracts a fixed list of attribute names
+# (including lock_file), so it misses resolved/swift in swift_deps.from_package.
+# lock_file = "//:Package.resolved"
+# lock_file = "//:Package.swift"
 swift_deps.from_package(
     declare_swift_deps_info = True,
     resolved = "//:Package.resolved",
