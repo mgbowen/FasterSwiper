@@ -2,22 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    "group:all",
     "helpers:pinGitHubActionDigests",
     "schedule:weekly"
   ],
   "minimumReleaseAge": "7 days",
   "prConcurrentLimit": 10,
   "packageRules": [
-    {
-      "description": "Group GitHub Actions updates into a single PR",
-      "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions"
-    },
-    {
-      "description": "Keep Sparkle updated in lockstep across MODULE.bazel and publish-appcast.yml",
-      "matchPackageNames": ["sparkle-project/Sparkle"],
-      "groupName": "Sparkle"
-    },
     {
       "description": "Untagged git_override deps are tracked by the git-refs custom manager below",
       "matchManagers": ["bazel-module"],
