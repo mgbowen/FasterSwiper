@@ -22,7 +22,7 @@ llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     cxx_standard = {"": "c++23"},
     llvm_versions = {
-        "": "23.1.2",
+        "": "23.1.5",
     },
     stdlib = {"": "builtin-libc++"},
 )
