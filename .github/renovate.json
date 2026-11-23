@@ -19,11 +19,6 @@
       "groupName": "Sparkle"
     },
     {
-      "description": "Keep toolchains_llvm and pinned LLVM version in sync",
-      "matchPackageNames": ["toolchains_llvm", "llvm/llvm-project"],
-      "groupName": "LLVM toolchain"
-    },
-    {
       "description": "Untagged git_override deps are tracked by the git-refs custom manager below",
       "matchManagers": ["bazel-module"],
       "matchDepTypes": ["git_override"],
@@ -66,17 +61,6 @@
       "depNameTemplate": "aspect-build/aspect-cli",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$"
-    },
-    {
-      "customType": "regex",
-      "description": "Update LLVM toolchain version in MODULE.bazel",
-      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
-      "matchStrings": [
-        "llvm_versions\\s*=\\s*\\{\\s*\"\":\\s*\"(?<currentValue>[^\"]+)\",?\\s*\\}"
-      ],
-      "depNameTemplate": "llvm/llvm-project",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^llvmorg-(?<version>\\d+\\.\\d+\\.\\d+)$"
     },
     {
       "customType": "regex",
