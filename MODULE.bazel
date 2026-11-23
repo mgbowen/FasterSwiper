@@ -15,7 +15,7 @@ bazel_dep(name = "rules_swift_package_manager", version = "1.25.0")
 bazel_dep(name = "rules_shell", version = "0.10.0")
 bazel_dep(name = "aspect_rules_lint", version = "2.9.1")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
-bazel_dep(name = "toolchains_llvm", version = "1.11.0")
+bazel_dep(name = "toolchains_llvm", version = "1.13.0")
 
 # LLVM toolchain for clang-format, clang-tidy, etc.
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
