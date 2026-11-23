@@ -28,6 +28,11 @@
       "description": "Exclude hedron_compile_commands from automated updates",
       "matchDepNames": ["hedron_compile_commands"],
       "enabled": false
+    },
+    {
+      "description": "Allow updates when datasource does not report release timestamps",
+      "matchDatasources": ["bazel", "git-refs"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
     }
   ],
   "customManagers": [
