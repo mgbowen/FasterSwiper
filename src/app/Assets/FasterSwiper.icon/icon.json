@@ -4,8 +4,8 @@
   ],
   "fill" : {
     "linear-gradient" : [
-      "srgb:0.30196,0.35294,0.45098,1.00000",
-      "srgb:0.17255,0.20784,0.27843,1.00000"
+      "srgb:0.27451,0.32941,0.43137,1.00000",
+      "srgb:0.14902,0.18431,0.25098,1.00000"
     ]
   },
   "groups" : [
@@ -32,7 +32,7 @@
       "lighting" : "individual",
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0.65
+        "opacity" : 0.68
       },
       "specular" : "inside",
       "translucency" : {

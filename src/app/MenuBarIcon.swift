@@ -15,18 +15,10 @@ public enum MenuBarIcon {
     private static let fallbackBaseSize = NSSize(width: 22, height: 18)
     private static let canvasHeight: CGFloat = 18
 
-    private static let statusDotDiameter: CGFloat = 6.5
+    private static let statusDotDiameter: CGFloat = 7.5
     private static let statusDotRightInset: CGFloat = 0.5
     private static let statusDotBottomInset: CGFloat = 1.0
-    private static let updateBadgeDiameter: CGFloat = 9.5
-    private static let updateBadgeRightInset: CGFloat = 0.25
-    private static let updateBadgeBottomInset: CGFloat = 0.5
     private static let badgeHaloThickness: CGFloat = 1.4
-
-    private enum BadgeKind {
-        case statusDot(NSColor)
-        case updateArrow
-    }
 
     private struct StyleImageSet {
         let normal: NSImage
@@ -120,17 +112,17 @@ public enum MenuBarIcon {
             normal: makeNormalIcon(baseIcon: baseIcon),
             updateAvailable: makeBadgedIcon(
                 baseIcon: baseIcon,
-                badge: .updateArrow,
+                badgeColor: .systemBlue,
                 accessibilityDescription: "FasterSwiper — Update Available"
             ),
             error: makeBadgedIcon(
                 baseIcon: baseIcon,
-                badge: .statusDot(.systemRed),
+                badgeColor: .systemRed,
                 accessibilityDescription: "FasterSwiper — Error"
             ),
             stopped: makeBadgedIcon(
                 baseIcon: baseIcon,
-                badge: .statusDot(.systemGray),
+                badgeColor: .systemGray,
                 accessibilityDescription: "FasterSwiper — Stopped"
             )
         )
@@ -190,7 +182,7 @@ public enum MenuBarIcon {
 
     private static func makeBadgedIcon(
         baseIcon: NSImage?,
-        badge: BadgeKind,
+        badgeColor: NSColor,
         accessibilityDescription: String
     ) -> NSImage {
         let size = canvasSize(for: baseIcon)
@@ -226,64 +218,24 @@ public enum MenuBarIcon {
                 cgContext.endTransparencyLayer()
             }
 
-            switch badge {
-            case .statusDot(let color):
-                let dotRect = CGRect(
-                    x: rect.width - statusDotDiameter - statusDotRightInset,
-                    y: statusDotBottomInset,
-                    width: statusDotDiameter,
-                    height: statusDotDiameter
-                )
-                let haloRect = dotRect.insetBy(
-                    dx: -badgeHaloThickness,
-                    dy: -badgeHaloThickness
-                )
-                cgContext.setBlendMode(.clear)
-                cgContext.addEllipse(in: haloRect)
-                cgContext.fillPath()
+            let dotRect = CGRect(
+                x: rect.width - statusDotDiameter - statusDotRightInset,
+                y: statusDotBottomInset,
+                width: statusDotDiameter,
+                height: statusDotDiameter
+            )
+            let haloRect = dotRect.insetBy(
+                dx: -badgeHaloThickness,
+                dy: -badgeHaloThickness
+            )
+            cgContext.setBlendMode(.clear)
+            cgContext.addEllipse(in: haloRect)
+            cgContext.fillPath()
 
-                cgContext.setBlendMode(.normal)
-                cgContext.setFillColor(color.cgColor)
-                cgContext.addEllipse(in: dotRect)
-                cgContext.fillPath()
-
-            case .updateArrow:
-                let badgeRect = CGRect(
-                    x: rect.width - updateBadgeDiameter - updateBadgeRightInset,
-                    y: updateBadgeBottomInset,
-                    width: updateBadgeDiameter,
-                    height: updateBadgeDiameter
-                )
-                let haloRect = badgeRect.insetBy(
-                    dx: -badgeHaloThickness,
-                    dy: -badgeHaloThickness
-                )
-                cgContext.setBlendMode(.clear)
-                cgContext.addEllipse(in: haloRect)
-                cgContext.fillPath()
-
-                cgContext.setBlendMode(.normal)
-                cgContext.setFillColor(NSColor.controlAccentColor.cgColor)
-                cgContext.addEllipse(in: badgeRect)
-                cgContext.fillPath()
-
-                // Draw a crisp downward arrow centered in `badgeRect` (+y up).
-                let cx = badgeRect.midX
-                let cy = badgeRect.midY
-                let halfShaft: CGFloat = 2.1
-                let wingX: CGFloat = 2.0
-                let wingY: CGFloat = 0.2
-                cgContext.setStrokeColor(NSColor.white.cgColor)
-                cgContext.setLineWidth(1.35)
-                cgContext.setLineCap(.round)
-                cgContext.setLineJoin(.round)
-                cgContext.move(to: CGPoint(x: cx, y: cy + halfShaft))
-                cgContext.addLine(to: CGPoint(x: cx, y: cy - halfShaft))
-                cgContext.move(to: CGPoint(x: cx - wingX, y: cy - wingY))
-                cgContext.addLine(to: CGPoint(x: cx, y: cy - halfShaft))
-                cgContext.addLine(to: CGPoint(x: cx + wingX, y: cy - wingY))
-                cgContext.strokePath()
-            }
+            cgContext.setBlendMode(.normal)
+            cgContext.setFillColor(badgeColor.cgColor)
+            cgContext.addEllipse(in: dotRect)
+            cgContext.fillPath()
 
             return true
         }
