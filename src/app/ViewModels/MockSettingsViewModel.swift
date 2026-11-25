@@ -41,7 +41,11 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
     public var enableJumpToSpaceShortcuts: Bool = true
 
     public var launchAtLogin: Bool = true
-    public var hideMenuBarIcon: Bool = true
+    public var showMenuBarIcon: Bool = true
+    public var menuBarIconStyle: MenuBarIconStyle = .appIcon
+    public var showMenuBarStatusGlyph: Bool = true
+    public var showStatusIndicatorOverride: Bool = false
+    public var statusIndicatorOverride: MenuBarStatusIndicatorOverride = .automatic
 
     public var automaticallyChecksForUpdates: Bool = true
     public var automaticallyDownloadsUpdates: Bool = false

@@ -1,11 +1,22 @@
 import FasterSwiper_Daemon
+import FasterSwiper_Views
 import Observation
 import SwiftProtobuf
 import SwiftUI
 
 @Observable
 public class SettingsStore {
-    private let userDefaultsKey = "daemonOptions"
+    private static let daemonOptionsKey = "daemonOptions"
+    private static let hideMenuBarIconKey = "hideMenuBarIcon"
+    private static let menuBarIconStyleKey = "menuBarIconStyle"
+    private static let showMenuBarStatusGlyphKey = "showMenuBarStatusGlyph"
+    private static let showStatusIndicatorOverrideEnvKey =
+        "FASTERSWIPER_SHOW_STATUS_INDICATOR_OVERRIDE"
+
+    private let userDefaults: UserDefaults
+
+    public let showStatusIndicatorOverride: Bool
+    public var statusIndicatorOverride: MenuBarStatusIndicatorOverride = .automatic
 
     public var daemonOptions: DaemonOptions {
         get {
@@ -19,9 +30,9 @@ public class SettingsStore {
         set {
             withMutation(keyPath: \.daemonOptions) {
                 do {
-                    try UserDefaults.standard.set(
+                    try userDefaults.set(
                         newValue.serializedData(),
-                        forKey: userDefaultsKey
+                        forKey: Self.daemonOptionsKey
                     )
                 } catch {
                     print("Failed to write DaemonOptions")
@@ -30,17 +41,48 @@ public class SettingsStore {
         }
     }
 
-    public var hideMenuBarIcon: Bool {
+    public var showMenuBarIcon: Bool {
         didSet {
-            UserDefaults.standard.set(
-                hideMenuBarIcon,
-                forKey: "hideMenuBarIcon"
+            // Inverted bool for legacy reasons.
+            userDefaults.set(!showMenuBarIcon, forKey: Self.hideMenuBarIconKey)
+        }
+    }
+
+    public var menuBarIconStyle: MenuBarIconStyle {
+        didSet {
+            userDefaults.set(
+                menuBarIconStyle.rawValue,
+                forKey: Self.menuBarIconStyleKey
             )
         }
     }
 
-    public init() {
-        hideMenuBarIcon = UserDefaults.standard.bool(forKey: "hideMenuBarIcon")
+    public var showMenuBarStatusGlyph: Bool {
+        didSet {
+            userDefaults.set(
+                showMenuBarStatusGlyph,
+                forKey: Self.showMenuBarStatusGlyphKey
+            )
+        }
+    }
+
+    public init(
+        userDefaults: UserDefaults = .standard,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) {
+        self.userDefaults = userDefaults
+        self.showStatusIndicatorOverride =
+            environment[Self.showStatusIndicatorOverrideEnvKey] != nil
+        self.showMenuBarIcon = !userDefaults.bool(
+            forKey: Self.hideMenuBarIconKey
+        )
+        self.menuBarIconStyle =
+            userDefaults.string(forKey: Self.menuBarIconStyleKey)
+            .flatMap(MenuBarIconStyle.init(rawValue:))
+            ?? .appIcon
+        self.showMenuBarStatusGlyph =
+            userDefaults.object(forKey: Self.showMenuBarStatusGlyphKey) as? Bool
+            ?? true
 
         do {
             self.daemonOptions = try hydrateDaemonOptions(
@@ -52,7 +94,7 @@ public class SettingsStore {
     }
 
     private func getOptionsBinaryProto() -> Data? {
-        return UserDefaults.standard.data(forKey: userDefaultsKey)
+        return userDefaults.data(forKey: Self.daemonOptionsKey)
     }
 }
 

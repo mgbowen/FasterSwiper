@@ -77,14 +77,39 @@ struct GeneralSettingsView<VM: SettingsViewModelProtocol>: View {
 
             Section("Application") {
                 Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
+            }
+
+            Section("Menu Bar") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle("Hide menu bar icon", isOn: $viewModel.hideMenuBarIcon)
-                    if viewModel.hideMenuBarIcon {
+                    Toggle("Show icon", isOn: $viewModel.showMenuBarIcon)
+                    if !viewModel.showMenuBarIcon {
                         Text("Open FasterSwiper.app to get back to this window.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .padding(.trailing, 48)
                     }
+                }
+                Picker("Icon style", selection: $viewModel.menuBarIconStyle) {
+                    ForEach(MenuBarIconStyle.allCases) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .disabled(!viewModel.showMenuBarIcon)
+                Toggle(
+                    "Show status indicator",
+                    isOn: $viewModel.showMenuBarStatusGlyph
+                )
+                .disabled(!viewModel.showMenuBarIcon)
+                if viewModel.showStatusIndicatorOverride {
+                    Picker(
+                        "Status indicator override",
+                        selection: $viewModel.statusIndicatorOverride
+                    ) {
+                        ForEach(MenuBarStatusIndicatorOverride.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .disabled(!viewModel.showMenuBarIcon)
                 }
             }
 

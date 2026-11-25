@@ -3,6 +3,23 @@ import FasterSwiper_Daemon
 import FasterSwiper_Views
 import SwiftUI
 
+@MainActor
+private func bringSettingsWindowToFront(openSettings: OpenSettingsAction) {
+    NSApp.setActivationPolicy(.regular)
+    openSettings()
+    NSApp.activate(ignoringOtherApps: true)
+    // Run again after MenuBarExtra finishes tearing down its menu so focus
+    // isn't returned to the previously active application.
+    DispatchQueue.main.async {
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows
+        where window.isVisible && window.level == .normal && window.canBecomeKey
+        {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+}
+
 // Handles events from macOS when the user attempts to open the app again, which
 // allows someone to open the settings window if they've hidden the menu bar
 // icon. Also opens settings on first launch if the menu bar icon is hidden and
@@ -33,16 +50,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // If the menu bar icon is hidden and this isn't an automatic login
         // launch, open settings so the user isn't stranded with no UI.
-        if !wasLaunchedAtLogin && settingsStore.hideMenuBarIcon {
-            openSettingsAction()
+        if !wasLaunchedAtLogin && !settingsStore.showMenuBarIcon {
+            bringSettingsWindowToFront(openSettings: openSettingsAction)
         }
     }
 
+    @MainActor
     @objc func handleReopenEvent(
         _ event: NSAppleEventDescriptor,
         replyEvent: NSAppleEventDescriptor
     ) {
-        openSettingsAction()
+        bringSettingsWindowToFront(openSettings: openSettingsAction)
     }
 }
 
@@ -75,10 +93,17 @@ struct FasterSwiperApp: App {
     var body: some Scene {
         @Bindable var settingsStore = settingsStore
 
+        let menuBarIconState = MenuBarIcon.state(
+            daemonStatus: daemonManager.status,
+            hasPendingUpdate: updaterManager.hasPendingUpdateNotification,
+            showStatusGlyph: settingsStore.showMenuBarStatusGlyph,
+            override: settingsStore.statusIndicatorOverride
+        )
+
         MenuBarExtra(
             isInserted: Binding(
                 get: {
-                    !settingsStore.hideMenuBarIcon
+                    settingsStore.showMenuBarIcon
                         || updaterManager.hasPendingUpdateNotification
                 },
                 set: { _ in }
@@ -129,14 +154,16 @@ struct FasterSwiperApp: App {
             }
         } label: {
             Image(
-                nsImage: updaterManager.hasPendingUpdateNotification
-                    ? MenuBarIcon.updateAvailable
-                    : MenuBarIcon.normal
+                nsImage: MenuBarIcon.image(
+                    for: menuBarIconState,
+                    style: settingsStore.menuBarIconStyle
+                )
             )
             .accessibilityLabel(
-                updaterManager.hasPendingUpdateNotification
-                    ? "FasterSwiper — Update Available"
-                    : "FasterSwiper"
+                MenuBarIcon.accessibilityLabel(
+                    for: menuBarIconState,
+                    daemonStatus: daemonManager.status
+                )
             )
         }
 
@@ -157,11 +184,11 @@ struct FasterSwiperApp: App {
         if settingsViewModel.selectedTab == .about {
             settingsViewModel.selectedTab = .general
         }
-        openSettingsAction()
+        bringSettingsWindowToFront(openSettings: openSettingsAction)
     }
 
     private func openAbout() {
         settingsViewModel.selectedTab = .about
-        openSettingsAction()
+        bringSettingsWindowToFront(openSettings: openSettingsAction)
     }
 }

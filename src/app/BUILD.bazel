@@ -60,6 +60,7 @@ EOF
 
 macos_application(
     name = "FasterSwiper_app",
+    app_icons = glob(["Assets/FasterSwiper.icon/**"]),
     bundle_id = "com.mgbowen.FasterSwiper",
     bundle_name = "FasterSwiper",
     infoplists = [
@@ -67,6 +68,7 @@ macos_application(
         ":generate_version_plist",
     ],
     minimum_os_version = "26.0",
+    resources = ["Assets/MenuBarIcon.svg"],
     deps = [
         ":FasterSwiper_lib",
         "@abseil-cpp//absl/log:flags",

@@ -1,0 +1,49 @@
+{
+  "features" : [
+    "specular-location"
+  ],
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.30196,0.35294,0.45098,1.00000",
+      "srgb:0.17255,0.20784,0.27843,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "03_space_top.svg",
+          "name" : "03_space_top"
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "02_space_mid.svg",
+          "name" : "02_space_mid"
+        },
+        {
+          "glass" : true,
+          "image-name" : "01_space_back.svg",
+          "name" : "01_space_back"
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.65
+      },
+      "specular" : "inside",
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.3
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

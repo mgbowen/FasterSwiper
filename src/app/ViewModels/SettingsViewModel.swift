@@ -207,9 +207,28 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
-    var hideMenuBarIcon: Bool {
-        get { settingsStore.hideMenuBarIcon }
-        set { settingsStore.hideMenuBarIcon = newValue }
+    var showMenuBarIcon: Bool {
+        get { settingsStore.showMenuBarIcon }
+        set { settingsStore.showMenuBarIcon = newValue }
+    }
+
+    var menuBarIconStyle: MenuBarIconStyle {
+        get { settingsStore.menuBarIconStyle }
+        set { settingsStore.menuBarIconStyle = newValue }
+    }
+
+    var showMenuBarStatusGlyph: Bool {
+        get { settingsStore.showMenuBarStatusGlyph }
+        set { settingsStore.showMenuBarStatusGlyph = newValue }
+    }
+
+    var showStatusIndicatorOverride: Bool {
+        settingsStore.showStatusIndicatorOverride
+    }
+
+    var statusIndicatorOverride: MenuBarStatusIndicatorOverride {
+        get { settingsStore.statusIndicatorOverride }
+        set { settingsStore.statusIndicatorOverride = newValue }
     }
 
     var automaticallyChecksForUpdates: Bool {

@@ -1,135 +1,295 @@
 import AppKit
+import FasterSwiper_Views
+
+public enum MenuBarIconState: Sendable, Equatable {
+    case normal
+    case updateAvailable
+    case error
+    case stopped
+}
 
 @MainActor
-enum MenuBarIcon {
-    private static let basePointSize: CGFloat = 15
-    private static let badgePointSize: CGFloat = 9
-    private static let haloExtraPointSize: CGFloat = 3
-    private static let badgeOverflowRight: CGFloat = 3
+public enum MenuBarIcon {
+    private static let sfSymbolName = "appwindow.swipe.rectangle"
+    private static let sfSymbolPointSize: CGFloat = 15
+    private static let fallbackBaseSize = NSSize(width: 22, height: 18)
     private static let canvasHeight: CGFloat = 18
 
-    static let normal: NSImage = makeNormalIcon()
-    static let updateAvailable: NSImage = makeUpdateAvailableIcon()
+    private static let statusDotDiameter: CGFloat = 6.5
+    private static let statusDotRightInset: CGFloat = 0.5
+    private static let statusDotBottomInset: CGFloat = 1.0
+    private static let updateBadgeDiameter: CGFloat = 9.5
+    private static let updateBadgeRightInset: CGFloat = 0.25
+    private static let updateBadgeBottomInset: CGFloat = 0.5
+    private static let badgeHaloThickness: CGFloat = 1.4
 
-    private static func makeNormalIcon() -> NSImage {
-        let config = NSImage.SymbolConfiguration(
-            pointSize: basePointSize,
-            weight: .regular
+    private enum BadgeKind {
+        case statusDot(NSColor)
+        case updateArrow
+    }
+
+    private struct StyleImageSet {
+        let normal: NSImage
+        let updateAvailable: NSImage
+        let error: NSImage
+        let stopped: NSImage
+    }
+
+    private static let appIconImages = makeImageSet(for: .appIcon)
+    private static let sfSymbolImages = makeImageSet(for: .sfSymbol)
+
+    public static var normal: NSImage { appIconImages.normal }
+    public static var updateAvailable: NSImage { appIconImages.updateAvailable }
+    public static var error: NSImage { appIconImages.error }
+    public static var stopped: NSImage { appIconImages.stopped }
+
+    public static func state(
+        daemonStatus: DaemonStatus,
+        hasPendingUpdate: Bool,
+        showStatusGlyph: Bool,
+        override: MenuBarStatusIndicatorOverride = .automatic
+    ) -> MenuBarIconState {
+        switch override {
+        case .automatic:
+            break
+        case .normal:
+            return .normal
+        case .updateAvailable:
+            return .updateAvailable
+        case .error:
+            return .error
+        case .stopped:
+            return .stopped
+        }
+
+        if showStatusGlyph
+            && (daemonStatus == .accessibilityPermissionDenied
+                || daemonStatus == .genericError)
+        {
+            return .error
+        }
+
+        if hasPendingUpdate {
+            return .updateAvailable
+        }
+
+        if showStatusGlyph && daemonStatus == .stopped {
+            return .stopped
+        }
+
+        return .normal
+    }
+
+    public static func image(
+        for state: MenuBarIconState,
+        style: MenuBarIconStyle = .appIcon
+    ) -> NSImage {
+        let imageSet =
+            switch style {
+            case .appIcon: appIconImages
+            case .sfSymbol: sfSymbolImages
+            }
+
+        return switch state {
+        case .normal: imageSet.normal
+        case .updateAvailable: imageSet.updateAvailable
+        case .error: imageSet.error
+        case .stopped: imageSet.stopped
+        }
+    }
+
+    public static func accessibilityLabel(
+        for state: MenuBarIconState,
+        daemonStatus: DaemonStatus
+    ) -> String {
+        switch state {
+        case .normal:
+            "FasterSwiper"
+        case .updateAvailable:
+            "FasterSwiper — Update Available"
+        case .error:
+            "FasterSwiper — \(daemonStatus.text)"
+        case .stopped:
+            "FasterSwiper — Stopped"
+        }
+    }
+
+    private static func makeImageSet(for style: MenuBarIconStyle) -> StyleImageSet {
+        let baseIcon = loadBaseIcon(style: style)
+        return StyleImageSet(
+            normal: makeNormalIcon(baseIcon: baseIcon),
+            updateAvailable: makeBadgedIcon(
+                baseIcon: baseIcon,
+                badge: .updateArrow,
+                accessibilityDescription: "FasterSwiper — Update Available"
+            ),
+            error: makeBadgedIcon(
+                baseIcon: baseIcon,
+                badge: .statusDot(.systemRed),
+                accessibilityDescription: "FasterSwiper — Error"
+            ),
+            stopped: makeBadgedIcon(
+                baseIcon: baseIcon,
+                badge: .statusDot(.systemGray),
+                accessibilityDescription: "FasterSwiper — Stopped"
+            )
         )
-        let image =
-            NSImage(
-                systemSymbolName: "appwindow.swipe.rectangle",
-                accessibilityDescription: "FasterSwiper"
-            )?
-            .withSymbolConfiguration(config)
-            ?? NSImage()
-        image.isTemplate = true
+    }
+
+    private static func loadBaseIcon(style: MenuBarIconStyle) -> NSImage? {
+        let image: NSImage? =
+            switch style {
+            case .appIcon:
+                Bundle.main.url(
+                    forResource: "MenuBarIcon",
+                    withExtension: "svg"
+                ).flatMap(NSImage.init(contentsOf:))
+            case .sfSymbol:
+                NSImage(
+                    systemSymbolName: sfSymbolName,
+                    accessibilityDescription: nil
+                )?
+                .withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(
+                        pointSize: sfSymbolPointSize,
+                        weight: .regular
+                    )
+                )
+            }
+        image?.isTemplate = true
         return image
     }
 
-    private static func makeUpdateAvailableIcon() -> NSImage {
-        let baseMeasureConfig = NSImage.SymbolConfiguration(
-            pointSize: basePointSize,
-            weight: .regular
-        )
-        let baseSize =
-            NSImage(
-                systemSymbolName: "appwindow.swipe.rectangle",
-                accessibilityDescription: nil
-            )?
-            .withSymbolConfiguration(baseMeasureConfig)?
-            .size ?? NSSize(width: 22, height: 15)
+    private static func canvasSize(for baseIcon: NSImage?) -> NSSize {
+        let baseSize = baseIcon?.size ?? fallbackBaseSize
+        return NSSize(width: ceil(baseSize.width), height: canvasHeight)
+    }
 
-        let canvasSize = NSSize(
-            width: ceil(baseSize.width + badgeOverflowRight),
-            height: canvasHeight
-        )
+    private static func makeNormalIcon(baseIcon: NSImage?) -> NSImage {
+        let size = canvasSize(for: baseIcon)
+        let image = NSImage(size: size, flipped: false) { rect in
+            guard let baseIcon else { return false }
+            let baseRect = NSRect(
+                x: (rect.width - baseIcon.size.width) / 2.0,
+                y: (rect.height - baseIcon.size.height) / 2.0,
+                width: baseIcon.size.width,
+                height: baseIcon.size.height
+            )
+            baseIcon.draw(
+                in: baseRect,
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1.0
+            )
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "FasterSwiper"
+        return image
+    }
 
-        let image = NSImage(size: canvasSize, flipped: false) { rect in
+    private static func makeBadgedIcon(
+        baseIcon: NSImage?,
+        badge: BadgeKind,
+        accessibilityDescription: String
+    ) -> NSImage {
+        let size = canvasSize(for: baseIcon)
+
+        let image = NSImage(size: size, flipped: false) { rect in
             guard let ctx = NSGraphicsContext.current else { return false }
             let cgContext = ctx.cgContext
 
-            // Isolate the cutout to this icon so .destinationOut never punches
-            // through the macOS menu bar's own backdrop.
+            // Isolate cutouts to this icon so .clear never punches through the
+            // macOS menu bar's own backdrop.
             cgContext.beginTransparencyLayer(auxiliaryInfo: nil)
             defer { cgContext.endTransparencyLayer() }
 
-            let baseConfig = NSImage.SymbolConfiguration(
-                pointSize: basePointSize,
-                weight: .regular
-            ).applying(NSImage.SymbolConfiguration(hierarchicalColor: .labelColor))
-            if let baseSymbol = NSImage(
-                systemSymbolName: "appwindow.swipe.rectangle",
-                accessibilityDescription: nil
-            )?.withSymbolConfiguration(baseConfig) {
-                let baseOrigin = NSPoint(
-                    x: 0,
-                    y: (rect.height - baseSymbol.size.height) / 2.0
+            if let baseIcon {
+                let baseRect = NSRect(
+                    x: (rect.width - baseIcon.size.width) / 2.0,
+                    y: (rect.height - baseIcon.size.height) / 2.0,
+                    width: baseIcon.size.width,
+                    height: baseIcon.size.height
                 )
-                baseSymbol.draw(
-                    in: NSRect(origin: baseOrigin, size: baseSymbol.size),
+
+                // Tint the monochrome template dynamically to .labelColor so
+                // badged icons match both Light and Dark macOS menu bars.
+                cgContext.beginTransparencyLayer(auxiliaryInfo: nil)
+                baseIcon.draw(
+                    in: baseRect,
                     from: .zero,
                     operation: .sourceOver,
                     fraction: 1.0
                 )
+                NSColor.labelColor.setFill()
+                baseRect.fill(using: .sourceIn)
+                cgContext.endTransparencyLayer()
             }
 
-            let badgeConfig = NSImage.SymbolConfiguration(
-                pointSize: badgePointSize,
-                weight: .semibold
-            ).applying(
-                NSImage.SymbolConfiguration(
-                    paletteColors: [.white, .controlAccentColor]
+            switch badge {
+            case .statusDot(let color):
+                let dotRect = CGRect(
+                    x: rect.width - statusDotDiameter - statusDotRightInset,
+                    y: statusDotBottomInset,
+                    width: statusDotDiameter,
+                    height: statusDotDiameter
                 )
-            )
-            if let badgeSymbol = NSImage(
-                systemSymbolName: "arrow.down.circle.fill",
-                accessibilityDescription: nil
-            )?.withSymbolConfiguration(badgeConfig) {
-                let badgeRect = NSRect(
-                    x: rect.width - badgeSymbol.size.width - 0.5,
-                    y: 0.5,
-                    width: badgeSymbol.size.width,
-                    height: badgeSymbol.size.height
+                let haloRect = dotRect.insetBy(
+                    dx: -badgeHaloThickness,
+                    dy: -badgeHaloThickness
                 )
+                cgContext.setBlendMode(.clear)
+                cgContext.addEllipse(in: haloRect)
+                cgContext.fillPath()
 
-                // Draw sibling `circle.fill` slightly larger with .destinationOut
-                // so the transparent halo is optically concentric with the badge.
-                let haloConfig = NSImage.SymbolConfiguration(
-                    pointSize: badgePointSize + haloExtraPointSize,
-                    weight: .semibold
-                )
-                if let haloSymbol = NSImage(
-                    systemSymbolName: "circle.fill",
-                    accessibilityDescription: nil
-                )?.withSymbolConfiguration(haloConfig) {
-                    let haloRect = NSRect(
-                        x: badgeRect.midX - haloSymbol.size.width / 2.0,
-                        y: badgeRect.midY - haloSymbol.size.height / 2.0,
-                        width: haloSymbol.size.width,
-                        height: haloSymbol.size.height
-                    )
-                    haloSymbol.draw(
-                        in: haloRect,
-                        from: .zero,
-                        operation: .destinationOut,
-                        fraction: 1.0
-                    )
-                }
+                cgContext.setBlendMode(.normal)
+                cgContext.setFillColor(color.cgColor)
+                cgContext.addEllipse(in: dotRect)
+                cgContext.fillPath()
 
-                badgeSymbol.draw(
-                    in: badgeRect,
-                    from: .zero,
-                    operation: .sourceOver,
-                    fraction: 1.0
+            case .updateArrow:
+                let badgeRect = CGRect(
+                    x: rect.width - updateBadgeDiameter - updateBadgeRightInset,
+                    y: updateBadgeBottomInset,
+                    width: updateBadgeDiameter,
+                    height: updateBadgeDiameter
                 )
+                let haloRect = badgeRect.insetBy(
+                    dx: -badgeHaloThickness,
+                    dy: -badgeHaloThickness
+                )
+                cgContext.setBlendMode(.clear)
+                cgContext.addEllipse(in: haloRect)
+                cgContext.fillPath()
+
+                cgContext.setBlendMode(.normal)
+                cgContext.setFillColor(NSColor.controlAccentColor.cgColor)
+                cgContext.addEllipse(in: badgeRect)
+                cgContext.fillPath()
+
+                // Draw a crisp downward arrow centered in `badgeRect` (+y up).
+                let cx = badgeRect.midX
+                let cy = badgeRect.midY
+                let halfShaft: CGFloat = 2.1
+                let wingX: CGFloat = 2.0
+                let wingY: CGFloat = 0.2
+                cgContext.setStrokeColor(NSColor.white.cgColor)
+                cgContext.setLineWidth(1.35)
+                cgContext.setLineCap(.round)
+                cgContext.setLineJoin(.round)
+                cgContext.move(to: CGPoint(x: cx, y: cy + halfShaft))
+                cgContext.addLine(to: CGPoint(x: cx, y: cy - halfShaft))
+                cgContext.move(to: CGPoint(x: cx - wingX, y: cy - wingY))
+                cgContext.addLine(to: CGPoint(x: cx, y: cy - halfShaft))
+                cgContext.addLine(to: CGPoint(x: cx + wingX, y: cy - wingY))
+                cgContext.strokePath()
             }
 
             return true
         }
 
         image.isTemplate = false
-        image.accessibilityDescription = "FasterSwiper — Update Available"
+        image.accessibilityDescription = accessibilityDescription
         return image
     }
 }

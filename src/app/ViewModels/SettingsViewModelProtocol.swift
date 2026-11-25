@@ -12,6 +12,40 @@ public struct PickerOption: Identifiable, Hashable {
     }
 }
 
+public enum MenuBarIconStyle: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case appIcon
+    case sfSymbol
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .appIcon: "Default"
+        case .sfSymbol: "Classic"
+        }
+    }
+}
+
+public enum MenuBarStatusIndicatorOverride: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case automatic
+    case normal
+    case updateAvailable
+    case error
+    case stopped
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .normal: "Normal"
+        case .updateAvailable: "Update Available"
+        case .error: "Error"
+        case .stopped: "Stopped"
+        }
+    }
+}
+
 public enum SettingsViewTab: String, CaseIterable, Identifiable, Hashable {
     case general
     case animation
@@ -69,7 +103,11 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var enableJumpToSpaceShortcuts: Bool { get set }
 
     var launchAtLogin: Bool { get set }
-    var hideMenuBarIcon: Bool { get set }
+    var showMenuBarIcon: Bool { get set }
+    var menuBarIconStyle: MenuBarIconStyle { get set }
+    var showMenuBarStatusGlyph: Bool { get set }
+    var showStatusIndicatorOverride: Bool { get }
+    var statusIndicatorOverride: MenuBarStatusIndicatorOverride { get set }
 
     var automaticallyChecksForUpdates: Bool { get set }
     var automaticallyDownloadsUpdates: Bool { get set }

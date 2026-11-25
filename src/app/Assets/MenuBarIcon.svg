@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="22" height="18" viewBox="0 0 22 18">
+  <g transform="translate(11 9) skewX(6) translate(-11 -9)" fill="#000000">
+    <!-- Top Space (11.0 x 13.6pt, r=1.0pt) -->
+    <rect x="1.2" y="2.2" width="11.0" height="13.6" rx="1.0" />
+    <!-- Mid Space tab (3.7 x 11.6pt, 1.3pt seam, right r=0.9pt) -->
+    <path d="M 13.5 3.2 H 16.3 A 0.9 0.9 0 0 1 17.2 4.1 V 13.9 A 0.9 0.9 0 0 1 16.3 14.8 H 13.5 Z" />
+    <!-- Back Space tab (2.3 x 9.6pt, 1.3pt seam, right r=0.8pt) -->
+    <path d="M 18.5 4.2 H 20.0 A 0.8 0.8 0 0 1 20.8 5.0 V 13.0 A 0.8 0.8 0 0 1 20.0 13.8 H 18.5 Z" />
+  </g>
+</svg>
