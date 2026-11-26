@@ -321,7 +321,7 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                     Syncing to your display's refresh rate is more efficient, \
                     but you can switch to a specific target framerate if \
                     animations appear choppy in certain circumstances, e.g. \
-                    multi-monitor set ups with mixed refresh rates.
+                    multi-monitor setups with mixed refresh rates.
                     """
                 )
                 .font(.footnote)

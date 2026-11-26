@@ -181,6 +181,13 @@ struct FasterSwiperApp: App {
                 }
         }
         .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About FasterSwiper") {
+                    openAbout()
+                }
+            }
+        }
     }
 
     private func openSettings() {
