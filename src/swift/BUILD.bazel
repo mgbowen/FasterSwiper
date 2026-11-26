@@ -1,0 +1,143 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_swift//proto:proto.bzl", "swift_proto_library")
+load("@rules_swift//swift:swift.bzl", "swift_library")
+load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+
+package(default_visibility = ["//src:__subpackages__"])
+
+proto_library(
+    name = "log_proto",
+    srcs = ["log.proto"],
+    visibility = ["//visibility:private"],
+)
+
+cc_proto_library(
+    name = "log_cc_proto",
+    tags = ["no-lint"],
+    visibility = ["//visibility:private"],
+    deps = [":log_proto"],
+)
+
+swift_proto_library(
+    name = "log_swift_proto",
+    compilers = ["//src/public:swift_protobuf_spm"],
+    module_name = "FasterSwiper_LogProto",
+    protos = [":log_proto"],
+    visibility = ["//visibility:private"],
+)
+
+swift_proto_library(
+    name = "rpc_status_swift_proto",
+    compilers = ["//src/public:swift_protobuf_spm"],
+    module_name = "FasterSwiper_RpcStatusProto",
+    protos = [
+        "@googleapis//google/rpc:code_proto",
+        "@googleapis//google/rpc:status_proto",
+    ],
+    deps = [
+        "@protobuf//:any_cc_proto",
+    ],
+)
+
+swift_interop_hint(
+    name = "log_c_swift_interop",
+    module_name = "FasterSwiper_LogC",
+)
+
+cc_library(
+    name = "log_c",
+    srcs = ["log-c.cc"],
+    hdrs = ["log-c.h"],
+    aspect_hints = [":log_c_swift_interop"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":log_cc_proto",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:vlog_is_on",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+swift_library(
+    name = "log",
+    srcs = ["Log.swift"],
+    module_name = "FasterSwiper_Log",
+    deps = [
+        ":log_c",
+        ":log_swift_proto",
+    ],
+)
+
+swift_library(
+    name = "log_test_helper",
+    testonly = True,
+    srcs = ["LogTestHelper.swift"],
+    module_name = "FasterSwiper_LogTestHelper",
+    visibility = ["//visibility:private"],
+    deps = [":log"],
+)
+
+cc_test(
+    name = "log_test",
+    srcs = ["log_test.cc"],
+    deps = [
+        ":log_test_helper",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log:globals",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+swift_library(
+    name = "display-link-timer-swift",
+    srcs = ["DisplayLinkTimer.swift"],
+    module_name = "FasterSwiper_DisplayLinkTimer",
+    visibility = ["//visibility:private"],
+    deps = [
+        ":log",
+        ":rpc_status_swift_proto",
+    ],
+)
+
+cc_library(
+    name = "display-link-timer",
+    srcs = ["display-link-timer.cc"],
+    hdrs = ["display-link-timer.h"],
+    deps = [
+        ":display-link-timer-swift",
+        "//src:CoreFoundation",
+        "//src:animation-timer",
+        "//src:cf-util",
+        "//src:periodic-timer",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@googleapis//google/rpc:code_cc_proto",
+        "@googleapis//google/rpc:status_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "display-link-timer_test",
+    srcs = ["display-link-timer_test.cc"],
+    deps = [
+        ":display-link-timer",
+        "//src:animation-timer",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -38,7 +38,13 @@ public struct SettingsView<VM: SettingsViewModelProtocol>: View {
                 }
             }
         }
-        .frame(minWidth: 600, maxWidth: 600, minHeight: 500)
+        .frame(
+            minWidth: 600,
+            maxWidth: 600,
+            minHeight: 500,
+            idealHeight: 500,
+            maxHeight: .infinity
+        )
         .onAppear {
             viewModel.refreshLaunchAtLogin()
         }
@@ -274,22 +280,52 @@ struct AnimationSettingsView<VM: SettingsViewModelProtocol>: View {
                 .disabled(!viewModel.verticalEnabled)
             }
 
-            Section("Display & Performance") {
-                LabeledContent("Target framerate") {
-                    HStack(spacing: 6) {
-                        TextField(
-                            "",
-                            value: $viewModel.framesPerSecond,
-                            format: .number
-                        )
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 60)
-                        Text("FPS")
-                            .foregroundStyle(.secondary)
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(
+                        "Sync to display refresh rate",
+                        isOn: $viewModel.syncToDisplayRefreshRate
+                    )
+                    Text(
+                        viewModel.syncToDisplayRefreshRate
+                            ? "Animations sync to the refresh rate of the display under your pointer."
+                            : "Animations use a fixed framerate."
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 48)
+                }
+
+                if !viewModel.syncToDisplayRefreshRate {
+                    LabeledContent("Target framerate") {
+                        HStack(spacing: 6) {
+                            TextField(
+                                "",
+                                value: $viewModel.framesPerSecond,
+                                format: .number
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                            Text("FPS")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
+            } header: {
+                Text("Display & Performance")
+            } footer: {
+                Text(
+                    """
+                    Syncing to your display's refresh rate is more efficient, \
+                    but you can switch to a specific target framerate if \
+                    animations appear choppy in certain circumstances, e.g. \
+                    multi-monitor set ups with mixed refresh rates.
+                    """
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

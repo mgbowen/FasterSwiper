@@ -252,6 +252,7 @@ int64_t ContinuousSpaceSwitchOperation::position_locked() const {
 
 void ContinuousSpaceSwitchOperation::SetPositionLocked(
     int64_t new_position, CGEventSink* absl_nonnull event_sink) {
+  pending_hold_target_.reset();
   if (new_position == current_position_) {
     return;
   }
@@ -271,6 +272,47 @@ void ContinuousSpaceSwitchOperation::SetPositionLocked(
   PostEvent(event_sink, kGestureChanged,
             axis_adapter_locked().NanoswipesToProgress(last_emitted_position_ -
                                                        origin_position_));
+}
+
+SpaceSwitchOperation::AnimationStepResult
+ContinuousSpaceSwitchOperation::StepAnimationLocked(
+    int64_t start_position, int64_t target_position,
+    int64_t time_since_start_ns, absl::Duration duration,
+    const EasingFunction& easing, CGEventSink* absl_nonnull event_sink) {
+  if (pending_hold_target_.has_value() &&
+      *pending_hold_target_ == target_position &&
+      current_position_ == target_position) {
+    pending_hold_target_.reset();
+    previous_position_ = current_position_;
+    if (gesture_started_) {
+      ++changed_count_;
+      PostEvent(event_sink, kGestureChanged,
+                axis_adapter_locked().NanoswipesToProgress(
+                    last_emitted_position_ - origin_position_));
+    }
+    return AnimationStepResult::kFinished;
+  }
+
+  pending_hold_target_.reset();
+
+  const AnimationStepResult base_result =
+      SpaceSwitchOperation::StepAnimationLocked(start_position, target_position,
+                                                time_since_start_ns, duration,
+                                                easing, event_sink);
+  if (base_result == AnimationStepResult::kFinished &&
+      duration > absl::ZeroDuration() && gesture_started_ &&
+      std::abs(target_position - previous_position_) >
+          kAnimatedCommitMaxPenultimateGap) {
+    // At 60/120 Hz VSync intervals, Linear/EaseIn, multi-space, or
+    // short-duration animations can jump more than
+    // kAnimatedCommitMaxPenultimateGap on the final tick. Hold at
+    // target_position (emitting target - holdback) for one extra VSync so
+    // Dock settles near the target before Commit() selects final velocity.
+    pending_hold_target_ = target_position;
+    return AnimationStepResult::kContinue;
+  }
+
+  return base_result;
 }
 
 void ContinuousSpaceSwitchOperation::CommitLocked(

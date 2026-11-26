@@ -1,11 +1,16 @@
 #pragma once
 
+#include "src/animation-timer.h"
 #include "src/easing.h"
 #include "src/engine/space-switch-operation.h"
-#include "src/periodic-timer.h"
+#include "src/swift/display-link-timer.h"
 
 #include <future>
 #include <memory>
+#include <optional>
+#include <utility>
+
+#include <ApplicationServices/ApplicationServices.h>
 
 namespace fasterswiper {
 
@@ -16,7 +21,10 @@ enum class AnimatedSpaceSwitchOperationResult {
 
 class SwipeAnimator {
 public:
-  explicit SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation);
+  explicit SwipeAnimator(
+      std::unique_ptr<SpaceSwitchOperation> operation,
+      std::optional<CGDirectDisplayID> display_id = std::nullopt,
+      AnimationTimerFactory timer_factory = MakeDisplayLinkTimerFactory());
   ~SwipeAnimator();
 
   // Non-copyable, non-movable.
@@ -37,15 +45,11 @@ public:
     int64_t target_position ABSL_REQUIRE_EXPLICIT_INIT;
     absl::Duration duration ABSL_REQUIRE_EXPLICIT_INIT;
     EasingFunction easing_function ABSL_REQUIRE_EXPLICIT_INIT;
-    int64_t ticks_per_second ABSL_REQUIRE_EXPLICIT_INIT;
 
     template <typename Sink>
     friend void AbslStringify(Sink& sink, const AnimateParameters& params) {
-      absl::Format(&sink,
-                   "AnimateParameters{target_position=%d, duration=%s, "
-                   "ticks_per_second=%d}",
-                   params.target_position, absl::StrCat(params.duration),
-                   params.ticks_per_second);
+      absl::Format(&sink, "AnimateParameters{target_position=%d, duration=%s}",
+                   params.target_position, absl::StrCat(params.duration));
     }
   };
 
@@ -66,7 +70,9 @@ public:
 
 private:
   const std::unique_ptr<SpaceSwitchOperation> operation_;
-  std::unique_ptr<PeriodicTimer> timer_;
+  const std::optional<CGDirectDisplayID> display_id_;
+  AnimationTimerFactory timer_factory_;
+  std::unique_ptr<AnimationTimer> timer_;
   std::shared_future<AnimatedSpaceSwitchOperationResult> pending_future_;
   std::unique_ptr<CGEventSink> active_event_sink_;
 

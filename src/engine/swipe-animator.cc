@@ -1,18 +1,34 @@
 #include "src/engine/swipe-animator.h"
 
+#include "src/animation-timer.h"
 #include "src/engine/space-switch-operation.h"
-#include "src/periodic-timer.h"
+
+#include <chrono>
+#include <cstdint>
+#include <future>
+#include <memory>
+#include <type_traits>
+#include <utility>
 
 #include <absl/cleanup/cleanup.h>
 #include <absl/log/check.h>
 #include <absl/log/log.h>
+#include <absl/status/status.h>
 #include <absl/status/status_macros.h>
+#include <absl/time/time.h>
 #include <magic_enum/magic_enum.hpp>
 
 namespace fasterswiper {
 
-SwipeAnimator::SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation)
-    : operation_(std::move(operation)) {}
+SwipeAnimator::SwipeAnimator(std::unique_ptr<SpaceSwitchOperation> operation,
+                             std::optional<CGDirectDisplayID> display_id,
+                             AnimationTimerFactory timer_factory)
+    : operation_(std::move(operation)),
+      display_id_(display_id),
+      timer_factory_(std::move(timer_factory)) {
+  CHECK(operation_ != nullptr);
+  CHECK(timer_factory_ != nullptr);
+}
 
 SwipeAnimator::~SwipeAnimator() {
   (void)CancelAnimation();
@@ -62,7 +78,7 @@ absl::Status SwipeAnimator::AnimateToPosition(
     return status;
   }
 
-  const int64_t period_ns = 1'000'000'000 / params.ticks_per_second;
+  const absl::Duration duration = params.duration;
 
   auto state = std::make_unique<AnimationState>(AnimationState{
       .start_position = operation_->position(),
@@ -73,12 +89,13 @@ absl::Status SwipeAnimator::AnimateToPosition(
 
   std::promise<AnimatedSpaceSwitchOperationResult> promise;
   pending_future_ = promise.get_future().share();
-  timer_ = std::make_unique<PeriodicTimer>(PeriodicTimer::Parameters{
-      .period_ns = period_ns,
-      .fire_immediately = operation_->FiresAnimationTimerImmediately(),
-      .tick_callback =
-          [this, state = std::move(state)](
-              int64_t time_since_start_ns) -> PeriodicTimerTickResult {
+  AnimationTimerParameters timer_params{
+      .display_id = display_id_,
+      .duration = duration,
+      .fire_immediately = operation_->FiresAnimationTimerImmediately() ||
+                          duration <= absl::ZeroDuration(),
+      .tick_callback = [this, state = std::move(state)](
+                           int64_t time_since_start_ns) -> AnimationTickResult {
         CHECK(active_event_sink_ != nullptr);
         const SpaceSwitchOperation::AnimationStepResult result =
             operation_->StepAnimation(
@@ -86,14 +103,13 @@ absl::Status SwipeAnimator::AnimateToPosition(
                 time_since_start_ns, state->params.duration,
                 state->params.easing_function, active_event_sink_.get());
         return result == SpaceSwitchOperation::AnimationStepResult::kFinished
-                   ? PeriodicTimerTickResult::kFinishTimer
-                   : PeriodicTimerTickResult::kContinueTimer;
+                   ? AnimationTickResult::kFinish
+                   : AnimationTickResult::kContinue;
       },
-      .stopped_callback =
-          [this, promise = std::move(promise)](
-              PeriodicTimerStopReason stop_reason) mutable -> void {
+      .stopped_callback = [this, promise = std::move(promise)](
+                              AnimationStopReason stop_reason) mutable -> void {
         switch (stop_reason) {
-          using enum PeriodicTimerStopReason;
+          using enum AnimationStopReason;
           case kFinished:
             CHECK(active_event_sink_ != nullptr);
             operation_->Commit(active_event_sink_.get());
@@ -104,12 +120,15 @@ absl::Status SwipeAnimator::AnimateToPosition(
             break;
           default:
             LOG(FATAL)
-                << "Unknown PeriodicTimerStopReason "
-                << static_cast<std::underlying_type_t<PeriodicTimerStopReason>>(
+                << "Unknown AnimationStopReason "
+                << static_cast<std::underlying_type_t<AnimationStopReason>>(
                        stop_reason);
         }
       },
-  });
+  };
+
+  timer_ = timer_factory_(std::move(timer_params));
+  CHECK(timer_ != nullptr);
 
   return absl::OkStatus();
 }

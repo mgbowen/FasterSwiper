@@ -98,6 +98,7 @@ public protocol SettingsViewModelProtocol: AnyObject, Observable {
     var verticalCubicBezierCurveText: String { get set }
 
     var easingFunctionOptions: [PickerOption] { get }
+    var syncToDisplayRefreshRate: Bool { get set }
     var framesPerSecond: Int { get set }
     var interceptMissionControlShortcuts: Bool { get set }
     var enableJumpToSpaceShortcuts: Bool { get set }

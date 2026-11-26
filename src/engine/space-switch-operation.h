@@ -167,6 +167,7 @@ private:
   int64_t changed_count_ = 0;
 
   int latest_direction_ = 0;
+  std::optional<int64_t> pending_hold_target_;
 
   ContinuousSpaceSwitchOperation(std::unique_ptr<AxisAdapter> axis_adapter,
                                  int64_t origin_position,
@@ -181,6 +182,12 @@ private:
       ABSL_SHARED_LOCKS_REQUIRED(mutex());
   void SetPositionLocked(int64_t new_position,
                          CGEventSink* absl_nonnull event_sink) override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  [[nodiscard]] AnimationStepResult StepAnimationLocked(
+      int64_t start_position, int64_t target_position,
+      int64_t time_since_start_ns, absl::Duration duration,
+      const EasingFunction& easing,
+      CGEventSink* absl_nonnull event_sink) override
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());
   void CommitLocked(CGEventSink* absl_nonnull event_sink) override
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex());

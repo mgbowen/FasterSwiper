@@ -1,6 +1,5 @@
 #include "src/engine/axis-adapter.h"
 
-#include "src/cf-util.h"
 #include "src/compatibility.h"
 #include "src/engine/const.h"
 #include "src/macos-private.h"
@@ -23,15 +22,14 @@ constexpr int64_t kDesktopPosition = 0;
 constexpr int64_t kAppExposePosition = -1 * kOneSwipeInNanoswipes;
 
 const absl::NoDestructor<SpaceState> kAppExposeDummySpaceState([] {
-  return SpaceState(WrapCFUnique(CFStringCreateWithCString(
-                        nullptr, "dummy", kCFStringEncodingUTF8)),
+  return SpaceState(kCGNullDirectDisplay,
                     /*spaces=*/{Space{.id = 0}, Space{.id = 1}},
                     /*index=*/0);
 }());
 
 absl::StatusOr<int64_t> GetCommittedPosition(const SpaceState& space_state) {
-  const int64_t current_space_id = SLSManagedDisplayGetCurrentSpace(
-      SLSMainConnectionID(), space_state.display_id().get());
+  ASSIGN_OR_RETURN(const int64_t current_space_id,
+                   GetCurrentSpaceIdForDisplay(space_state.display_id()));
   for (int i = 0; i < space_state.space_ids().size(); i++) {
     if (space_state.space_ids()[i] == current_space_id) {
       return i * kOneSwipeInNanoswipes;

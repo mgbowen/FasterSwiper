@@ -9,9 +9,11 @@
 #include "src/hotkeys.h"
 #include "src/macos-private.h"
 #include "src/mission-control.h"
+#include "src/periodic-timer.h"
 #include "src/proto-util.h"
 #include "src/public/fasterswiper.pb.h"
 #include "src/space-state.h"
+#include "src/swift/display-link-timer.h"
 #include "src/variant-util.h"
 
 #include <algorithm>
@@ -338,7 +340,6 @@ absl::Status PhysicalEventHandler::HandleEndGesture(
           .target_position = target_position_,
           .duration = duration,
           .easing_function = std::move(easing_function),
-          .ticks_per_second = options_.frames_per_second(),
       },
       std::make_unique<CGEventPostSink>()));
 
@@ -370,7 +371,6 @@ absl::Status PhysicalEventHandler::HandleCancelGesture(
           .target_position = initial_position_,
           .duration = duration,
           .easing_function = std::move(easing_function),
-          .ticks_per_second = options_.frames_per_second(),
       },
       std::make_unique<CGEventPostSink>()));
 
@@ -445,7 +445,6 @@ absl::Status PhysicalEventHandler::HandleCommand(
           .target_position = target_position_,
           .duration = duration,
           .easing_function = std::move(easing_function),
-          .ticks_per_second = options_.frames_per_second(),
       },
       std::make_unique<CGEventPostSink>()));
 
@@ -505,7 +504,6 @@ absl::Status PhysicalEventHandler::HandleCommand(
           .target_position = target_position_,
           .duration = duration,
           .easing_function = std::move(easing_function),
-          .ticks_per_second = options_.frames_per_second(),
       },
       std::make_unique<CGEventPostSink>()));
 
@@ -542,6 +540,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
 
   if (need_new_animator) {
     std::unique_ptr<SpaceSwitchOperation> operation;
+    std::optional<CGDirectDisplayID> display_id;
 
     switch (axis) {
       using enum Axis;
@@ -551,6 +550,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
 
         std::unique_ptr<AxisAdapter> axis_adapter;
         if (active_window == ActiveMultitaskingWindow::kAppExpose) {
+          display_id = GetPrimaryDisplayUnderMouse();
           ASSIGN_OR_RETURN(axis_adapter,
                            CreateAppExposeHorizontalAxisAdapter());
           VLOG(1) << "SetUpForNewGesture(): active_window=kAppExpose, using "
@@ -560,6 +560,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
                            LoadSpaceStateForActiveDisplay());
           VLOG(1) << "SetUpForNewGesture(): space_state=" << space_state
                   << ", active_window=" << magic_enum::enum_name(active_window);
+          display_id = space_state.display_id();
           axis_adapter =
               std::make_unique<HorizontalAxisAdapter>(std::move(space_state));
         }
@@ -578,6 +579,7 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
       case kVertical: {
         ASSIGN_OR_RETURN(SpaceState space_state,
                          LoadSpaceStateForActiveDisplay());
+        display_id = space_state.display_id();
         std::unique_ptr<AxisAdapter> axis_adapter =
             std::make_unique<VerticalAxisAdapter>(std::move(space_state));
         if (ShouldUseVerticalSpringCompensation(options_)) {
@@ -596,7 +598,16 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
             << operation->axis_adapter().debug_name()
             << ", operation.debug_name=" << operation->debug_name();
 
-    animator_ = std::make_unique<SwipeAnimator>(std::move(operation));
+    const bool use_display_link =
+        !options_.has_sync_to_display_refresh_rate() ||
+        options_.sync_to_display_refresh_rate();
+    AnimationTimerFactory timer_factory =
+        use_display_link
+            ? MakeDisplayLinkTimerFactory()
+            : MakePeriodicTimerFactory(options_.frames_per_second());
+
+    animator_ = std::make_unique<SwipeAnimator>(
+        std::move(operation), display_id, std::move(timer_factory));
 
     target_position_ = animator_->position();
   }

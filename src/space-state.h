@@ -1,10 +1,12 @@
 #pragma once
 
-#include "src/cf-util.h"
-#include "src/string-util.h"
+#include <cstdint>
+#include <optional>
+#include <vector>
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <absl/status/statusor.h>
+#include <absl/strings/str_format.h>
 #include <absl/strings/str_join.h>
 
 namespace fasterswiper {
@@ -22,10 +24,8 @@ struct Space {
 
 class SpaceState {
 public:
-  SpaceState(CFUniquePtr<CFStringRef> display_id, std::vector<Space> spaces,
-             CFIndex index);
-  SpaceState(CFSharedPtr<CFStringRef> display_id, std::vector<Space> spaces,
-             CFIndex index);
+  SpaceState(CGDirectDisplayID display_id, std::vector<Space> spaces,
+             int64_t index);
 
   SpaceState(const SpaceState& other) noexcept = default;
   SpaceState(SpaceState&&) = default;
@@ -34,9 +34,7 @@ public:
 
   ~SpaceState() = default;
 
-  absl_nonnull CFSharedPtr<CFStringRef> display_id() const {
-    return display_id_;
-  }
+  CGDirectDisplayID display_id() const { return display_id_; }
 
   int64_t index() const { return index_; }
 
@@ -53,20 +51,19 @@ public:
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const SpaceState& space_state) {
-    absl::Format(
-        &sink,
-        "SpaceState{display_id=\"%s\", current_space=%v, count=%d, "
-        "space_ids=[%s]}",
-        StatusOrToString(StringFromCFStringRef(space_state.display_id().get())),
-        space_state.current_space(), space_state.count(),
-        absl::StrJoin(space_state.spaces(), ", ",
-                      [](std::string* out, const Space& space) {
-                        absl::StrAppend(out, space.id);
-                      }));
+    absl::Format(&sink,
+                 "SpaceState{display_id=%u, current_space=%v, count=%d, "
+                 "space_ids=[%s]}",
+                 space_state.display_id(), space_state.current_space(),
+                 space_state.count(),
+                 absl::StrJoin(space_state.spaces(), ", ",
+                               [](std::string* out, const Space& space) {
+                                 absl::StrAppend(out, space.id);
+                               }));
   }
 
 private:
-  CFSharedPtr<CFStringRef> display_id_;
+  CGDirectDisplayID display_id_ = kCGNullDirectDisplay;
   std::vector<Space> spaces_;
   int64_t index_ = 0;
   double unit_factor_ = 0;
@@ -74,6 +71,9 @@ private:
 
 absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay();
 
-absl::StatusOr<std::vector<CFUniquePtr<CFStringRef>>> GetDisplaysUnderMouse();
+absl::StatusOr<int64_t> GetCurrentSpaceIdForDisplay(
+    CGDirectDisplayID display_id);
+
+std::optional<CGDirectDisplayID> GetPrimaryDisplayUnderMouse();
 
 }  // namespace fasterswiper

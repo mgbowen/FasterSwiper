@@ -36,6 +36,7 @@ public final class MockSettingsViewModel: SettingsViewModelProtocol {
             PickerOption(label: "Cubic Bezier curve", tag: 3),
         ]
     }
+    public var syncToDisplayRefreshRate: Bool = true
     public var framesPerSecond: Int = 240
     public var interceptMissionControlShortcuts: Bool = true
     public var enableJumpToSpaceShortcuts: Bool = true

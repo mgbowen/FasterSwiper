@@ -1,43 +1,27 @@
 #pragma once
 
+#include "src/animation-timer.h"
+
 #include <atomic>
+#include <cstdint>
+#include <optional>
 
 #include <absl/functional/any_invocable.h>
 #include <dispatch/dispatch.h>
 
 namespace fasterswiper {
 
-enum class PeriodicTimerTickResult {
-  kContinueTimer,
-  kFinishTimer,
-};
-
-enum class PeriodicTimerStopReason {
-  kFinished,
-  kCancelled,
-};
-
-constexpr std::string_view PeriodicTimerStopReasonToString(
-    PeriodicTimerStopReason stop_reason) {
-  switch (stop_reason) {
-    case PeriodicTimerStopReason::kFinished:
-      return "kFinished";
-    case PeriodicTimerStopReason::kCancelled:
-      return "kCancelled";
-  }
-}
-
 int64_t UptimeInNanoseconds();
 
-class PeriodicTimer {
+class PeriodicTimer : public AnimationTimer {
 public:
   struct Parameters {
     int64_t period_ns = 0;
     bool fire_immediately = false;
-    absl::AnyInvocable<PeriodicTimerTickResult(
+    absl::AnyInvocable<AnimationTickResult(
         int64_t /* time_since_timer_start_ns */)>
         tick_callback;
-    absl::AnyInvocable<void(PeriodicTimerStopReason) &&> stopped_callback;
+    absl::AnyInvocable<void(AnimationStopReason) &&> stopped_callback;
   };
 
   explicit PeriodicTimer(Parameters parameters);
@@ -47,11 +31,11 @@ public:
   PeriodicTimer& operator=(const PeriodicTimer&) = delete;
   PeriodicTimer& operator=(PeriodicTimer&&) = delete;
 
-  ~PeriodicTimer();
+  ~PeriodicTimer() override;
 
   // Cancel the timer. This method blocks until the timer is guaranteed to no
   // longer be executing.
-  void Cancel();
+  void Cancel() override;
 
 private:
   Parameters params_;
@@ -61,11 +45,15 @@ private:
   int64_t start_time_ns_ = 0;
 
   std::atomic_flag stop_requested_ = ATOMIC_FLAG_INIT;
-  std::atomic<PeriodicTimerStopReason> stop_reason_ =
-      PeriodicTimerStopReason::kCancelled;
+  std::atomic<AnimationStopReason> stop_reason_ =
+      AnimationStopReason::kCancelled;
   std::atomic<bool> stopped_ = false;
 
+  void CancelImpl();
   void HandleTick();
 };
+
+AnimationTimerFactory MakePeriodicTimerFactory(
+    std::optional<int64_t> ticks_per_second_override = std::nullopt);
 
 }  // namespace fasterswiper

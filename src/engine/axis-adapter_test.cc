@@ -1,6 +1,5 @@
 #include "src/engine/axis-adapter.h"
 
-#include "src/cf-util.h"
 #include "src/engine/const.h"
 #include "src/space-state.h"
 
@@ -19,9 +18,7 @@ namespace fasterswiper {
 namespace {
 
 TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS26) {
-  auto display_id = WrapCFUnique(CFStringCreateWithCString(
-      nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(std::move(display_id),
+  SpaceState space_state(kCGNullDirectDisplay,
                          {Space{.id = 101}, Space{.id = 102}, Space{.id = 103}},
                          /*index=*/1);
 
@@ -75,9 +72,7 @@ TEST(AxisAdapterTest, AppExposeHorizontalAxisAdapter_MacOS27) {
 }
 
 TEST(AxisAdapterTest, VerticalAxisAdapter_DesktopSpace) {
-  auto display_id = WrapCFUnique(CFStringCreateWithCString(
-      nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(std::move(display_id),
+  SpaceState space_state(kCGNullDirectDisplay,
                          {Space{.id = 101, .is_desktop = true}},
                          /*index=*/0);
 
@@ -99,9 +94,7 @@ TEST(AxisAdapterTest, VerticalAxisAdapter_DesktopSpace) {
 }
 
 TEST(AxisAdapterTest, VerticalAxisAdapter_NonDesktopSpace) {
-  auto display_id = WrapCFUnique(CFStringCreateWithCString(
-      nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(std::move(display_id),
+  SpaceState space_state(kCGNullDirectDisplay,
                          {Space{.id = 101, .is_desktop = false}},
                          /*index=*/0);
 
@@ -113,9 +106,7 @@ TEST(AxisAdapterTest, VerticalAxisAdapter_NonDesktopSpace) {
 }
 
 TEST(AxisAdapterTest, SingleSpaceStateUnitFactorIsFinite) {
-  auto display_id = WrapCFUnique(CFStringCreateWithCString(
-      nullptr, "test-display", kCFStringEncodingUTF8));
-  SpaceState space_state(std::move(display_id),
+  SpaceState space_state(kCGNullDirectDisplay,
                          {Space{.id = 101, .is_desktop = true}},
                          /*index=*/0);
 

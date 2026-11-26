@@ -275,79 +275,151 @@ TEST(VerticalSpringCompensatorTest,
   for (const auto& curve : curves) {
     for (int dl_hz : kDisplayLinkHz) {
       const int64_t dl_period_ns = 1'000'000'000LL / dl_hz;
-      for (int64_t phase_ms : kPhaseOffsetsMs) {
-        const int64_t base_ns = 1'000'000'000LL;
-        const int64_t tick_dt_ns = 1'000'000'000LL / 240;
+      for (int tick_hz : {dl_hz, 240}) {
+        const int64_t tick_dt_ns = 1'000'000'000LL / tick_hz;
+        for (int64_t phase_ms : kPhaseOffsetsMs) {
+          const int64_t base_ns = 1'000'000'000LL;
 
-        VerticalSpringCompensator comp;
-        comp.Reset(0.0, 0.0, base_ns);
+          VerticalSpringCompensator comp;
+          comp.Reset(0.0, 0.0, base_ns);
 
-        SpringState dl_plant{.y = 0.0, .v = 0.0};
-        double committed_old_target = kFixedFP1616Lsb;
-        double latest_u = kFixedFP1616Lsb;
-        double max_dl_overshoot = 0.0;
-        int64_t next_dl_ns = base_ns + (phase_ms * 1'000'000LL) % dl_period_ns;
-        int64_t prev_dl_ns = base_ns;
+          SpringState dl_plant{.y = 0.0, .v = 0.0};
+          double committed_old_target = kFixedFP1616Lsb;
+          double latest_u = kFixedFP1616Lsb;
+          double max_dl_overshoot = 0.0;
+          int64_t next_dl_ns =
+              base_ns + (phase_ms * 1'000'000LL) % dl_period_ns;
+          int64_t prev_dl_ns = base_ns;
 
-        auto step_dl_plant = [&](double dt_s, double target_u) {
-          constexpr int kSubSteps = 8;
-          const double sub_dt = dt_s / kSubSteps;
-          for (int s = 0; s < kSubSteps; ++s) {
-            dl_plant = StepSpringExact(dl_plant, target_u, sub_dt);
-            max_dl_overshoot = std::max(max_dl_overshoot, dl_plant.y - 1.0);
-          }
-        };
-
-        bool settled = false;
-        for (int tick = 0; tick <= 120; ++tick) {
-          const int64_t now_ns = base_ns + tick * tick_dt_ns;
-          while (next_dl_ns <= now_ns) {
-            const double dl_dt =
-                static_cast<double>(next_dl_ns - prev_dl_ns) * 1e-9;
-            if (dl_dt > 0.0) {
-              step_dl_plant(dl_dt, latest_u);
+          auto step_dl_plant = [&](double dt_s, double target_u) {
+            constexpr int kSubSteps = 8;
+            const double sub_dt = dt_s / kSubSteps;
+            for (int s = 0; s < kSubSteps; ++s) {
+              dl_plant = StepSpringExact(dl_plant, target_u, sub_dt);
+              max_dl_overshoot = std::max(max_dl_overshoot, dl_plant.y - 1.0);
             }
-            committed_old_target = latest_u;
-            prev_dl_ns = next_dl_ns;
-            next_dl_ns += dl_period_ns;
+          };
+
+          bool settled = false;
+          for (int tick = 0; tick <= 120; ++tick) {
+            const int64_t now_ns = base_ns + tick * tick_dt_ns;
+            while (next_dl_ns <= now_ns) {
+              const double dl_dt =
+                  static_cast<double>(next_dl_ns - prev_dl_ns) * 1e-9;
+              if (dl_dt > 0.0) {
+                step_dl_plant(dl_dt, latest_u);
+              }
+              committed_old_target = latest_u;
+              prev_dl_ns = next_dl_ns;
+              next_dl_ns += dl_period_ns;
+            }
+
+            const double elapsed_s =
+                static_cast<double>(tick * tick_dt_ns) * 1e-9;
+            const auto res = comp.StepAnimationTick(elapsed_s, 0.200, 0.0, 1.0,
+                                                    curve.easing, now_ns);
+            latest_u = res.command;
+            if (res.settled) {
+              settled = true;
+              break;
+            }
           }
 
-          const double elapsed_s =
-              static_cast<double>(tick * tick_dt_ns) * 1e-9;
-          const auto res = comp.StepAnimationTick(elapsed_s, 0.200, 0.0, 1.0,
-                                                  curve.easing, now_ns);
-          latest_u = res.command;
-          if (res.settled) {
-            settled = true;
-            break;
-          }
+          SCOPED_TRACE(curve.name + " tick=" + std::to_string(tick_hz) +
+                       "Hz DL=" + std::to_string(dl_hz) +
+                       "Hz phase=" + std::to_string(phase_ms) + "ms");
+          ASSERT_TRUE(settled);
+          // WindowManager applies the end-of-frame latest_u retroactively
+          // across each 8.33 ms (120 Hz) or 16.67 ms (60 Hz) DisplayLink
+          // interval, introducing a half-frame phase lead on fast-rising
+          // curves. Bound DisplayLink-sampled overshoot tightly by rate and
+          // curve class.
+          const double dl_ov_limit =
+              (dl_hz == 120) ? (curve.is_monotone ? 1.5e-4 : 8.0e-4)
+                             : (curve.is_monotone ? 3.0e-4 : 1.5e-3);
+          EXPECT_LE(max_dl_overshoot, dl_ov_limit);
+
+          // 3-stage AnimationGroup predicate: old_target was already committed
+          // at 1.0 on a prior DisplayLink frame, AND live position is within 6K
+          // Retina epsilon (or oldAnim != nil with unchanged target skips
+          // AnimationGroup.add).
+          const bool old_target_matches =
+              std::abs(1.0 - committed_old_target) <= kRetina6KEpsilon;
+          const bool live_pos_within_eps =
+              std::abs(1.0 - dl_plant.y) <= kRetina6KEpsilon;
+          EXPECT_TRUE(old_target_matches || live_pos_within_eps)
+              << "old_target=" << committed_old_target
+              << " dl_plant.y=" << dl_plant.y;
         }
-
-        SCOPED_TRACE(curve.name + " DL=" + std::to_string(dl_hz) +
-                     "Hz phase=" + std::to_string(phase_ms) + "ms");
-        ASSERT_TRUE(settled);
-        // WindowManager applies the end-of-frame latest_u retroactively across
-        // each 8.33 ms (120 Hz) or 16.67 ms (60 Hz) DisplayLink interval,
-        // introducing a half-frame phase lead on fast-rising curves. Bound
-        // DisplayLink-sampled overshoot tightly by rate and curve class.
-        const double dl_ov_limit = (dl_hz == 120)
-                                       ? (curve.is_monotone ? 1.5e-4 : 8.0e-4)
-                                       : (curve.is_monotone ? 3.0e-4 : 1.5e-3);
-        EXPECT_LE(max_dl_overshoot, dl_ov_limit);
-
-        // 3-stage AnimationGroup predicate: old_target was already committed
-        // at 1.0 on a prior DisplayLink frame, AND live position is within 6K
-        // Retina epsilon (or oldAnim != nil with unchanged target skips
-        // AnimationGroup.add).
-        const bool old_target_matches =
-            std::abs(1.0 - committed_old_target) <= kRetina6KEpsilon;
-        const bool live_pos_within_eps =
-            std::abs(1.0 - dl_plant.y) <= kRetina6KEpsilon;
-        EXPECT_TRUE(old_target_matches || live_pos_within_eps)
-            << "old_target=" << committed_old_target
-            << " dl_plant.y=" << dl_plant.y;
       }
     }
+  }
+}
+
+TEST(VerticalSpringCompensatorTest,
+     HandlesLowPowerAndVariableRefreshRateIntervals) {
+  const std::vector<NamedCurve> curves = GetAllTestCurves();
+
+  // Fixed Low Power Mode / VRR lower tiers (30 Hz and 48 Hz).
+  for (int hz : {30, 48}) {
+    for (const auto& curve : curves) {
+      const SimulationMetrics m =
+          RunCurveSimulation(curve.easing, 0.200, hz, 0.0, 1.0);
+      SCOPED_TRACE(curve.name + " @" + std::to_string(hz) + "Hz");
+      EXPECT_TRUE(m.settled);
+      EXPECT_DOUBLE_EQ(m.u_dip, 0.0);
+      EXPECT_LE(m.max_overshoot, 1.0e-4);
+      EXPECT_LT(std::abs(1.0 - m.final_plant.y), kRetina6KEpsilon);
+      EXPECT_LE(std::abs(m.final_plant.v), 0.04);
+      EXPECT_GE(m.command_dwell_ns, 25'000'000LL);
+    }
+  }
+
+  // Simulated ProMotion VRR ramp: 48 Hz -> 60 Hz -> 80 Hz -> 120 Hz.
+  constexpr std::array<int64_t, 5> kRampIntervalsNs = {
+      20'833'333LL, 16'666'667LL, 12'500'000LL, 8'333'333LL, 8'333'333LL};
+  for (const auto& curve : curves) {
+    VerticalSpringCompensator comp;
+    const int64_t base_ns = 1'000'000'000LL;
+    comp.Reset(0.0, 0.0, base_ns);
+
+    SpringState plant{.y = 0.0, .v = 0.0};
+    double prev_u = kFixedFP1616Lsb;
+    double max_overshoot = 0.0;
+    int64_t now_ns = base_ns;
+    bool settled = false;
+
+    for (int tick = 0; tick <= 60; ++tick) {
+      if (tick > 0) {
+        const int64_t dt_ns = kRampIntervalsNs[std::min<std::size_t>(
+            tick - 1, kRampIntervalsNs.size() - 1)];
+        now_ns += dt_ns;
+        constexpr int kSubSteps = 8;
+        const double sub_dt = (static_cast<double>(dt_ns) * 1e-9) / kSubSteps;
+        for (int s = 0; s < kSubSteps; ++s) {
+          plant = StepSpringExact(plant, prev_u, sub_dt);
+          max_overshoot = std::max(max_overshoot, plant.y - 1.0);
+        }
+      }
+
+      const double elapsed_s = static_cast<double>(now_ns - base_ns) * 1e-9;
+      const auto res = comp.StepAnimationTick(elapsed_s, 0.200, 0.0, 1.0,
+                                              curve.easing, now_ns);
+      if (tick > 0) {
+        EXPECT_GE(res.command, prev_u - 1e-12);
+      }
+      prev_u = res.command;
+      if (res.settled) {
+        settled = true;
+        break;
+      }
+    }
+
+    SCOPED_TRACE(curve.name + " VRR ramp 48->120Hz");
+    EXPECT_TRUE(settled);
+    EXPECT_LE(max_overshoot, 1.0e-4);
+    EXPECT_LT(std::abs(1.0 - plant.y), kRetina6KEpsilon);
+    EXPECT_LE(std::abs(plant.v), 0.04);
   }
 }
 

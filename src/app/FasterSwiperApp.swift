@@ -169,6 +169,8 @@ struct FasterSwiperApp: App {
 
         Settings {
             SettingsView(viewModel: settingsViewModel)
+                .windowResizeBehavior(.enabled)
+                .windowFullScreenBehavior(.disabled)
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
                     NSApp.activate(ignoringOtherApps: true)
@@ -178,6 +180,7 @@ struct FasterSwiperApp: App {
                     NSApp.deactivate()
                 }
         }
+        .windowResizability(.contentSize)
     }
 
     private func openSettings() {

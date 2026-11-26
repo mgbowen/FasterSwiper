@@ -63,6 +63,7 @@ TEST(FasterSwiperTest, DefaultDaemonOptions) {
   EXPECT_TRUE(result.intercept_mission_control_shortcuts());
   EXPECT_TRUE(result.enable_jump_to_space_shortcuts());
   EXPECT_TRUE(result.enable_vertical_spring_compensation());
+  EXPECT_TRUE(result.sync_to_display_refresh_rate());
 }
 
 TEST(FasterSwiperTest, MigrateLegacyDefaultsNotCopied) {
@@ -173,6 +174,17 @@ TEST(FasterSwiperTest, PreserveExplicitFalseVerticalSpringCompensation) {
   proto::DaemonOptions output = HydrateAndExtract(input);
   EXPECT_TRUE(output.has_enable_vertical_spring_compensation());
   EXPECT_FALSE(output.enable_vertical_spring_compensation());
+}
+
+TEST(FasterSwiperTest, PreserveExplicitFalseSyncToDisplayRefreshRate) {
+  proto::DaemonOptions input;
+  input.set_sync_to_display_refresh_rate(false);
+  input.set_frames_per_second(144);
+
+  proto::DaemonOptions output = HydrateAndExtract(input);
+  EXPECT_TRUE(output.has_sync_to_display_refresh_rate());
+  EXPECT_FALSE(output.sync_to_display_refresh_rate());
+  EXPECT_EQ(output.frames_per_second(), 144);
 }
 
 }  // namespace

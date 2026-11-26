@@ -1,0 +1,12 @@
+edition = "2024";
+
+package fasterswiper.swift;
+
+option features.enum_type = CLOSED;
+
+enum LogSeverity {
+    LOG_SEVERITY_INFO = 0;
+    LOG_SEVERITY_WARNING = 1;
+    LOG_SEVERITY_ERROR = 2;
+    LOG_SEVERITY_FATAL = 3;
+}

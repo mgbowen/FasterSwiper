@@ -5,12 +5,89 @@
 #include "src/engine/const.h"
 #include "src/macos-private.h"
 
+#include <cmath>
+#include <cstdint>
+#include <optional>
+#include <utility>
+#include <vector>
+
 #include <absl/log/log.h>
 #include <absl/log/vlog_is_on.h>
+#include <absl/status/status.h>
+#include <absl/status/status_macros.h>
+#include <absl/status/statusor.h>
 
 namespace fasterswiper {
 
 namespace {
+
+struct DisplayUnderMouse {
+  CGDirectDisplayID direct_id = kCGNullDirectDisplay;
+  CFUniquePtr<CFStringRef> uuid;
+};
+
+absl::StatusOr<CFUniquePtr<CFStringRef>> GetDisplayUuidString(
+    CGDirectDisplayID display_id) {
+  if (display_id == kCGNullDirectDisplay) {
+    return absl::InvalidArgumentError("display_id is kCGNullDirectDisplay");
+  }
+
+  CFUniquePtr<CFUUIDRef> display_uuid_object =
+      WrapCFUnique(CGDisplayCreateUUIDFromDisplayID(display_id));
+  if (!display_uuid_object) {
+    return absl::InternalError("Failed to create display UUID object");
+  }
+
+  CFUniquePtr<CFStringRef> display_uuid_string =
+      WrapCFUnique(CFUUIDCreateString(nullptr, display_uuid_object.get()));
+  if (!display_uuid_string) {
+    return absl::InternalError("Failed to create display UUID string");
+  }
+
+  return display_uuid_string;
+}
+
+absl::StatusOr<std::vector<CGDirectDisplayID>> GetDirectDisplayIdsUnderMouse() {
+  CGEventRef raw_event = CGEventCreate(nullptr);
+  if (!raw_event) {
+    return absl::InternalError("Failed to create event");
+  }
+
+  auto event = WrapCFUnique(raw_event);
+  const CGPoint point = CGEventGetLocation(event.get());
+
+  uint32_t display_count = 0;
+  CGGetDisplaysWithPoint(point, 128, nullptr, &display_count);
+  if (display_count == 0) {
+    return std::vector<CGDirectDisplayID>{};
+  }
+
+  std::vector<CGDirectDisplayID> direct_display_ids(display_count);
+  CGGetDisplaysWithPoint(point, display_count, direct_display_ids.data(),
+                         &display_count);
+  direct_display_ids.resize(display_count);
+  return direct_display_ids;
+}
+
+absl::StatusOr<std::vector<DisplayUnderMouse>>
+GetDisplaysUnderMouseWithDirectIds() {
+  ASSIGN_OR_RETURN(std::vector<CGDirectDisplayID> direct_display_ids,
+                   GetDirectDisplayIdsUnderMouse());
+
+  std::vector<DisplayUnderMouse> displays;
+  displays.reserve(direct_display_ids.size());
+
+  for (const CGDirectDisplayID direct_display_id : direct_display_ids) {
+    ASSIGN_OR_RETURN(CFUniquePtr<CFStringRef> display_uuid_string,
+                     GetDisplayUuidString(direct_display_id));
+    displays.push_back(DisplayUnderMouse{
+        .direct_id = direct_display_id,
+        .uuid = std::move(display_uuid_string),
+    });
+  }
+
+  return displays;
+}
 
 int64_t RoundNanopositions(double val) {
   return static_cast<int64_t>(std::round(val));
@@ -18,14 +95,9 @@ int64_t RoundNanopositions(double val) {
 
 }  // namespace
 
-SpaceState::SpaceState(CFUniquePtr<CFStringRef> display_id,
-                       std::vector<Space> spaces, CFIndex index)
-    : SpaceState(static_cast<CFSharedPtr<CFStringRef>>(std::move(display_id)),
-                 std::move(spaces), index) {}
-
-SpaceState::SpaceState(CFSharedPtr<CFStringRef> display_id,
-                       std::vector<Space> spaces, CFIndex index)
-    : display_id_(std::move(display_id)),
+SpaceState::SpaceState(CGDirectDisplayID display_id, std::vector<Space> spaces,
+                       int64_t index)
+    : display_id_(display_id),
       spaces_(std::move(spaces)),
       index_(index),
       unit_factor_(count() <= 1 ? 1.0
@@ -52,7 +124,7 @@ double SpaceState::SwipesToProgress(int64_t nanopositions) const {
 }
 
 absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
-  auto maybe_displays = GetDisplaysUnderMouse();
+  auto maybe_displays = GetDisplaysUnderMouseWithDirectIds();
   if (!maybe_displays.ok()) {
     return maybe_displays.status();
   }
@@ -60,12 +132,11 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
   if (VLOG_IS_ON(1)) {
     VLOG(1) << "Displays under mouse:";
     for (const auto& display : *maybe_displays) {
-      VLOG(1) << "  * \"" << StringFromCFStringRef(display.get());
+      VLOG(1) << "  * \"" << StringFromCFStringRef(display.uuid.get());
     }
   }
 
-  const std::vector<CFUniquePtr<CFStringRef>>& displays_under_mouse =
-      *maybe_displays;
+  const std::vector<DisplayUnderMouse>& displays_under_mouse = *maybe_displays;
   if (displays_under_mouse.empty()) {
     return absl::InternalError("No displays found under mouse");
   }
@@ -91,29 +162,17 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
               << StringFromCFStringRef(raw_display_id) << "\"";
     }
 
-    bool found_display = false;
+    std::optional<CGDirectDisplayID> matched_direct_display_id;
     for (const auto& display_under_mouse : displays_under_mouse) {
-      const int result =
-          CFStringCompare(raw_display_id, display_under_mouse.get(), 0);
-
-      if (VLOG_IS_ON(1)) {
-        VLOG(1) << "\"" << StringFromCFStringRef(display_under_mouse.get())
-                << "\" <=> \"" << StringFromCFStringRef(raw_display_id)
-                << "\" = " << result;
-      }
-
-      if (result == kCFCompareEqualTo) {
-        found_display = true;
+      if (CFStringCompare(raw_display_id, display_under_mouse.uuid.get(), 0) ==
+          kCFCompareEqualTo) {
+        matched_direct_display_id = display_under_mouse.direct_id;
         break;
       }
     }
 
-    if (!found_display) {
+    if (!matched_direct_display_id.has_value()) {
       continue;
-    }
-
-    if (VLOG_IS_ON(1)) {
-      VLOG(1) << "Found display under mouse";
     }
 
     const uint64_t active_space_id =
@@ -143,15 +202,12 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
       spaces.push_back(space);
 
       if (static_cast<uint64_t>(space.id) == active_space_id) {
-        // Found the active space, retain the display ID so it isn't released
-        // when we return.
-        CFRetain(raw_display_id);
         index = j;
       }
     }
 
     if (index.has_value()) {
-      return SpaceState(WrapCFUnique(raw_display_id), std::move(spaces),
+      return SpaceState(*matched_direct_display_id, std::move(spaces),
                         /*index=*/*index);
     }
   }
@@ -160,45 +216,20 @@ absl::StatusOr<SpaceState> LoadSpaceStateForActiveDisplay() {
       "Cannot load space state for a system with zero displays.");
 }
 
-absl::StatusOr<std::vector<CFUniquePtr<CFStringRef>>> GetDisplaysUnderMouse() {
-  CGEventRef raw_event = CGEventCreate(nullptr);
-  if (!raw_event) {
-    return absl::InternalError("Failed to create event");
+absl::StatusOr<int64_t> GetCurrentSpaceIdForDisplay(
+    CGDirectDisplayID display_id) {
+  ASSIGN_OR_RETURN(CFUniquePtr<CFStringRef> uuid,
+                   GetDisplayUuidString(display_id));
+  return SLSManagedDisplayGetCurrentSpace(SLSMainConnectionID(), uuid.get());
+}
+
+std::optional<CGDirectDisplayID> GetPrimaryDisplayUnderMouse() {
+  auto maybe_ids = GetDirectDisplayIdsUnderMouse();
+  if (!maybe_ids.ok() || maybe_ids->empty() ||
+      (*maybe_ids)[0] == kCGNullDirectDisplay) {
+    return std::nullopt;
   }
-
-  auto event = WrapCFUnique(raw_event);
-  const CGPoint point = CGEventGetLocation(event.get());
-
-  // Get the count of displays first.
-  uint32_t displayCount = 0;
-  CGGetDisplaysWithPoint(point, 128, nullptr, &displayCount);
-
-  // Then actually load the display IDs.
-  std::vector<CGDirectDisplayID> direct_display_ids(displayCount);
-  CGGetDisplaysWithPoint(point, displayCount, direct_display_ids.data(),
-                         &displayCount);
-
-  std::vector<CFUniquePtr<CFStringRef>> display_ids;
-  display_ids.reserve(displayCount);
-
-  for (uint32_t i = 0; i < displayCount; i++) {
-    const CGDirectDisplayID direct_display_id = direct_display_ids[i];
-    CFUniquePtr<CFUUIDRef> display_uuid_object =
-        WrapCFUnique(CGDisplayCreateUUIDFromDisplayID(direct_display_id));
-    if (!display_uuid_object) {
-      return absl::InternalError("Failed to create display UUID object");
-    }
-
-    CFUniquePtr<CFStringRef> display_uuid_string =
-        WrapCFUnique(CFUUIDCreateString(nullptr, display_uuid_object.get()));
-    if (!display_uuid_string) {
-      return absl::InternalError("Failed to create display UUID string");
-    }
-
-    display_ids.push_back(std::move(display_uuid_string));
-  }
-
-  return display_ids;
+  return (*maybe_ids)[0];
 }
 
 }  // namespace fasterswiper

@@ -156,11 +156,22 @@ cc_library(
 )
 
 cc_library(
+    name = "animation-timer",
+    hdrs = ["animation-timer.h"],
+    deps = [
+        ":ApplicationServices",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/time",
+    ],
+)
+
+cc_library(
     name = "periodic-timer",
     srcs = ["periodic-timer.cc"],
     hdrs = ["periodic-timer.h"],
     deps = [
         ":CoreFoundation",
+        ":animation-timer",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -195,6 +206,18 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "space-state_test",
+    srcs = ["space-state_test.cc"],
+    deps = [
+        ":ApplicationServices",
+        ":space-state",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

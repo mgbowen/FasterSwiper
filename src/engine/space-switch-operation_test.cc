@@ -1233,5 +1233,148 @@ TEST(ContinuousSpaceSwitchOperationTest, NoOpAndSubOneSpaceCommitsAreGuarded) {
   }
 }
 
+TEST(ContinuousSpaceSwitchOperationTest,
+     SixtyAnd120HzLargePenultimateGapHoldsOneExtraVsyncForSmoothCommit) {
+  const absl::FlagSaver flag_saver;
+  absl::SetFlag(&FLAGS_force_os_version, 27);
+
+  constexpr int64_t k60HzDtNs = 16'666'667LL;
+  constexpr int64_t k120HzDtNs = 8'333'333LL;
+  const EasingFunction linear = MakeEasingFunctionLinear();
+  const EasingFunction quad_out = MakeEasingFunctionEaseOutQuadratic();
+  const EasingFunction quad_in = [](double t) { return t * t; };
+
+  struct Case {
+    const char* name;
+    int64_t space_count;
+    int64_t target_spaces;
+    absl::Duration duration;
+    int64_t dt_ns;
+    EasingFunction easing;
+  };
+  const std::vector<Case> cases = {
+      {"60Hz_200ms_Linear_1space", 4, 1, absl::Milliseconds(200), k60HzDtNs,
+       linear},
+      {"60Hz_200ms_EaseIn_1space", 4, 1, absl::Milliseconds(200), k60HzDtNs,
+       quad_in},
+      {"60Hz_200ms_QuadOut_8space", 10, 8, absl::Milliseconds(200), k60HzDtNs,
+       quad_out},
+      {"60Hz_100ms_QuadOut_2space", 5, 2, absl::Milliseconds(100), k60HzDtNs,
+       quad_out},
+      {"60Hz_50ms_QuadOut_1space", 4, 1, absl::Milliseconds(50), k60HzDtNs,
+       quad_out},
+      {"60Hz_10ms_ShortSingleTick_1space", 4, 1, absl::Milliseconds(10),
+       k60HzDtNs, linear},
+      {"120Hz_200ms_Linear_2space", 5, 2, absl::Milliseconds(200), k120HzDtNs,
+       linear},
+  };
+
+  for (const Case& c : cases) {
+    SCOPED_TRACE(c.name);
+    const auto soft_limits =
+        std::make_pair(int64_t{0}, (c.space_count - 1) * kOneSwipeInNanoswipes);
+    const int64_t target = c.target_spaces * kOneSwipeInNanoswipes;
+
+    auto maybe_op = ContinuousSpaceSwitchOperation::Create(
+        std::make_unique<FakeAxisAdapter>(Axis::kHorizontal, 0, soft_limits),
+        SpaceSwitchOperation::Options{.natural_scrolling_enabled = false});
+    ASSERT_TRUE(maybe_op.ok()) << maybe_op.status();
+    auto op = *std::move(maybe_op);
+    RecordingCGEventSink sink;
+
+    bool reached_target = false;
+    int ticks_at_target = 0;
+    bool finished = false;
+    for (int tick = 1; tick <= 60; ++tick) {
+      const int64_t elapsed_ns = tick * c.dt_ns;
+      const auto res =
+          op->StepAnimation(0, target, elapsed_ns, c.duration, c.easing, &sink);
+      if (op->position() == target) {
+        reached_target = true;
+        ++ticks_at_target;
+      }
+      if (res == SpaceSwitchOperation::AnimationStepResult::kFinished) {
+        finished = true;
+        break;
+      }
+    }
+
+    EXPECT_TRUE(reached_target);
+    EXPECT_TRUE(finished);
+    // Exactly 1 extra VSync tick held at target_position before finishing.
+    EXPECT_EQ(ticks_at_target, 2);
+
+    // The two final kGestureChanged events before Commit must both hold at
+    // target - holdback.
+    ASSERT_GE(sink.events().size(), 3u);
+    const double expected_hold_progress =
+        static_cast<double>(
+            target -
+            ContinuousSpaceSwitchOperation::kBoundaryHoldbackNanoswipes) /
+        kOneSwipeInNanoswipes;
+    const auto& hold_first = sink.events()[sink.events().size() - 2];
+    const auto& hold_second = sink.events().back();
+    EXPECT_EQ(hold_first.phase, kGestureChanged);
+    EXPECT_EQ(hold_second.phase, kGestureChanged);
+    EXPECT_FLOAT_EQ(static_cast<float>(hold_first.progress),
+                    static_cast<float>(expected_hold_progress));
+    EXPECT_FLOAT_EQ(static_cast<float>(hold_second.progress),
+                    static_cast<float>(expected_hold_progress));
+
+    op->Commit(&sink);
+    const auto& final_ended = sink.events().back();
+    EXPECT_EQ(final_ended.phase, kGestureEnded);
+    EXPECT_FLOAT_EQ(static_cast<float>(final_ended.progress),
+                    static_cast<float>(kEpsilon));
+    EXPECT_DOUBLE_EQ(final_ended.velocity_x,
+                     8.0 * static_cast<double>(c.space_count));
+  }
+}
+
+TEST(ContinuousSpaceSwitchOperationTest,
+     SetPositionDuringTargetHoldClearsPendingHold) {
+  const absl::FlagSaver flag_saver;
+  absl::SetFlag(&FLAGS_force_os_version, 27);
+
+  const auto soft_limits =
+      std::make_pair(int64_t{0}, 3 * kOneSwipeInNanoswipes);
+  auto maybe_op = ContinuousSpaceSwitchOperation::Create(
+      std::make_unique<FakeAxisAdapter>(Axis::kHorizontal, 0, soft_limits),
+      SpaceSwitchOperation::Options{.natural_scrolling_enabled = false});
+  ASSERT_TRUE(maybe_op.ok());
+  auto op = *std::move(maybe_op);
+  RecordingCGEventSink sink;
+
+  const EasingFunction linear = MakeEasingFunctionLinear();
+  const absl::Duration duration = absl::Milliseconds(100);
+
+  // Reach target with a large penultimate gap -> holds for 1 extra tick.
+  EXPECT_EQ(op->StepAnimation(0, kOneSwipeInNanoswipes, 50'000'000LL, duration,
+                              linear, &sink),
+            SpaceSwitchOperation::AnimationStepResult::kContinue);
+  EXPECT_EQ(op->StepAnimation(0, kOneSwipeInNanoswipes, 100'000'000LL, duration,
+                              linear, &sink),
+            SpaceSwitchOperation::AnimationStepResult::kContinue);
+  EXPECT_EQ(op->position(), kOneSwipeInNanoswipes);
+
+  // Interrupt during the hold with a manual drag.
+  op->SetPosition(1'400'000, &sink);
+  EXPECT_EQ(op->position(), 1'400'000);
+
+  // Subsequent animation to 2 spaces must animate normally and hold once at
+  // 2e6.
+  EXPECT_EQ(op->StepAnimation(1'400'000, 2 * kOneSwipeInNanoswipes,
+                              100'000'000LL, duration, linear, &sink),
+            SpaceSwitchOperation::AnimationStepResult::kContinue);
+  EXPECT_EQ(op->position(), 2 * kOneSwipeInNanoswipes);
+  EXPECT_EQ(op->StepAnimation(1'400'000, 2 * kOneSwipeInNanoswipes,
+                              116'666'667LL, duration, linear, &sink),
+            SpaceSwitchOperation::AnimationStepResult::kFinished);
+
+  op->Commit(&sink);
+  EXPECT_EQ(sink.events().back().phase, kGestureEnded);
+  EXPECT_DOUBLE_EQ(sink.events().back().velocity_x, 8.0 * 4);
+}
+
 }  // namespace
 }  // namespace fasterswiper

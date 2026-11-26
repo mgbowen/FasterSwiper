@@ -168,6 +168,14 @@ final class SettingsViewModel: SettingsViewModelProtocol {
         }
     }
 
+    var syncToDisplayRefreshRate: Bool {
+        get { settingsStore.daemonOptions.syncToDisplayRefreshRate }
+        set {
+            settingsStore.daemonOptions.syncToDisplayRefreshRate = newValue
+            scheduleRestart()
+        }
+    }
+
     var framesPerSecond: Int {
         get { Int(settingsStore.daemonOptions.framesPerSecond) }
         set {

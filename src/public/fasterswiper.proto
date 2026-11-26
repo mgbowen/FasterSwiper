@@ -37,4 +37,5 @@ message DaemonOptions {
     GestureSettings horizontal_settings = 7;
     GestureSettings vertical_settings = 8;
     bool enable_vertical_spring_compensation = 9;
+    bool sync_to_display_refresh_rate = 10;
 }
