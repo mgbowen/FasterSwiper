@@ -284,12 +284,17 @@ absl::Status PhysicalEventHandler::HandleChangeGesture(
 
   RETURN_IF_ERROR(CheckGestureActive());
 
+  CHECK(animator_->operation().options().natural_scrolling_enabled.has_value());
+  const double progress = NormalizePhysicalDockSwipeProgress(
+      swipe_event.direction, swipe_event.progress,
+      *animator_->operation().options().natural_scrolling_enabled);
+
   const int64_t new_position =
       initial_position_ +
-      animator_->operation().axis_adapter().ProgressToNanoswipes(
-          swipe_event.progress);
+      animator_->operation().axis_adapter().ProgressToNanoswipes(progress);
 
-  VLOG(1) << "HandleChangeGesture():  progress=" << swipe_event.progress;
+  VLOG(1) << "HandleChangeGesture():  raw_progress=" << swipe_event.progress
+          << ", progress=" << progress;
   VLOG(1) << "HandleChangeGesture():  new_position=" << new_position;
 
   RETURN_IF_ERROR(animator_->SetPosition(new_position, event_sink));
@@ -318,11 +323,16 @@ absl::Status PhysicalEventHandler::HandleEndGesture(
 
   RETURN_IF_ERROR(CheckGestureActive());
 
+  CHECK(animator_->operation().options().natural_scrolling_enabled.has_value());
+  const double progress = NormalizePhysicalDockSwipeProgress(
+      swipe_event.direction, swipe_event.progress,
+      *animator_->operation().options().natural_scrolling_enabled);
+
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
-  target_position_ = std::clamp(((target_position_ / kOneSwipeInNanoswipes) +
-                                 (swipe_event.progress > 0 ? 1 : -1)) *
-                                    kOneSwipeInNanoswipes,
-                                soft_min, soft_max);
+  target_position_ = std::clamp(
+      ((target_position_ / kOneSwipeInNanoswipes) + (progress > 0 ? 1 : -1)) *
+          kOneSwipeInNanoswipes,
+      soft_min, soft_max);
 
   const absl::Duration duration =
       CalculateAnimationDuration(animator_->position(), target_position_,
@@ -415,14 +425,7 @@ absl::Status PhysicalEventHandler::HandleCommand(
     return absl::OkStatus();
   }
 
-  SpaceSwitchOperation::Options operation_options;
-  if (axis == Axis::kVertical) {
-    // Stock macOS always has the up and down keyboard shortcuts act the same
-    // regardless of what natural scrolling is set to.
-    operation_options.natural_scrolling_enabled = false;
-  }
-
-  RETURN_IF_ERROR(SetUpForNewGesture(axis, operation_options));
+  RETURN_IF_ERROR(SetUpForNewGesture(axis));
 
   const auto [soft_min, soft_max] = animator_->position_soft_limits();
   target_position_ =
@@ -518,8 +521,7 @@ absl::Status PhysicalEventHandler::CheckGestureActive() {
   return absl::OkStatus();
 }
 
-absl::Status PhysicalEventHandler::SetUpForNewGesture(
-    Axis axis, SpaceSwitchOperation::Options options) {
+absl::Status PhysicalEventHandler::SetUpForNewGesture(Axis axis) {
   current_axis_ = axis;
   bool need_new_animator = true;
   if (animator_ != nullptr) {
@@ -571,9 +573,9 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
                 ? static_cast<
                       absl::StatusOr<std::unique_ptr<SpaceSwitchOperation>>>(
                       ContinuousSpaceSwitchOperation::Create(
-                          std::move(axis_adapter), options))
-                : SegmentedSpaceSwitchOperation::Create(std::move(axis_adapter),
-                                                        options));
+                          std::move(axis_adapter)))
+                : SegmentedSpaceSwitchOperation::Create(
+                      std::move(axis_adapter)));
         break;
       }
       case kVertical: {
@@ -585,10 +587,10 @@ absl::Status PhysicalEventHandler::SetUpForNewGesture(
         if (ShouldUseVerticalSpringCompensation(options_)) {
           ASSIGN_OR_RETURN(operation,
                            CompensatedVerticalSpaceSwitchOperation::Create(
-                               std::move(axis_adapter), options));
+                               std::move(axis_adapter)));
         } else {
           ASSIGN_OR_RETURN(operation, SegmentedSpaceSwitchOperation::Create(
-                                          std::move(axis_adapter), options));
+                                          std::move(axis_adapter)));
         }
         break;
       }

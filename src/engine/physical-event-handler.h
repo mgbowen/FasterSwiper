@@ -98,8 +98,7 @@ private:
   absl::Status HandleCommand(const JumpToSpaceCommand& command);
 
   absl::Status CheckGestureActive();
-  absl::Status SetUpForNewGesture(Axis axis,
-                                  SpaceSwitchOperation::Options options = {});
+  absl::Status SetUpForNewGesture(Axis axis);
 
   bool IsAxisEnabled(Axis axis) const;
   absl::Duration GetDurationForAxis(Axis axis) const;

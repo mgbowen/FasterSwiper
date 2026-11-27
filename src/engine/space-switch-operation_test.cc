@@ -836,6 +836,9 @@ TEST(CompensatedVerticalOperationTest, NaturalScrollingSignsOnMacOS26And27) {
         1.0);
   }
 
+  // On macOS 27, WindowManager never inverts vertical wire events for natural
+  // scrolling (+ is always up toward Mission Control, - is always down toward
+  // App Expose).
   absl::SetFlag(&FLAGS_force_os_version, 27);
   {
     CFUniquePtr<CGEventRef> ev_no_nat = CreateDockControlGestureEvent(
@@ -850,10 +853,139 @@ TEST(CompensatedVerticalOperationTest, NaturalScrollingSignsOnMacOS26And27) {
                      6.0);
     EXPECT_DOUBLE_EQ(
         CGEventGetDoubleValueField(ev_nat.get(), kCGEventGestureSwipeProgress),
-        -1.0);
+        1.0);
     EXPECT_DOUBLE_EQ(
         CGEventGetDoubleValueField(ev_nat.get(), kCGEventGestureSwipeVelocityY),
-        -6.0);
+        6.0);
+  }
+}
+
+TEST(CompensatedVerticalOperationTest,
+     ExitMissionControlAndAppExposeWithNaturalScrollingEnabledOnMacOS27) {
+  const absl::FlagSaver flag_saver;
+  absl::SetFlag(&FLAGS_force_os_version, 27);
+
+  const EasingFunction linear = MakeEasingFunctionLinear();
+  constexpr int64_t kDtNs = 1'000'000'000LL / 240;
+
+  // Mission Control (+1e6) -> swipe down (physical progress +0.3 under natural
+  // scrolling, normalized to -0.3) -> Desktop (0).
+  {
+    int64_t fake_now_ns = 1'000'000'000LL;
+    std::optional<int64_t> wait_target;
+    auto maybe_op = CompensatedVerticalSpaceSwitchOperation::Create(
+        std::make_unique<FakeAxisAdapter>(
+            Axis::kVertical, kOneSwipeInNanoswipes,
+            std::make_pair(-kOneSwipeInNanoswipes, kOneSwipeInNanoswipes),
+            &wait_target),
+        SpaceSwitchOperation::Options{.natural_scrolling_enabled = true},
+        [&] { return fake_now_ns; });
+    ASSERT_TRUE(maybe_op.ok()) << maybe_op.status();
+    auto op = *std::move(maybe_op);
+    RecordingCGEventSink sink;
+
+    const double normalized_change = NormalizePhysicalDockSwipeProgress(
+        kCGGestureMotionVertical, 0.3, /*natural_scrolling_enabled=*/true);
+    const int64_t drag_pos =
+        kOneSwipeInNanoswipes +
+        op->axis_adapter().ProgressToNanoswipes(normalized_change);
+    fake_now_ns += 8'000'000LL;
+    op->SetPosition(drag_pos, &sink);
+
+    EXPECT_EQ(op->position_soft_limits(),
+              std::make_pair(int64_t{0}, kOneSwipeInNanoswipes));
+
+    const double normalized_end = NormalizePhysicalDockSwipeProgress(
+        kCGGestureMotionVertical, 0.3, /*natural_scrolling_enabled=*/true);
+    const auto [soft_min, soft_max] = op->position_soft_limits();
+    const int64_t target =
+        std::clamp((1 + (normalized_end > 0 ? 1 : -1)) * kOneSwipeInNanoswipes,
+                   soft_min, soft_max);
+    EXPECT_EQ(target, 0);
+
+    const int64_t release_start = op->position();
+    int64_t elapsed_ns = 0;
+    bool finished = false;
+    for (int tick = 0; tick <= 120; ++tick) {
+      const auto res =
+          op->StepAnimation(release_start, target, elapsed_ns,
+                            absl::Milliseconds(100), linear, &sink);
+      if (res == SpaceSwitchOperation::AnimationStepResult::kFinished) {
+        finished = true;
+        break;
+      }
+      fake_now_ns += kDtNs;
+      elapsed_ns += kDtNs;
+    }
+    EXPECT_TRUE(finished);
+
+    op->Commit(&sink);
+    EXPECT_EQ(op->position(), 0);
+    EXPECT_EQ(wait_target, 0);
+    AssertCompensatedSegmentInvariants(sink.events(), /*expected_segments=*/1);
+    EXPECT_EQ(sink.events().back().phase, kGestureEnded);
+    EXPECT_DOUBLE_EQ(sink.events().back().progress, -1.0);
+    EXPECT_DOUBLE_EQ(sink.events().back().velocity_y, -6.0);
+  }
+
+  // App Expose (-1e6) -> swipe up (physical progress -0.3 under natural
+  // scrolling, normalized to +0.3) -> Desktop (0).
+  {
+    int64_t fake_now_ns = 2'000'000'000LL;
+    std::optional<int64_t> wait_target;
+    auto maybe_op = CompensatedVerticalSpaceSwitchOperation::Create(
+        std::make_unique<FakeAxisAdapter>(
+            Axis::kVertical, -kOneSwipeInNanoswipes,
+            std::make_pair(-kOneSwipeInNanoswipes, kOneSwipeInNanoswipes),
+            &wait_target),
+        SpaceSwitchOperation::Options{.natural_scrolling_enabled = true},
+        [&] { return fake_now_ns; });
+    ASSERT_TRUE(maybe_op.ok()) << maybe_op.status();
+    auto op = *std::move(maybe_op);
+    RecordingCGEventSink sink;
+
+    const double normalized_change = NormalizePhysicalDockSwipeProgress(
+        kCGGestureMotionVertical, -0.3, /*natural_scrolling_enabled=*/true);
+    const int64_t drag_pos =
+        -kOneSwipeInNanoswipes +
+        op->axis_adapter().ProgressToNanoswipes(normalized_change);
+    fake_now_ns += 8'000'000LL;
+    op->SetPosition(drag_pos, &sink);
+
+    EXPECT_EQ(op->position_soft_limits(),
+              std::make_pair(-kOneSwipeInNanoswipes, int64_t{0}));
+
+    const double normalized_end = NormalizePhysicalDockSwipeProgress(
+        kCGGestureMotionVertical, -0.3, /*natural_scrolling_enabled=*/true);
+    const auto [soft_min, soft_max] = op->position_soft_limits();
+    const int64_t target =
+        std::clamp((-1 + (normalized_end > 0 ? 1 : -1)) * kOneSwipeInNanoswipes,
+                   soft_min, soft_max);
+    EXPECT_EQ(target, 0);
+
+    const int64_t release_start = op->position();
+    int64_t elapsed_ns = 0;
+    bool finished = false;
+    for (int tick = 0; tick <= 120; ++tick) {
+      const auto res =
+          op->StepAnimation(release_start, target, elapsed_ns,
+                            absl::Milliseconds(100), linear, &sink);
+      if (res == SpaceSwitchOperation::AnimationStepResult::kFinished) {
+        finished = true;
+        break;
+      }
+      fake_now_ns += kDtNs;
+      elapsed_ns += kDtNs;
+    }
+    EXPECT_TRUE(finished);
+
+    op->Commit(&sink);
+    EXPECT_EQ(op->position(), 0);
+    EXPECT_EQ(wait_target, 0);
+    AssertCompensatedSegmentInvariants(sink.events(), /*expected_segments=*/1);
+    EXPECT_EQ(sink.events().back().phase, kGestureEnded);
+    EXPECT_DOUBLE_EQ(sink.events().back().progress, 1.0);
+    EXPECT_DOUBLE_EQ(sink.events().back().velocity_y, 6.0);
   }
 }
 

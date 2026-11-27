@@ -118,6 +118,9 @@ uint64_t AdvanceMonotonicMachTimestamp(uint64_t now_ticks,
 uint64_t NextMonotonicMachTimestamp();
 uint64_t NextMonotonicNanosecondTimestamp();
 
+double NormalizePhysicalDockSwipeProgress(int direction, double progress,
+                                          bool natural_scrolling_enabled);
+
 CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
     int phase, int direction, double progress, std::optional<double> velocity,
     bool natural_scrolling_enabled);

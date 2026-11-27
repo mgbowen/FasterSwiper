@@ -121,7 +121,12 @@ cc_test(
     name = "event_test",
     srcs = ["event_test.cc"],
     deps = [
+        ":ApplicationServices",
+        ":compatibility",
         ":event",
+        ":macos-private",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

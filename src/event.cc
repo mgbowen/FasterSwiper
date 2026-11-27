@@ -240,15 +240,38 @@ uint64_t NextMonotonicNanosecondTimestamp() {
   return MachTicksToNanoseconds(NextMonotonicMachTimestamp());
 }
 
+double NormalizePhysicalDockSwipeProgress(int direction, double progress,
+                                          bool natural_scrolling_enabled) {
+  // On macOS 27 with natural scrolling enabled, CoreGraphics negates
+  // kCGEventGestureSwipeProgress (field 124) on both axes relative to raw
+  // trackpad motion. For horizontal swipes this already matches FasterSwiper's
+  // canonical direction (+ = right space), whereas macOS never inverts vertical
+  // Mission Control / App Expose gestures for natural scrolling, so physical
+  // vertical progress arrives inverted (- = up, + = down). Un-negate vertical
+  // progress back to canonical coordinates (+ = up toward Mission Control,
+  // - = down toward App Expose).
+  if (IsMacOS27() && natural_scrolling_enabled &&
+      direction == kCGGestureMotionVertical) {
+    return -progress;
+  }
+
+  return progress;
+}
+
 CFUniquePtr<CGEventRef> CreateDockControlGestureEvent(
     int phase, int direction, double progress, std::optional<double> velocity,
     bool natural_scrolling_enabled) {
-  if (IsMacOS27()) {
-    if (natural_scrolling_enabled) {
-      progress = -progress;
-      if (velocity.has_value()) {
-        *velocity = -*velocity;
-      }
+  // On macOS 27, Dock/WindowManager reads raw finger-motion progress and
+  // velocity from the attached IOHIDEvent. Dock applies natural scrolling to
+  // horizontal space-switching gestures, so horizontal wire events must be
+  // negated when natural scrolling is enabled. WindowManager never inverts
+  // vertical gestures (+ = up toward Mission Control, - = down toward App
+  // Expose) regardless of natural scrolling.
+  if (IsMacOS27() && natural_scrolling_enabled &&
+      direction == kCGGestureMotionHorizontal) {
+    progress = -progress;
+    if (velocity.has_value()) {
+      *velocity = -*velocity;
     }
   }
 
