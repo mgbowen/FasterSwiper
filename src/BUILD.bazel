@@ -99,6 +99,7 @@ cc_library(
     srcs = ["event.cc"],
     hdrs = ["event.h"],
     deps = [
+        ":ApplicationServices",
         ":CoreFoundation",
         ":cf-util",
         ":compatibility",
@@ -113,6 +114,16 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "event_test",
+    srcs = ["event_test.cc"],
+    deps = [
+        ":event",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -151,6 +162,7 @@ cc_library(
     hdrs = ["macos-private.h"],
     deps = [
         ":CoreFoundation",
+        ":IOKit",
         ":Skylight",
     ],
 )
@@ -264,15 +276,7 @@ cc_test(
     name = "fp1616_test",
     srcs = ["fp1616_test.cc"],
     deps = [
-        ":ApplicationServices",
-        ":compatibility",
-        ":event",
         ":fp1616",
-        ":gesture-serialization",
-        ":macos-private",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:reflection",
-        "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -289,14 +293,33 @@ cc_library(
         ":event",
         ":fp1616",
         ":macos-private",
-        ":variant-util",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:btree",
-        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "gesture-serialization_test",
+    srcs = ["gesture-serialization_test.cc"],
+    deps = [
+        ":ApplicationServices",
+        ":cf-util",
+        ":compatibility",
+        ":event",
+        ":fp1616",
+        ":gesture-serialization",
+        ":macos-private",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -308,6 +331,11 @@ cc_library(
 cc_library(
     name = "CoreFoundation",
     linkopts = ["-framework CoreFoundation"],
+)
+
+cc_library(
+    name = "IOKit",
+    linkopts = ["-framework IOKit"],
 )
 
 cc_library(

@@ -210,13 +210,10 @@ void SpaceSwitchOperation::PostEvent(CGEventSink* absl_nonnull event_sink,
       velocity, *options_.natural_scrolling_enabled);
   VLOG(1) << "PostEvent(): event=" << CFEventToDebugString(event.get());
 
-  absl::StatusOr<CFUniquePtr<CGEventRef>> maybe_augmented_event =
-      AugmentCGEvent(event.get());
-  if (maybe_augmented_event.ok()) {
-    event_sink->Post(maybe_augmented_event->get());
+  if (const absl::Status status = AugmentCGEvent(event.get()); status.ok()) {
+    event_sink->Post(event.get());
   } else {
-    LOG(ERROR) << "Failed to augment CGEvent: "
-               << maybe_augmented_event.status();
+    LOG(ERROR) << "Failed to augment CGEvent: " << status;
   }
 }
 

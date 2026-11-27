@@ -7,6 +7,9 @@
 
 using SLSSpaceId = size_t;
 
+struct OpaqueIOHIDEvent;
+using IOHIDEventRef = OpaqueIOHIDEvent*;
+
 extern "C" {
 int SLSMainConnectionID(void);
 SLSSpaceId SLSGetActiveSpace(int cid);
@@ -62,6 +65,11 @@ enum class CGSSpaceMask : uint32_t {
 };
 
 CFArrayRef SLSCopySpaces(int cid, CGSSpaceMask type);
+
+void SLEventSetIOHIDEvent(CGEventRef event, IOHIDEventRef hid_event);
+IOHIDEventRef CGEventCopyIOHIDEvent(CGEventRef event);
+IOHIDEventRef IOHIDEventCreateWithBytes(CFAllocatorRef allocator,
+                                        const void* bytes, CFIndex length);
 }
 
 namespace fasterswiper {

@@ -4,25 +4,35 @@
 #include "src/event.h"
 #include "src/fp1616.h"
 #include "src/macos-private.h"
-#include "src/variant-util.h"
 
+#include <array>
 #include <bit>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <optional>
+#include <string>
+#include <variant>
 #include <vector>
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <absl/base/nullability.h>
 #include <absl/log/check.h>
-#include <absl/log/log.h>
+#include <absl/status/status.h>
 #include <absl/status/status_macros.h>
+#include <absl/status/statusor.h>
+#include <absl/strings/str_cat.h>
+#include <absl/strings/string_view.h>
 
 namespace fasterswiper {
 
 namespace {
 
 void SwapBytes(uint8_t* absl_nonnull ptr, size_t length) {
-  for (auto i = 0; i < length / 2; i++) {
-    const auto other_index = length - i - 1;
-    const auto temp = ptr[i];
+  for (size_t i = 0; i < length / 2; i++) {
+    const size_t other_index = length - i - 1;
+    const uint8_t temp = ptr[i];
     ptr[i] = ptr[other_index];
     ptr[other_index] = temp;
   }
@@ -48,17 +58,6 @@ absl::StatusOr<T> ReadBE(absl::string_view& data) {
   return value;
 }
 
-template <typename T>
-void WriteBE(absl::Cord& cord, T value) {
-  constexpr size_t type_size = sizeof(T);
-  if constexpr (std::endian::native != std::endian::big) {
-    SwapBytes(reinterpret_cast<uint8_t*>(&value), type_size);
-  }
-
-  absl::string_view bytes{reinterpret_cast<const char*>(&value), type_size};
-  cord.Append(bytes);
-}
-
 constexpr int8_t kCGEventDataTagInt64OrBinaryBlob = 0b00;
 constexpr int8_t kCGEventDataTagInt32 = 0b01;
 constexpr int8_t kCGEventDataTagFloatingPoint = 0b11;
@@ -74,13 +73,13 @@ absl::StatusOr<CGEventDataElement> ReadInt64OrBinaryBlob(
         "Cannot read Int64OrBinaryBlob with invalid size ", element_size));
   }
 
-  if (data.size() < element_size) {
+  if (data.size() < static_cast<size_t>(element_size)) {
     return absl::OutOfRangeError("Out of range");
   }
 
   // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
   std::string blob{data.data(), static_cast<size_t>(element_size)};
-  data = data.substr(element_size);
+  data = data.substr(static_cast<size_t>(element_size));
   return blob;
 }
 
@@ -129,63 +128,6 @@ absl::StatusOr<CGEventDataFieldHeader> ReadFieldHeader(
   };
 }
 
-void WriteFieldHeader(absl::Cord& cord, const CGEventDataFieldHeader& header) {
-  const uint16_t tag_and_field =
-      ((static_cast<uint32_t>(header.tag) & 0x0003u) << 14u) |
-      (static_cast<uint32_t>(header.field) & 0x3FFFu);
-
-  WriteBE(cord, header.element_size);
-  WriteBE(cord, tag_and_field);
-}
-
-void WriteField(absl::Cord& cord, uint16_t field,
-                const CGEventDataElement& element) {
-  std::visit(
-      overloaded{
-          [&](int32_t value) {
-            WriteFieldHeader(cord, CGEventDataFieldHeader{
-                                       .element_size = 1,
-                                       .tag = kCGEventDataTagInt32,
-                                       .field = field,
-                                   });
-            WriteBE(cord, value);
-          },
-          [&](int64_t value) {
-            WriteFieldHeader(cord, CGEventDataFieldHeader{
-                                       .element_size = 1,
-                                       .tag = kCGEventDataTagInt64OrBinaryBlob,
-                                       .field = field,
-                                   });
-            WriteBE(cord, value);
-          },
-          [&](float value) {
-            WriteFieldHeader(cord, CGEventDataFieldHeader{
-                                       .element_size = 1,
-                                       .tag = kCGEventDataTagFloatingPoint,
-                                       .field = field,
-                                   });
-            WriteBE(cord, value);
-          },
-          [&](double value) {
-            WriteFieldHeader(cord, CGEventDataFieldHeader{
-                                       .element_size = 2,
-                                       .tag = kCGEventDataTagFloatingPoint,
-                                       .field = field,
-                                   });
-            WriteBE(cord, value);
-          },
-          [&](const std::string& value) {
-            WriteFieldHeader(
-                cord, CGEventDataFieldHeader{
-                          .element_size = static_cast<uint16_t>(value.size()),
-                          .tag = kCGEventDataTagInt64OrBinaryBlob,
-                          .field = field,
-                      });
-            cord.Append(value);
-          }},
-      element);
-}
-
 }  // namespace
 
 absl::StatusOr<CGEventData> DeserializeCGEventData(absl::string_view data) {
@@ -227,7 +169,7 @@ absl::StatusOr<CGEventData> DeserializeCGEventData(absl::string_view data) {
   return result;
 }
 
-absl::StatusOr<CGEventData> DeserializeCGEventData(const CGEventRef
+absl::StatusOr<CGEventData> DeserializeCGEventData(CGEventRef
                                                    absl_nonnull event) {
   const auto serialized_data_ref =
       WrapCFUnique(CGEventCreateData(/*allocator=*/nullptr, event));
@@ -249,23 +191,6 @@ absl::StatusOr<CGEventData> DeserializeCGEventData(const CGEventRef
 
   const absl::string_view data(reinterpret_cast<const char*>(data_ptr), size);
   return DeserializeCGEventData(data);
-}
-
-absl::StatusOr<std::string> SerializeCGEventData(
-    const CGEventData& event_data) {
-  if (event_data.version != 2) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Unsupported DeserializedCGEventData version ", event_data.version));
-  }
-
-  absl::Cord result;
-  WriteBE<int32_t>(result, event_data.version);
-
-  for (const auto& [field_id, element] : event_data.fields) {
-    WriteField(result, field_id, element);
-  }
-
-  return std::string(result);
 }
 
 namespace {
@@ -328,56 +253,19 @@ absl::StatusOr<IOHIDEventData> ConsumeIOHIDEventData(absl::string_view& data) {
                    static_cast<uint32_t>(event_data_header->type)));
 }
 
-}  // namespace
+constexpr size_t kMaxDockSwipeHIDBytes = sizeof(IOHIDSystemQueueElement) +
+                                         sizeof(IOHIDFluidTouchGestureData) +
+                                         sizeof(IOHIDVelocityEventData);
+static_assert(kMaxDockSwipeHIDBytes == 96, "Unexpected kMaxDockSwipeHIDBytes");
 
-absl::StatusOr<IOHIDSystemQueueElementData>
-DeserializeIOHIDSystemQueueElementData(absl::string_view data) {
-  IOHIDSystemQueueElementData result;
+struct DockSwipeQueueElement {
+  IOHIDSystemQueueElement header{};
+  IOHIDFluidTouchGestureData gesture{};
+  std::optional<IOHIDVelocityEventData> velocity;
+};
 
-  ASSIGN_OR_RETURN(result.header, ConsumeStruct<IOHIDSystemQueueElement>(data));
-
-  for (int i = 0; i < result.header.event_count; i++) {
-    ASSIGN_OR_RETURN(IOHIDEventData event_data, ConsumeIOHIDEventData(data));
-    result.events.push_back(event_data);
-  }
-
-  if (data.size() != 0) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("When deserializing an IOHIDSystemQueueElement, had ",
-                     data.size(), " bytes left over"));
-  }
-
-  return result;
-}
-
-std::string SerializeIOHIDSystemQueueElementData(
-    const IOHIDSystemQueueElementData& element) {
-  absl::Cord result;
-
-  {
-    absl::string_view bytes{reinterpret_cast<const char*>(&element.header),
-                            sizeof(element.header)};
-    result.Append(bytes);
-  }
-
-  for (auto i = 0; i < element.events.size(); i++) {
-    std::visit(
-        [&](const auto& event_data) {
-          absl::string_view bytes{reinterpret_cast<const char*>(&event_data),
-                                  sizeof(event_data)};
-          result.Append(bytes);
-        },
-        element.events[i]);
-  }
-
-  return std::string(result);
-}
-
-absl::StatusOr<IOHIDSystemQueueElementData>
-GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
-                                               absl_nonnull event) {
-  CHECK(event != nullptr);
-
+DockSwipeQueueElement BuildDockSwipeQueueElement(CGEventRef
+                                                 absl_nonnull event) {
   const int64_t phase =
       CGEventGetIntegerValueField(event, kCGEventGesturePhase);
   const int64_t motion =
@@ -395,9 +283,8 @@ GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
   const int64_t swipe_mask =
       CGEventGetIntegerValueField(event, kCGEventGestureSwipeMask);
 
-  IOHIDSystemQueueElementData result{};
-
-  result.events.push_back(IOHIDFluidTouchGestureData{
+  DockSwipeQueueElement result{};
+  result.gesture = IOHIDFluidTouchGestureData{
       .base = {.size = sizeof(IOHIDFluidTouchGestureData),
                .type = IOHIDEventType::kIOHIDEventTypeFluidTouchGesture,
                .options = static_cast<uint32_t>((phase & 0xFF) << 24),
@@ -409,10 +296,10 @@ GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
       .swipe_mask = static_cast<IOHIDSwipeMask>(swipe_mask),
       .gesture_motion = static_cast<IOHIDGestureMotion>(motion),
       .gesture_flavor = IOHIDGestureFlavor::kIOHIDGestureFlavorDockPrimary,
-      .swipe_progress = DoubleToFixedFP1616(progress)});
+      .swipe_progress = DoubleToFixedFP1616(progress)};
 
   if (vel_x != 0.0 || vel_y != 0.0 || phase == kGestureEnded) {
-    result.events.push_back(IOHIDVelocityEventData{
+    result.velocity = IOHIDVelocityEventData{
         .base = {.size = sizeof(IOHIDVelocityEventData),
                  .type = IOHIDEventType::kIOHIDEventTypeVelocity,
                  .options = 0,
@@ -420,7 +307,7 @@ GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
                  .reserved = {0, 0, 0}},
         .velocity_x = DoubleToFixedFP1616(vel_x),
         .velocity_y = DoubleToFixedFP1616(vel_y),
-        .velocity_z = 0});
+        .velocity_z = 0};
   }
 
   const uint64_t cg_timestamp_ns = CGEventGetTimestamp(event);
@@ -432,43 +319,130 @@ GenerateIOHIDSystemQueueElementDataFromCGEvent(const CGEventRef
                    .sender_id = 0,
                    .options = 0,
                    .attribute_length = 0,
-                   .event_count = static_cast<uint32_t>(result.events.size())};
+                   .event_count = result.velocity.has_value() ? 2u : 1u};
 
   return result;
 }
 
-absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>> AugmentCGEvent(
-    const CGEventRef absl_nonnull event,
-    const IOHIDSystemQueueElementData& element) {
-  CHECK(event != nullptr);
+absl::Status AttachIOHIDEventBytes(CGEventRef absl_nonnull event,
+                                   const uint8_t* absl_nonnull bytes,
+                                   size_t length) {
+  const CFUniquePtr<IOHIDEventRef> hid_event =
+      WrapCFUnique(IOHIDEventCreateWithBytes(kCFAllocatorDefault, bytes,
+                                             static_cast<CFIndex>(length)));
+  if (hid_event == nullptr) {
+    return absl::InternalError(
+        "Failed to create IOHIDEvent from serialized bytes");
+  }
 
-  ASSIGN_OR_RETURN(CGEventData event_data, DeserializeCGEventData(event));
-  std::string serialized_io_hid_element =
-      SerializeIOHIDSystemQueueElementData(element);
-  event_data.fields[4205] = serialized_io_hid_element;
-  ASSIGN_OR_RETURN(std::string serialized_event_data,
-                   SerializeCGEventData(event_data));
+  SLEventSetIOHIDEvent(event, hid_event.get());
+  return absl::OkStatus();
+}
 
-  CFUniquePtr<CFDataRef> data_ref = WrapCFUnique(CFDataCreateWithBytesNoCopy(
-      /*allocator=*/kCFAllocatorDefault,
-      reinterpret_cast<const uint8_t*>(serialized_event_data.data()),
-      serialized_event_data.size(), kCFAllocatorNull));
-  auto result = WrapCFUnique(
-      CGEventCreateFromData(/*allocator=*/kCFAllocatorDefault, data_ref.get()));
-  if (result == nullptr) {
-    return absl::InternalError("Failed to augment CGEvent");
+}  // namespace
+
+absl::StatusOr<IOHIDSystemQueueElementData>
+DeserializeIOHIDSystemQueueElementData(absl::string_view data) {
+  IOHIDSystemQueueElementData result;
+
+  ASSIGN_OR_RETURN(result.header, ConsumeStruct<IOHIDSystemQueueElement>(data));
+
+  for (uint32_t i = 0; i < result.header.event_count; i++) {
+    ASSIGN_OR_RETURN(IOHIDEventData event_data, ConsumeIOHIDEventData(data));
+    result.events.push_back(event_data);
+  }
+
+  if (!data.empty()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("When deserializing an IOHIDSystemQueueElement, had ",
+                     data.size(), " bytes left over"));
   }
 
   return result;
 }
 
-absl::StatusOr<CFUniquePtr<CGEventRef absl_nonnull>> AugmentCGEvent(
-    const CGEventRef absl_nonnull event) {
+absl::StatusOr<IOHIDSystemQueueElementData>
+GenerateIOHIDSystemQueueElementDataFromCGEvent(CGEventRef absl_nonnull event) {
   CHECK(event != nullptr);
 
-  ASSIGN_OR_RETURN(const IOHIDSystemQueueElementData element,
-                   GenerateIOHIDSystemQueueElementDataFromCGEvent(event));
-  return AugmentCGEvent(event, element);
+  const DockSwipeQueueElement built = BuildDockSwipeQueueElement(event);
+
+  IOHIDSystemQueueElementData result{};
+  result.header = built.header;
+  result.events.reserve(built.header.event_count);
+  result.events.emplace_back(built.gesture);
+  if (built.velocity.has_value()) {
+    result.events.emplace_back(*built.velocity);
+  }
+
+  return result;
+}
+
+absl::Status AugmentCGEvent(CGEventRef absl_nonnull event,
+                            const IOHIDSystemQueueElementData& element) {
+  CHECK(event != nullptr);
+
+  if (element.events.empty()) {
+    return absl::InvalidArgumentError(
+        "IOHIDSystemQueueElementData must contain at least one event");
+  }
+  if (element.header.event_count != element.events.size()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "IOHIDSystemQueueElementData event_count (", element.header.event_count,
+        ") does not match events size (", element.events.size(), ")"));
+  }
+
+  size_t total_size = sizeof(element.header);
+  for (const IOHIDEventData& event_data : element.events) {
+    total_size +=
+        std::visit([](const auto& typed_event) { return sizeof(typed_event); },
+                   event_data);
+  }
+
+  auto serialize_into = [&](uint8_t* absl_nonnull dst) {
+    size_t offset = 0;
+    std::memcpy(dst + offset, &element.header, sizeof(element.header));
+    offset += sizeof(element.header);
+    for (const IOHIDEventData& event_data : element.events) {
+      std::visit(
+          [&](const auto& typed_event) {
+            std::memcpy(dst + offset, &typed_event, sizeof(typed_event));
+            offset += sizeof(typed_event);
+          },
+          event_data);
+    }
+  };
+
+  constexpr size_t kStackBufferSize = 128;
+  if (total_size <= kStackBufferSize) {
+    std::array<uint8_t, kStackBufferSize> buffer{};
+    serialize_into(buffer.data());
+    return AttachIOHIDEventBytes(event, buffer.data(), total_size);
+  }
+
+  std::vector<uint8_t> buffer(total_size);
+  serialize_into(buffer.data());
+  return AttachIOHIDEventBytes(event, buffer.data(), buffer.size());
+}
+
+absl::Status AugmentCGEvent(CGEventRef absl_nonnull event) {
+  CHECK(event != nullptr);
+
+  const DockSwipeQueueElement built = BuildDockSwipeQueueElement(event);
+  std::array<uint8_t, kMaxDockSwipeHIDBytes> buffer{};
+  size_t offset = 0;
+
+  std::memcpy(buffer.data() + offset, &built.header, sizeof(built.header));
+  offset += sizeof(built.header);
+  std::memcpy(buffer.data() + offset, &built.gesture, sizeof(built.gesture));
+  offset += sizeof(built.gesture);
+  if (built.velocity.has_value()) {
+    std::memcpy(buffer.data() + offset, &(*built.velocity),
+                sizeof(*built.velocity));
+    offset += sizeof(*built.velocity);
+  }
+
+  return AttachIOHIDEventBytes(event, buffer.data(), offset);
 }
 
 }  // namespace fasterswiper
